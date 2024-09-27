@@ -1,0 +1,17 @@
+[package]
+name = "h5-tournaments-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = {version = "0.7.4", features = ["query"]}
+shuttle-axum = "0.47.0"
+shuttle-runtime = "0.47.0"
+tokio = "1.28.2"
+shuttle-shared-db = { version = "0.47.0", features = ["postgres", "sqlx"] }
+sqlx = { version = "0.7.4", features = ["postgres", "runtime-tokio", "json"] }
+uuid = { version = "1.10.0", features = ["v4"] }
+serde = { version = "1.0.210", features = ["derive"] }
+tracing = "0.1.40"
+serde_json = { version = "1.0.128", features = ["raw_value"] }
+strum = { version = "0.26.3", features = ["strum_macros"] }
