@@ -1,8 +1,9 @@
-use axum::{routing::{get, post}, Router};
+use axum::{routing::get, Router};
 use sqlx::PgPool;
-use tournament::core::{create_tournament, get_heroes, get_races, get_tournament};
+use tournament::{management::management_routes, statistics::statistics_routes};
 
 pub mod tournament;
+pub mod utils;
 
 async fn hello_world() -> &'static str {
     "Hello, world!"
@@ -22,10 +23,8 @@ async fn main(
     };
     let router = Router::new()
         .route("/", get(hello_world))
-        .route("/tournament/create", post(create_tournament))
-        .route("/tournament", get(get_tournament))
-        .route("/races", get(get_races))
-        .route("/heroes", get(get_heroes))
+        .merge(management_routes())
+        .merge(statistics_routes())
         .with_state(manager);
 
     Ok(router.into())

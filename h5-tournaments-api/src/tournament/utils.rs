@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 use strum::{EnumIter, FromRepr};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, EnumIter, FromRepr, sqlx::Type)]
 #[repr(i32)]
@@ -112,4 +113,61 @@ pub struct Hero {
     pub race: RaceType,
     pub actual_name: String,
     pub name_variants: Json<NameVariants>
+}
+
+/// A match between two players in a concrete tournament. Contains Games.
+#[derive(Debug, Serialize, Deserialize, Default, sqlx::FromRow)]
+pub struct Match {
+    pub id: Uuid,
+    pub message: i64,
+    pub tournament_id: Uuid,
+    pub first_player: String,
+    pub second_player: String
+}
+
+/// Possible game outcomes
+#[derive(Debug, Serialize, Deserialize, sqlx::Type)]
+#[repr(i16)]
+pub enum GameResult {
+    NotDetected = 0,
+    FirstPlayerWon = 1,
+    SecondPlayerWon = 2
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type)]
+#[repr(i16)]
+pub enum BargainsColor {
+    NotDetected,
+    ColorRed,
+    ColorBlue
+}
+
+/// A single game between two players.
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Game {
+    pub id: Uuid,
+    pub match_id: Uuid,
+    pub first_player_race: RaceType,
+    pub first_player_hero: HeroType,
+    pub second_player_race: RaceType,
+    pub second_player_hero: HeroType,
+    pub bargains_color: BargainsColor,
+    pub bargains_amount: i16,
+    pub result: GameResult
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct TournamentCreationModel {
+    pub server_id: i64,
+    pub channel_id: i64,
+    pub name: String
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Default)]
+pub struct Tournament {
+    pub id: Uuid,
+    pub server_id: i64,
+    pub channel_id: i64,
+    pub name: String
 }

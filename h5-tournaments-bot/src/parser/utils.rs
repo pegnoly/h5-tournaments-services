@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 use strum::{EnumIter, FromRepr};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, EnumIter, FromRepr, sqlx::Type, Clone, Copy)]
 #[repr(i32)]
@@ -119,18 +120,71 @@ pub struct ParsingDataModel {
     pub heroes: Vec<Hero>
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Tournament {
+    pub id: Uuid,
+    pub server_id: i64,
+    pub channel_id: i64,
+    pub name: String
+}
+
+/// A match between two players in a concrete tournament. Contains Games.
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Match {
-    pub id: String,
-    pub tournament_id: String,
+    pub id: Uuid,
+    pub tournament_id: Uuid,
+    pub message: i64,
     pub first_player: String,
     pub second_player: String
 }
 
+/// Possible game outcomes
+#[derive(Debug, Serialize, Deserialize)]
+#[repr(i16)]
+pub enum GameResult {
+    NotDetected = 0,
+    FirstPlayerWon = 1,
+    SecondPlayerWon = 2
+}
+
+/// A single game between two players.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Game {
+    pub id: Uuid,
+    pub match_id: Uuid,
     pub first_player_race: RaceType,
     pub first_player_hero: HeroType,
     pub second_player_race: RaceType,
-    pub second_player_hero: HeroType
+    pub second_player_hero: HeroType,
+    pub bargains_color: BargainsColor,
+    pub bargains_amount: i32,
+    pub result: GameResult
+}
+
+/// Result of parsing single player's side info in a game
+pub struct GameSideData {
+    pub race: RaceType,
+    pub hero: HeroType
+}
+
+/// Possible colors used in bargains
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[repr(i16)]
+pub enum BargainsColor {
+    NotDetected,
+    ColorRed,
+    ColorBlue
+}
+
+/// Predefined type for bargains color detection
+pub struct BargainsType {
+    pub color: BargainsColor,
+    pub actual_name: String,
+    pub variants: Vec<String>
+}
+
+/// Result of parsing single game bargains info
+pub struct BargainsData {
+    pub color: BargainsColor,
+    pub amount: i32
 }
