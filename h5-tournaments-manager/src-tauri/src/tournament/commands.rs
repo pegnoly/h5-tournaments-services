@@ -1,18 +1,22 @@
+use h5_stats_generator::utils::StatsGenerator;
+use h5_stats_types::{Game, Hero, Match, Race, Tournament};
 use reqwest::Client;
 use tauri::State;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
 
-use super::utils::{Game, GameFrontendModel, Hero, HeroFrontendModel, Match, Race, RaceFrontendModel, Tournament, TournamentFrontendModel};
+use super::utils::{GameFrontendModel, HeroFrontendModel, RaceFrontendModel, TournamentFrontendModel};
 
 pub struct LocalAppManager {
-    client: RwLock<Client>
+    client: RwLock<Client>,
+    generator: Mutex<StatsGenerator>
 }
 
 impl LocalAppManager {
     pub fn new() -> Self {
         LocalAppManager { 
-            client: RwLock::new(Client::new()) 
+            client: RwLock::new(Client::new()),
+            generator: Mutex::new(StatsGenerator::new()) 
         }
     }
 }
@@ -30,6 +34,8 @@ pub async fn load_heroes(
             let json: Result<Vec<Hero>, reqwest::Error> = success.json().await;
             match json {
                 Ok(heroes) => {
+                    let mut generator_locked = app_manager.generator.lock().await;
+                    generator_locked.heroes_data = heroes.clone();
                     Ok(heroes.into_iter().map(|h| HeroFrontendModel::from(h)).collect())
                 },
                 Err(json_error) => {
@@ -58,6 +64,8 @@ pub async fn load_races(
             let json: Result<Vec<Race>, reqwest::Error> = success.json().await;
             match json {
                 Ok(races) => {
+                    let mut generator_locked = app_manager.generator.lock().await;
+                    generator_locked.races_data = races.clone();
                     Ok(races.into_iter().map(|r| RaceFrontendModel::from(r)).collect())
                 },
                 Err(json_error) => {
@@ -115,7 +123,9 @@ pub async fn load_matches(
             let json: Result<Vec<Match>, reqwest::Error> = success.json().await;
             match json {
                 Ok(matches) => {
-                    println!("Got existing matches for tournament: {:?}", &matches);
+                    //println!("Got existing matches for tournament: {:?}", &matches);
+                    let mut generator_locked = app_manager.generator.lock().await;
+                    generator_locked.matches_data = matches.clone();
                     Ok(matches)
                 },
                 Err(json_error) => {
@@ -145,7 +155,7 @@ pub async fn load_games(
             let json: Result<Vec<Game>, reqwest::Error> = success.json().await;
             match json {
                 Ok(games) => {
-                    println!("Got existing games for tournament: {:?}", &games);
+                    //println!("Got existing games for tournament: {:?}", &games);
                     Ok(games.into_iter().map(|g| GameFrontendModel::from(g)).collect())
                 },
                 Err(json_error) => {
@@ -225,6 +235,40 @@ pub async fn update_match(
         },
         Err(failure) => {
             print!("Failed to update match with id {}: {}", match_to_update.id, failure.to_string());
+            Err(())
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn load_games_for_stats(
+    app_manager: State<'_, LocalAppManager>,
+    tournament_id: Uuid
+) -> Result<(), ()> {
+    let client = app_manager.client.read().await;
+    let response = client.get(format!("https://h5-tournaments-api.shuttleapp.rs/games/by_tournament/{}", &tournament_id))
+        .send()
+        .await;
+    match response {
+        Ok(success) => {
+            let json: Result<Vec<Game>, reqwest::Error> = success.json().await;
+            match json {
+                Ok(games) => {
+                    println!("Got games for stats count: {}", &games.len());
+                    let mut generator_locked = app_manager.generator.lock().await;
+                    generator_locked.games_data = games;
+                    generator_locked.process(tournament_id.to_string());
+                    generator_locked.save();
+                    Ok(())
+                },
+                Err(json_error) => {
+                    println!("Failed to parse games json: {}", json_error.to_string());
+                    Err(())
+                }
+            }
+        },
+        Err(failure) => {
+            println!("Failed to send games request: {}", failure.to_string());
             Err(())
         }
     }

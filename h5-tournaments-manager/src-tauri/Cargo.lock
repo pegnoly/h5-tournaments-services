@@ -1252,11 +1252,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "h5-stats-generator"
+version = "0.1.0"
+dependencies = [
+ "h5-stats-types",
+ "reqwest",
+ "rust_xlsxwriter",
+ "serde",
+ "serde_json",
+ "strum",
+ "uuid",
+]
+
+[[package]]
+name = "h5-stats-types"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "strum",
+ "uuid",
+]
+
+[[package]]
 name = "h5-tournaments-manager"
 version = "0.1.0"
 dependencies = [
+ "h5-stats-generator",
+ "h5-stats-types",
  "reqwest",
- "rust_xlsxwriter",
  "serde",
  "serde_json",
  "strum",

@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { BargainsColor, Game, HeroType, RaceType } from "../common/types";
+import { BargainsColor, Game, GameResult, HeroType, RaceType } from "../common/types";
 import { useGamesStore } from "../stores/GamesStore";
 import { useHeroesStore } from "../stores/HeroesStore";
 import { useRacesStore } from "../stores/RacesStore";
-import { Select, Typography } from "antd";
+import { Button, Select, Typography } from "antd";
 
 interface GameRendererSchema {
     game: Game
@@ -20,60 +20,53 @@ export function GameRenderer(schema: GameRendererSchema) {
     const [firstPlayerHero, setFirstPlayerHero] = useState<HeroType | undefined>(schema.game.first_player_hero);
     const [secondPlayerRace, setSecondPlayerRace] = useState<RaceType | undefined>(schema.game.second_player_race);
     const [secondPlayerHero, setSecondPlayerHero] = useState<HeroType | undefined>(schema.game.second_player_hero);
-
     const [bargainsColor, setBargainsColor] = useState<BargainsColor | undefined>(schema.game.bargains_color);
     const [bargainsAmount, setBargainsAmount] = useState<number>(schema.game.bargains_amount);
+    const [result, setResult] = useState<GameResult>(schema.game.result);
+
+    function saveGameData() {
+        updateGame({
+            id: schema.game.id,
+            first_player_race: firstPlayerRace!,
+            first_player_hero: firstPlayerHero!,
+            second_player_hero: secondPlayerHero!,
+            second_player_race: secondPlayerRace!,
+            bargains_color: bargainsColor!,
+            bargains_amount: bargainsAmount!,
+            result: result
+        })
+    }
 
     function updateFirstPlayerRace(race: RaceType) {
         setFirstPlayerRace(race);
-        updateGame({
-            ...schema.game,
-            first_player_race: race
-        });
     }
 
     function updateFirstPlayerHero(hero: HeroType) {
         setFirstPlayerHero(hero);
-        updateGame({
-            ...schema.game,
-            first_player_hero: hero
-        });
     }
 
     function updateSecondPlayerRace(race: RaceType) {
         setSecondPlayerRace(race);
-        updateGame({
-            ...schema.game,
-            second_player_race: race
-        });
     }
 
     function updateSecondPlayerHero(hero: HeroType) {
         setSecondPlayerHero(hero);
-        updateGame({
-            ...schema.game,
-            second_player_hero: hero
-        });
     }
 
     function updateBargainsColor(color: BargainsColor) {
         setBargainsColor(color);
-        updateGame({
-            ...schema.game,
-            bargains_color: color
-        });
     }
 
     function updateBargainsAmount(amount: number) {
         setBargainsAmount(amount);
-        updateGame({
-            ...schema.game,
-            bargains_amount: amount
-        });
+    }
+
+    function updateResult(result: GameResult) {
+        setResult(result);
     }
     
     return (
-        <div style={{height: 120, display: 'flex', flexDirection: 'column', alignItems: "center", gap: 5}}>
+        <div style={{height: 185, display: 'flex', flexDirection: 'column', alignItems: "center", gap: 5}}>
             <div style={{width: '100%', display: 'flex', flexDirection: 'row', justifyContent: "center", gap: 20}}>
                 <Select onChange={(v) => updateFirstPlayerRace(v)} value={firstPlayerRace}>
                     <Select.Option key={-1} value={RaceType.NotDetected}>Не определено</Select.Option>
@@ -115,6 +108,15 @@ export function GameRenderer(schema: GameRendererSchema) {
                     updateBargainsAmount(parseInt(value))
                 },}}>{bargainsAmount}</Typography.Text>
             </div>
+            <div style={{width: '100%', display: 'flex', flexDirection: 'row', justifyContent: "center", gap: 20}}>
+                <Typography.Text>Результат:</Typography.Text>
+                <Select onChange={(v) => updateResult(v)} value={result}>
+                    <Select.Option key={0} value={GameResult.NotDetected}>Не определено</Select.Option>
+                    <Select.Option key={1} value={GameResult.FirstPlayerWon}>Победа 1 игрока</Select.Option>
+                    <Select.Option key={2} value={GameResult.SecondPlayerWon}>Победа 2 игрока</Select.Option>
+                </Select>
+            </div>
+            <Button onClick={() => saveGameData()}>Перезаписать данные игры</Button>
         </div>
     )
 }

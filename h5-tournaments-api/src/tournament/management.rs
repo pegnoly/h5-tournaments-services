@@ -19,6 +19,7 @@ pub(crate) fn management_routes() -> Router<ApiManager> {
         .route("/games/:match_id", get(get_games))
         .route("/match", patch(update_match))
         .route("/game", patch(update_game))
+        .route("/games/by_tournament/:tournament_id", get(get_games_by_tournaments))
 }
 
 async fn create_tournament(
@@ -331,6 +332,32 @@ async fn update_game(
         Err(failure) => {
             tracing::info!("Failed to update game {}: {}", &game_data.id, failure.to_string());
             StatusCode::NO_CONTENT
+        }
+    }
+}
+
+async fn get_games_by_tournaments(
+    State(api_manager): State<ApiManager>,
+    Path(tournament_id): Path<Uuid>
+) -> Result<Json<Vec<Game>>, ()> {
+    let res: Result<Vec<Game>, sqlx::Error> = sqlx::query_as(
+    r#"
+            SELECT * FROM games 
+            LEFT JOIN matches
+            ON (games.match_id = matches.id AND matches.tournament_id = $1);         
+        "#)
+        .bind(tournament_id)
+        .fetch_all(&api_manager.pool)
+        .await;
+
+    match res {
+        Ok(success) => {
+            tracing::info!("Got games: {:?}", &success);
+            Ok(Json(success))
+        },
+        Err(failure) => {
+            tracing::error!("Failed to get games: {}", failure.to_string());
+            Err(())
         }
     }
 }

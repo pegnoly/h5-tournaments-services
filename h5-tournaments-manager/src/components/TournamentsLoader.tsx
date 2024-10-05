@@ -2,6 +2,7 @@ import { Button, Select } from "antd";
 import { useTournamentsStore } from "../stores/TournamentsStore";
 import { useMatchesStore } from "../stores/MatchesStore";
 import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 export function TournamentsLoader() {
     const tournaments = useTournamentsStore((state) => state.tournaments);
@@ -20,6 +21,11 @@ export function TournamentsLoader() {
                 <Button
                     onClick={() => loadMatches(tournamentId)}
                 >Загрузить данные турнира</Button>
+            </div>
+            <div style={{paddingLeft: 10}}>
+                <Button
+                    onClick={() => {invoke("load_games_for_stats", {tournamentId: tournamentId})}}
+                >Собрать статистику турнира</Button>
             </div>
         </div>
     )

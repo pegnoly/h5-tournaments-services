@@ -15,7 +15,8 @@ pub fn run() {
             tournament::commands::load_games,
             tournament::commands::create_game,
             tournament::commands::update_game,
-            tournament::commands::update_match
+            tournament::commands::update_match,
+            tournament::commands::load_games_for_stats
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
