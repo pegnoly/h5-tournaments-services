@@ -117,7 +117,8 @@ pub struct Match {
     pub id: Uuid,
     pub tournament_id: Uuid,
     pub first_player: String,
-    pub second_player: String
+    pub second_player: String,
+    pub message: u64
 }
 
 /// Possible game outcomes

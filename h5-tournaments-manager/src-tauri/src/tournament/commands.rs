@@ -1,4 +1,3 @@
-use h5_stats_generator::utils::StatsGenerator;
 use h5_stats_types::{Game, Hero, Match, Race, Tournament};
 use reqwest::Client;
 use tauri::State;
@@ -9,14 +8,12 @@ use super::utils::{GameFrontendModel, HeroFrontendModel, RaceFrontendModel, Tour
 
 pub struct LocalAppManager {
     client: RwLock<Client>,
-    generator: Mutex<StatsGenerator>
 }
 
 impl LocalAppManager {
     pub fn new() -> Self {
         LocalAppManager { 
-            client: RwLock::new(Client::new()),
-            generator: Mutex::new(StatsGenerator::new()) 
+            client: RwLock::new(Client::new())
         }
     }
 }
@@ -34,8 +31,6 @@ pub async fn load_heroes(
             let json: Result<Vec<Hero>, reqwest::Error> = success.json().await;
             match json {
                 Ok(heroes) => {
-                    let mut generator_locked = app_manager.generator.lock().await;
-                    generator_locked.heroes_data = heroes.clone();
                     Ok(heroes.into_iter().map(|h| HeroFrontendModel::from(h)).collect())
                 },
                 Err(json_error) => {
@@ -64,8 +59,6 @@ pub async fn load_races(
             let json: Result<Vec<Race>, reqwest::Error> = success.json().await;
             match json {
                 Ok(races) => {
-                    let mut generator_locked = app_manager.generator.lock().await;
-                    generator_locked.races_data = races.clone();
                     Ok(races.into_iter().map(|r| RaceFrontendModel::from(r)).collect())
                 },
                 Err(json_error) => {
@@ -123,9 +116,6 @@ pub async fn load_matches(
             let json: Result<Vec<Match>, reqwest::Error> = success.json().await;
             match json {
                 Ok(matches) => {
-                    //println!("Got existing matches for tournament: {:?}", &matches);
-                    let mut generator_locked = app_manager.generator.lock().await;
-                    generator_locked.matches_data = matches.clone();
                     Ok(matches)
                 },
                 Err(json_error) => {
@@ -254,11 +244,6 @@ pub async fn load_games_for_stats(
             let json: Result<Vec<Game>, reqwest::Error> = success.json().await;
             match json {
                 Ok(games) => {
-                    println!("Got games for stats count: {}", &games.len());
-                    let mut generator_locked = app_manager.generator.lock().await;
-                    generator_locked.games_data = games;
-                    generator_locked.process(tournament_id.to_string());
-                    generator_locked.save();
                     Ok(())
                 },
                 Err(json_error) => {

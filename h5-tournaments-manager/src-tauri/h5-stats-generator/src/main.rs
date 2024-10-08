@@ -1,18 +1,28 @@
-use h5_stats_generator::utils::StatsGenerator;
+use h5_stats_generator::{builder::{pair::PairStatsBuilder, player::PlayersStatsBuilder, race::RaceStatsBuilder, StatsBuilder}, utils::StatsGeneratorDataModel};
 use h5_stats_types::{Game, Hero, Match, Race};
 use reqwest::Client;
+use rust_xlsxwriter::Workbook;
 use uuid::{uuid, Uuid};
 
 #[tokio::main]
 async fn main() {
-    let mut generator = StatsGenerator::new();
+    let mut data_model = StatsGeneratorDataModel::new();
     let tournament_id = uuid!("9cf9179a-afbb-4d81-b591-9e44e6e480ab");
-    load_data(&mut generator, tournament_id).await;
-    generator.process();
-    generator.save();
+    let mut workbook = Workbook::new();
+
+    let mut builders: Vec<Box<dyn StatsBuilder>> = vec![Box::new(PairStatsBuilder::new()), Box::new(RaceStatsBuilder::new()), Box::new(PlayersStatsBuilder{})];
+
+    load_data(&mut data_model, tournament_id).await;
+
+    for builder in &mut builders {
+        builder.build(&data_model, &mut workbook);
+    }
+
+    let path = std::env::current_exe().unwrap().parent().unwrap().join("test.xlsx");
+    workbook.save(path).unwrap();
 }
 
-async fn load_data(generator: &mut StatsGenerator, id: Uuid) {
+async fn load_data(generator: &mut StatsGeneratorDataModel, id: Uuid) {
     let client = Client::new();
     load_heroes(&client, generator).await;
     load_races(&client, generator).await;
@@ -20,7 +30,7 @@ async fn load_data(generator: &mut StatsGenerator, id: Uuid) {
     load_games(&client, generator, id).await;
 }
 
-async fn load_matches(client: &Client, generator: &mut StatsGenerator, tournament_id: Uuid) {
+async fn load_matches(client: &Client, generator: &mut StatsGeneratorDataModel, tournament_id: Uuid) {
     let response = client.get(format!("https://h5-tournaments-api.shuttleapp.rs/matches/{}", &tournament_id))
         .send()
         .await;
@@ -42,7 +52,7 @@ async fn load_matches(client: &Client, generator: &mut StatsGenerator, tournamen
     }
 }
 
-async fn load_games(client: &Client, generator: &mut StatsGenerator, tournament_id: Uuid) {
+async fn load_games(client: &Client, generator: &mut StatsGeneratorDataModel, tournament_id: Uuid) {
     let response = client.get(format!("https://h5-tournaments-api.shuttleapp.rs/games/by_tournament/{}", &tournament_id))
         .send()
         .await;
@@ -65,7 +75,7 @@ async fn load_games(client: &Client, generator: &mut StatsGenerator, tournament_
     }
 }
 
-async fn load_heroes(client: &Client, generator: &mut StatsGenerator) {
+async fn load_heroes(client: &Client, generator: &mut StatsGeneratorDataModel) {
     let response = client.get("https://h5-tournaments-api.shuttleapp.rs/heroes")
         .send()
         .await;
@@ -87,7 +97,7 @@ async fn load_heroes(client: &Client, generator: &mut StatsGenerator) {
     }
 }
 
-async fn load_races(client: &Client, generator: &mut StatsGenerator) {
+async fn load_races(client: &Client, generator: &mut StatsGeneratorDataModel) {
     let response = client.get("https://h5-tournaments-api.shuttleapp.rs/races")
         .send()
         .await;
