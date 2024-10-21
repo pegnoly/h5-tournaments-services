@@ -63,7 +63,7 @@ fn build_pairs_win_loss_stats(builder: &mut PairStatsBuilder, races_data: &Vec<R
         match race.id {
             RaceType::NotDetected => {},
             _=> {
-                worksheet.write_with_format(1 + (race.id as u32), 0, &race.actual_name, &styles::THIN_BORDER).unwrap();
+                worksheet.write_with_format(1 + (race.id as u32), 0, &race.actual_name, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
                 let col_offset = (race.id as u16) * 2 - 1;
                 worksheet.merge_range(
                     0, 
@@ -105,8 +105,8 @@ fn build_pairs_win_loss_stats(builder: &mut PairStatsBuilder, races_data: &Vec<R
 
                                 *builder.losses_by_race.get_mut(&opponent_race.id).unwrap().get_mut(&race.id).unwrap() = losses;
 
-                                worksheet.write_with_format(row_offset, col_offset, wins as u32, &styles::THIN_BORDER).unwrap();
-                                worksheet.write_with_format(row_offset, col_offset + 1, losses as u32, &styles::THIN_BORDER).unwrap();
+                                worksheet.write_with_format(row_offset, col_offset, wins as u32, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
+                                worksheet.write_with_format(row_offset, col_offset + 1, losses as u32, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
                             }
                             else {
                                 worksheet.set_cell_format(row_offset, col_offset, &styles::BACKGROUND_BLACK).unwrap();
@@ -164,10 +164,10 @@ fn build_total_games_and_winrates(builder: &mut PairStatsBuilder, worksheet: &mu
             RaceType::NotDetected => {},
             _=> {
                 let row_offset = 1 + (race.id as u32);
-                worksheet.write_with_format(row_offset, 17, *races_total_games.get(&race.id).unwrap() as u32, &styles::THIN_BORDER).unwrap();
+                worksheet.write_with_format(row_offset, 17, *races_total_games.get(&race.id).unwrap() as u32, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
                 let row_offset = 11 + (race.id as u32);
-                worksheet.write_with_format(row_offset, 0, &race.actual_name, &styles::THIN_BORDER).unwrap();
-                worksheet.write_with_format(row_offset, 1, &format!("{:.3}%", *races_winrates.get(&race.id).unwrap()), &styles::THIN_BORDER).unwrap();
+                worksheet.write_with_format(row_offset, 0, &race.actual_name, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
+                worksheet.write_with_format(row_offset, 1, &format!("{:.3}%", *races_winrates.get(&race.id).unwrap()), &styles::THIN_BORDER_TEXP_WRAP).unwrap();
             }
         }
     }
@@ -204,10 +204,10 @@ fn build_match_ups_games_and_winrates(worksheet: &mut Worksheet, races_data: &Ve
                 let games_row_offset = 23 + (race.id as u32);
                 let winrate_row_offset = 35 + (race.id as u32);
 
-                worksheet.write_with_format(games_row_offset, 0, &race.actual_name, &styles::THIN_BORDER).unwrap();
+                worksheet.write_with_format(games_row_offset, 0, &race.actual_name, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
                 worksheet.write_with_format(23, col_offset, &race.actual_name, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
 
-                worksheet.write_with_format(winrate_row_offset, 0, &race.actual_name, &styles::THIN_BORDER).unwrap();
+                worksheet.write_with_format(winrate_row_offset, 0, &race.actual_name, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
                 worksheet.write_with_format(35, col_offset, &race.actual_name, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
 
                 for opponent_race in races_data {
@@ -225,12 +225,12 @@ fn build_match_ups_games_and_winrates(worksheet: &mut Worksheet, races_data: &Ve
                                 let total_pair_games = (pair_wins + pair_losses) as u32;
 
                                 let pair_winrate = (pair_wins as f32) / (total_pair_games as f32) * 100.0;
-                                worksheet.write_with_format(games_row_offset, col_offset, total_pair_games as u32, &styles::THIN_BORDER).unwrap();   
+                                worksheet.write_with_format(games_row_offset, col_offset, total_pair_games as u32, &styles::THIN_BORDER_TEXP_WRAP).unwrap();   
                                 worksheet.write_with_format(
                                     winrate_row_offset, 
                                     col_offset, 
                                     format!("{:.3}%", pair_winrate as f32), 
-                                    &styles::THIN_BORDER)
+                                    &styles::THIN_BORDER_TEXP_WRAP)
                                     .unwrap();
 
                                 if total_pair_games > most_played_pair_games {

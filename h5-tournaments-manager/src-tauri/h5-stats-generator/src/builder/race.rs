@@ -155,7 +155,7 @@ fn build_race_bargains_stats(builder: &mut RaceStatsBuilder, race: &Race, opp_ra
     let mut plus_bargains_data = BargainsGameData { wins: 0, losses: 0, win_bargains: vec![], loss_bargains: vec![] };
     games_with_plus.iter()
         .filter(|game| game.first_player_race == opp_race.id || game.second_player_race == opp_race.id)
-        .unique_by(|game| game.id)
+        //.unique_by(|game| game.id)
         .for_each(|game| {
             if game.first_player_race == race.id && game.result == GameResult::FirstPlayerWon || game.second_player_race == race.id && game.result == GameResult::SecondPlayerWon {
                 plus_bargains_data.wins += 1;
@@ -187,7 +187,7 @@ fn build_race_bargains_stats(builder: &mut RaceStatsBuilder, race: &Race, opp_ra
     let mut minus_bargains_data = BargainsGameData { wins: 0, losses: 0, win_bargains: vec![], loss_bargains: vec![] };
     games_with_minus.iter()
         .filter(|game| game.first_player_race == opp_race.id || game.second_player_race == opp_race.id)
-        .unique_by(|game| game.id)
+        //.unique_by(|game| game.id)
         .for_each(|game| {
             if game.first_player_race == race.id && game.result == GameResult::FirstPlayerWon || game.second_player_race == race.id && game.result == GameResult::SecondPlayerWon {
                 minus_bargains_data.wins += 1;
@@ -270,17 +270,30 @@ fn calc_winrate(wins: u32, total_games: u32) -> f32 {
 // region: HEROES DATA
 
 fn build_heroes_stats(race: &Race, races_data: &Vec<Race>, heroes_data: &Vec<Hero>, games_data: &Vec<Game>, worksheet: &mut Worksheet) {
-    let race_heroes = heroes_data.iter().filter(|h| h.race == race.id).collect::<Vec<&Hero>>();
-    worksheet.merge_range(14, 4, 14, 9, "Общая статистика героев фракции", &styles::TEXT_BOLD_CENTERED).unwrap();
+    worksheet.merge_range(14, 4, 14, 9, "Общая статистика использования героев", &styles::TEXT_BOLD_CENTERED).unwrap();
     let mut row_offset = 16;
     // first of all, collect all games for hero.
     let mut heroes_count = 0;
 
+    let mut heroes_used_by_race  = vec![];
+
     let total_race_picks = games_data.iter()
         .filter(|game| {
-            race_heroes.iter().any(|rh| { rh.id == game.first_player_hero || rh.id == game.second_player_hero}) 
+            game.first_player_race == race.id || game.second_player_race == race.id 
         })
         .collect::<Vec<&Game>>();
+
+    total_race_picks.iter()
+        .for_each(|game| {
+            if game.first_player_race == race.id {
+                heroes_used_by_race.push(heroes_data.iter().find(|hero| hero.id == game.first_player_hero).unwrap());
+            }
+            else if game.second_player_race == race.id {
+                heroes_used_by_race.push(heroes_data.iter().find(|hero| hero.id == game.second_player_hero).unwrap());
+            }
+        });
+    
+    let unique_picked_heroes = heroes_used_by_race.into_iter().unique_by(|hero| hero.id).collect::<Vec<&Hero>>();
 
     worksheet.write_with_format(row_offset - 1, 1, "Всего побед", &styles::THIN_BORDER_TEXP_WRAP).unwrap();
     worksheet.write_with_format(row_offset - 1, 2, "Всего поражений", &styles::THIN_BORDER_TEXP_WRAP).unwrap();
@@ -294,16 +307,16 @@ fn build_heroes_stats(race: &Race, races_data: &Vec<Race>, heroes_data: &Vec<Her
         col_offset += 2;
     }
 
-    for hero in &race_heroes {
+    for hero in &unique_picked_heroes {
         let hero_wins = games_data.iter().filter(|game| {
-            (game.first_player_hero == hero.id && game.result == GameResult::FirstPlayerWon) ||
-            (game.second_player_hero == hero.id && game.result == GameResult::SecondPlayerWon)
+            (game.first_player_hero == hero.id && game.first_player_race == race.id && game.result == GameResult::FirstPlayerWon) ||
+            (game.second_player_hero == hero.id && game.second_player_race == race.id && game.result == GameResult::SecondPlayerWon)
         })
         .collect::<Vec<&Game>>();
         
         let hero_losses = games_data.iter().filter(|game| {
-            (game.first_player_hero == hero.id && game.result == GameResult::SecondPlayerWon) ||
-            (game.second_player_hero == hero.id && game.result == GameResult::FirstPlayerWon)
+            (game.first_player_hero == hero.id && game.first_player_race == race.id && game.result == GameResult::SecondPlayerWon) ||
+            (game.second_player_hero == hero.id && game.second_player_race == race.id && game.result == GameResult::FirstPlayerWon)
         })
         .collect::<Vec<&Game>>();
 
@@ -320,8 +333,8 @@ fn build_heroes_stats(race: &Race, races_data: &Vec<Race>, heroes_data: &Vec<Her
         for opp_race in races_data.iter().filter(|r| r.id != RaceType::NotDetected && r.id != race.id) {
             let opp_race_wins = total_race_picks.iter()
                 .filter(|game| {
-                    (game.first_player_hero == hero.id && game.second_player_race == opp_race.id && game.result == GameResult::FirstPlayerWon) || 
-                    (game.second_player_hero == hero.id && game.first_player_race == opp_race.id && game.result == GameResult::SecondPlayerWon) 
+                    (game.first_player_hero == hero.id && game.first_player_race == race.id && game.second_player_race == opp_race.id && game.result == GameResult::FirstPlayerWon) || 
+                    (game.second_player_hero == hero.id && game.second_player_race == race.id && game.first_player_race == opp_race.id && game.result == GameResult::SecondPlayerWon) 
                 })
                 .map(|game| *game )
                 .collect::<Vec<&Game>>()
@@ -329,8 +342,8 @@ fn build_heroes_stats(race: &Race, races_data: &Vec<Race>, heroes_data: &Vec<Her
 
             let opp_race_losses = total_race_picks.iter()
                 .filter(|game| {
-                    (game.first_player_hero == hero.id && game.second_player_race == opp_race.id && game.result == GameResult::SecondPlayerWon) || 
-                    (game.second_player_hero == hero.id && game.first_player_race == opp_race.id && game.result == GameResult::FirstPlayerWon) 
+                    (game.first_player_hero == hero.id && game.first_player_race == race.id && game.second_player_race == opp_race.id && game.result == GameResult::SecondPlayerWon) || 
+                    (game.second_player_hero == hero.id && game.second_player_race == race.id && game.first_player_race == opp_race.id && game.result == GameResult::FirstPlayerWon) 
                 })
                 .map(|game| *game )
                 .collect::<Vec<&Game>>()
@@ -356,8 +369,8 @@ fn build_heroes_stats(race: &Race, races_data: &Vec<Race>, heroes_data: &Vec<Her
     row_offset += heroes_count + 1;
 
     for opp_race in races_data.iter().filter(|r| r.id != RaceType::NotDetected && r.id != race.id) {
-        build_hero_stats_vs_race(race, &race_heroes, heroes_data, opp_race, games_data, worksheet, row_offset);
-        row_offset += 12;
+        build_hero_stats_vs_race(race, &unique_picked_heroes, heroes_data, opp_race, games_data, worksheet, row_offset);
+        row_offset += heroes_count + 4;
     }
 }
 
@@ -394,7 +407,7 @@ fn build_hero_stats_vs_race(race: &Race, race_heroes: &Vec<&Hero>, heroes_data: 
         let mut total_games = 0;
         let mut total_wins = 0;
         for opp_hero in &opp_race_heroes {
-            let (wins, losses) = get_heroes_pair_stats(hero, opp_hero, games_data);
+            let (wins, losses) = get_heroes_pair_stats(hero, race, opp_hero, games_data);
             if wins == 0 {
                 worksheet.write_with_format(row_offset + heroes_count + 3, opp_hero_count, wins, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
             }
@@ -426,16 +439,16 @@ fn build_hero_stats_vs_race(race: &Race, race_heroes: &Vec<&Hero>, heroes_data: 
     }
 }
 
-fn get_heroes_pair_stats(hero: &Hero, opp_hero: &Hero, games_data: &Vec<Game>) -> (u32, u32) {
+fn get_heroes_pair_stats(hero: &Hero, race: &Race, opp_hero: &Hero, games_data: &Vec<Game>) -> (u32, u32) {
     let wins = games_data.iter().filter(|game| {
-            (game.first_player_hero == hero.id && game.second_player_hero == opp_hero.id && game.result == GameResult::FirstPlayerWon) || 
-            (game.second_player_hero == hero.id && game.first_player_hero == opp_hero.id && game.result == GameResult::SecondPlayerWon)
+            (game.first_player_hero == hero.id && game.first_player_race == race.id && game.second_player_hero == opp_hero.id && game.result == GameResult::FirstPlayerWon) || 
+            (game.second_player_hero == hero.id && game.second_player_race == race.id &&  game.first_player_hero == opp_hero.id && game.result == GameResult::SecondPlayerWon)
         })
         .collect::<Vec<&Game>>()
         .len();
     let losses = games_data.iter().filter(|game| {
-            (game.first_player_hero == hero.id && game.second_player_hero == opp_hero.id && game.result == GameResult::SecondPlayerWon) || 
-            (game.second_player_hero == hero.id && game.first_player_hero == opp_hero.id && game.result == GameResult::FirstPlayerWon)
+            (game.first_player_hero == hero.id && game.first_player_race == race.id && game.second_player_hero == opp_hero.id && game.result == GameResult::SecondPlayerWon) || 
+            (game.second_player_hero == hero.id && game.second_player_race == race.id && game.first_player_hero == opp_hero.id && game.result == GameResult::FirstPlayerWon)
         })
         .collect::<Vec<&Game>>()
         .len();
