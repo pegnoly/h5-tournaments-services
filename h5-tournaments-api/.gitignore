@@ -2,4 +2,4 @@
 .shuttle-storage
 Secrets*.toml
 /migrations
-.env
+.env.shuttle*
