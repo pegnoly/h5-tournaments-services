@@ -996,9 +996,9 @@ dependencies = [
 
 [[package]]
 name = "h5-tournaments-api"
-version = "0.1.1"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d43f70ec529a473b2d02ef927bc5ff24c8f601b3ffc7ec8be02638ec41edaca"
+checksum = "d9880ba05a1f4a4f4a8ed0306d3254de064a945286a5515136e7d17b3a311d37"
 dependencies = [
  "axum 0.7.9",
  "derive_more",

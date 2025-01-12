@@ -19,4 +19,4 @@ strum = { version = "0.26.3", features = ["strum_macros"] }
 uuid = { version = "1.10.0", features = ["v4"] }
 human_regex = "0.3.0"
 
-h5-tournaments-api = {version = "0.1.1"}
+h5-tournaments-api = {version = "0.1.4"}

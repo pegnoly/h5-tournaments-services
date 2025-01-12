@@ -1,9 +1,9 @@
-use axum::{extract::{Path, State}, routing::{get, post}, Json, Router};
+use axum::{extract::{Path, Query, State}, routing::{get, post}, Json, Router};
 use uuid::Uuid;
 
 use crate::services::tournament::prelude::*;
 
-use super::models::TournamentCreationModel;
+use super::models::{MatchRegistrationForm, TournamentCreationModel};
 
 pub fn tournament_routes() -> Router<TournamentService> { 
     Router::new()
@@ -11,6 +11,8 @@ pub fn tournament_routes() -> Router<TournamentService> {
         .route("/tournament/get/:tournament_id", get(get_tournament))
         .route("/races", get(load_races))
         .route("/heroes/:mod_type", get(load_heroes))
+        .route("/match/register", post(register_match))
+        .route("/match/games", post(upload_games))
 }
 
 async fn create_tournament(
@@ -72,6 +74,7 @@ async fn load_races(
             Ok(Json(races))
         },
         Err(_error) => {
+            tracing::info!("Failed to get races: {}", _error.to_string());
             Err(())
         }
     }
@@ -86,10 +89,42 @@ async fn load_heroes(
     
     match heroes_data {
         Ok(heroes) => {
+            tracing::info!("Heroes fetched correctly for mod {}: {:?}", mod_type, &heroes);
             Ok(Json(heroes))
         },
         Err(_error) => {
+            tracing::error!("Failed to fetch heroes for mod {}: {}", mod_type, _error.to_string());
             Err(())
         }
     }
+}
+
+async fn register_match(
+    State(tournament_service): State<TournamentService>,
+    Query(registration_form): Query<MatchRegistrationForm>
+) -> Result<Json<Uuid>, ()> {
+
+    let registration_result = tournament_service.register_match(&registration_form).await;
+
+    match registration_result {
+        Ok(success) => {
+            tracing::info!("Match registered with id {}", success);
+            Ok(Json(success))
+        },
+        Err(_error) => {
+            tracing::error!("Failed to register match: {}", _error.to_string());
+            Err(())
+        }
+    }
+
+}
+
+async fn upload_games(
+    State(tournament_service): State<TournamentService>,
+    Json(games): Json<Vec<Game>>
+) -> Result<(), ()> {
+
+    tournament_service.upload_games(&games).await.unwrap();
+
+    Ok(())
 }

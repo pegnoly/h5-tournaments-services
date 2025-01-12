@@ -3,4 +3,4 @@
 Secrets*.toml
 /migrations
 .env.shuttle*
-*.env*
+.env

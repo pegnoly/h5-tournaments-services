@@ -1,7 +1,9 @@
 use sqlx::{PgPool, Pool, Postgres};
 use uuid::Uuid;
 
-use super::types::{Hero, ModType, Race, Tournament};
+use crate::routes::models::MatchRegistrationForm;
+
+use super::types::{Game, Hero, ModType, Race, Tournament};
 
 #[derive(Clone)]
 pub struct TournamentService {
@@ -89,13 +91,80 @@ impl TournamentService {
     }
 
     pub async fn load_heroes_for_mod(&self, mod_type: ModType) -> Result<Vec<Hero>, super::error::Error> {
-        let heroes_data = sqlx::query_as(r#"
-                SELECT * FROM heroes WHERE mod_type=$1;
+        let heroes_data: Result<Vec<Hero>, sqlx::Error> = sqlx::query_as(r#"
+                SELECT * FROM heroes WHERE mod_type=0 OR mod_type=$1;
             "#)
             .bind(mod_type)
             .fetch_all(&self.pool)
-            .await?;
+            .await;
 
-        Ok(heroes_data)
+        match heroes_data {
+            Ok(heroes_data) => {
+                Ok(heroes_data)
+            },
+            Err(error) => {
+                tracing::error!("Sqlx: failed to fetch heroes: {}", error.to_string());
+                Err(super::error::Error::SqlxError(error))
+            }
+        }
+    }
+
+    pub async fn register_match(&self, match_data: &MatchRegistrationForm) -> Result<Uuid, super::error::Error> {
+        let id = Uuid::new_v4();
+        let res = sqlx::query(r#"
+                INSERT INTO matches
+                (id, tournament_id, first_player, second_player, message_id)
+                VALUES ($1, $2, $3, $4, $5)
+            "#)
+            .bind(id)
+            .bind(match_data.tournament_id)
+            .bind(&match_data.first_player)
+            .bind(&match_data.second_player)
+            .bind(match_data.message_id)
+            .execute(&self.pool)
+            .await;
+
+        match res {
+            Ok(_) => {
+                Ok(id)
+            },
+            Err(error) => {
+                tracing::error!("Failed to insert match: {}", error.to_string());
+                Err(super::error::Error::SqlxError(error))
+            }
+        }
+    }
+
+    pub async fn upload_games(&self, games_data: &Vec<Game>) -> Result<(), super::error::Error> {
+        let mut transaction = self.pool.begin().await?;
+
+        for game in games_data {
+            let res = sqlx::query(r#"
+                    INSERT INTO games
+                    (id, match_id, first_player_race, first_player_hero, second_player_race, second_player_hero, bargains_color, bargains_amount, result)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                "#)
+                .bind(game.id)
+                .bind(game.match_id)
+                .bind(game.first_player_race)
+                .bind(game.first_player_hero)
+                .bind(game.second_player_race)
+                .bind(game.second_player_hero)
+                .bind(game.bargains_color)
+                .bind(game.bargains_amount)
+                .bind(&game.result)
+                .execute(&mut *transaction)
+                .await;
+            match res {
+                Ok(_) => {},
+                Err(error) => {
+                    tracing::error!("Failed to insert game: {}", error.to_string());
+                }
+            }
+        }
+
+        transaction.commit().await?;
+
+        Ok(())
     }
 }

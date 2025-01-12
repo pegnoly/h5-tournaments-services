@@ -1,35 +1,52 @@
 use h5_tournaments_api::prelude::Game;
-use poise::serenity_prelude::Message;
 
-use super::{types::{MatchStructure, Parse}, utils::ParsingDataModel};
+use super::{types::Parse, utils::ParsingDataModel};
 
-pub struct ParserService {
+pub struct ParserService;
 
+#[derive(Debug, Default)]
+pub struct ParsedData<'a> {
+    pub first_player: &'a str,
+    pub second_player: &'a str,
+    pub games: Vec<Game>
 }
 
 impl ParserService {
-    pub fn parse_match_structure<P>(&self, message: &String, parser: &P) -> impl MatchStructure 
-        where P: Parse
+    pub fn parse_match_structure<'a, P>(&self, message: &'a String, parser: &'a P, data_model: &ParsingDataModel) -> ParsedData<'a>
+        where P: Parse<'a>
     {
-        let match_data = parser.parse_match(message);
-        match_data
-    }
+        let message_parts = message
+            .split("\n")
+            .filter(|s| s.len() > 0)
+            .collect::<Vec<&str>>(); 
 
-    pub fn parse_opponents<P, M>(&self, parser: &P, match_data: &M, data: &ParsingDataModel) -> Vec<String>
-        where 
-            P: Parse,
-            M: MatchStructure
-    {
-        match_data.get_opponents_data();
-        vec![]
-    }
+        let mut opponents_found = false;
+        let mut parsed_data = ParsedData::default();  
 
-    pub fn parse_games<P, M>(&self, parser: &P, match_data: &M, data: &ParsingDataModel) -> Vec<Game> 
-        where 
-            P: Parse,
-            M: MatchStructure
-    {
-        match_data.get_games_data();
-        vec![]
+        for message_part in message_parts {
+            if !opponents_found {
+                if let Some(opponents) = parser.try_parse_opponents(message_part) {
+                    tracing::info!("Got the match between {} and {}", opponents.0, opponents.1);
+                    parsed_data.first_player = opponents.0;
+                    parsed_data.second_player = opponents.1;
+                    opponents_found = true;
+                }
+                else {
+                    continue;
+                }
+            }
+            else {
+                if let Some(game) = parser.parse_game(message_part, data_model) {
+                    tracing::info!("Got the game: {:?}", &game);
+                    parsed_data.games.push(game);
+                }
+                else {
+                    break;
+                }
+            }
+        
+        }
+
+        parsed_data
     }
 }

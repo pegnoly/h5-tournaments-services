@@ -124,7 +124,7 @@ pub struct NameVariants {
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Race {
-    pub id: RaceType,
+    pub id: i32,
     pub actual_name: String,
     pub name_variants: Json<NameVariants>
 }
@@ -132,10 +132,11 @@ pub struct Race {
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Hero {
-    pub id: HeroType,
-    pub race: RaceType,
+    pub id: i32,
+    pub race: i32,
     pub actual_name: String,
-    pub name_variants: Json<NameVariants>
+    pub name_variants: Json<NameVariants>,
+    pub mod_type: i16
 }
 
 
@@ -162,7 +163,7 @@ pub struct Match {
 }
 
 /// Possible game outcomes
-#[derive(Debug, Serialize, Deserialize, FromRepr, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, FromRepr, Clone, PartialEq, Eq, sqlx::Type)]
 #[repr(i16)]
 pub enum GameResult {
     NotDetected = 0,
@@ -177,7 +178,7 @@ pub struct GameResultModel {
 }
 
 /// Possible colors used in bargains
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRepr, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRepr, PartialEq, Eq, sqlx::Type)]
 #[repr(i16)]
 pub enum BargainsColor {
     NotDetected,
@@ -196,11 +197,11 @@ pub struct BargainsColorModel {
 pub struct Game {
     pub id: Uuid,
     pub match_id: Uuid,
-    pub first_player_race: RaceType,
-    pub first_player_hero: HeroType,
-    pub second_player_race: RaceType,
-    pub second_player_hero: HeroType,
-    pub bargains_color: BargainsColor,
+    pub first_player_race: i32,
+    pub first_player_hero: i32,
+    pub second_player_race: i32,
+    pub second_player_hero: i32,
+    pub bargains_color: Option<BargainsColor>,
     pub bargains_amount: i16,
     pub result: GameResult
 }
@@ -208,11 +209,11 @@ pub struct Game {
 impl Default for Game {
     fn default() -> Self {
         Game {
-            first_player_race: RaceType::NotDetected,
-            first_player_hero: HeroType::NotDetected,
-            second_player_race: RaceType::NotDetected,
-            second_player_hero: HeroType::NotDetected,
-            bargains_color: BargainsColor::NotDetected,
+            first_player_race: 0,
+            first_player_hero: 0,
+            second_player_race: 0,
+            second_player_hero: 0,
+            bargains_color: None,
             result: GameResult::NotDetected,
             id: uuid::Uuid::new_v4(),
             match_id: uuid::Uuid::default(),

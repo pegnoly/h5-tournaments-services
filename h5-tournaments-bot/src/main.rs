@@ -1,26 +1,21 @@
 use anyhow::Context as _;
+use api_connector::service::ApiConnectionService;
 use parser::service::ParserService;
 use poise::serenity_prelude::{ClientBuilder, GatewayIntents};
-use reqwest::Client;
 use shuttle_runtime::SecretStore;
 use shuttle_serenity::ShuttleSerenity;
-use tokio::sync::RwLock;
 
+pub mod commands;
 pub mod parser;
+pub mod api_connector;
 
 struct Data {
-    pub client: RwLock<Client>,
+    pub api_connection_service: ApiConnectionService,
     pub parser_service: ParserService
 } // User data, which is stored and accessible in all command invocations
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
 
-/// Responds with "world!"
-#[poise::command(slash_command)]
-async fn hello(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.say("world!").await?;
-    Ok(())
-}
 
 #[shuttle_runtime::main]
 async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleSerenity {
@@ -32,9 +27,8 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![
-                hello(),
-                parser::commands::init_tournament(),
-                parser::commands::parse_results()
+                commands::init_tournament(),
+                commands::parse_results()
             ],
             ..Default::default()
         })
@@ -42,7 +36,7 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
-                    client: RwLock::new(reqwest::Client::new()),
+                    api_connection_service: ApiConnectionService::new(reqwest::Client::new()),
                     parser_service: ParserService {}
                 })
             })

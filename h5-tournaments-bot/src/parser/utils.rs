@@ -9,16 +9,6 @@ pub struct ParsingDataModel {
     pub heroes: Vec<Hero>
 }
 
-
-/// Possible game outcomes
-#[derive(Debug, Serialize, Deserialize)]
-#[repr(i16)]
-pub enum GameResult {
-    NotDetected = 0,
-    FirstPlayerWon = 1,
-    SecondPlayerWon = 2
-}
-
 /// Result of parsing single player's side info in a game
 pub struct GameSideData {
     pub race: i32,
