@@ -10,8 +10,8 @@ reqwest = { version = "0.12.8", features = ["json"] }
 uuid = {version = "1.10.0", features = ["v4"] }
 rust_xlsxwriter = { version = "0.78.0", features = ["serde"] }
 strum = { version = "0.26.3", features = ["derive"] }
-h5-stats-types = { path = "../h5-stats-types" }
 tokio = { version = "1.40.0", features = ["full"] }
 itertools = "0.13.0"
 ordered-float = "4.3.0"
 lazy_static = "1.5.0"
+h5-tournaments-api = "0.1.6"

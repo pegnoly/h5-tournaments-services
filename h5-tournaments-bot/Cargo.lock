@@ -1019,6 +1019,8 @@ name = "h5-tournaments-bot"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "futures-executor",
+ "futures-util",
  "h5-tournaments-api",
  "human_regex",
  "poise",

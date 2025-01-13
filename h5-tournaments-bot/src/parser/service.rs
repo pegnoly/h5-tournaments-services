@@ -1,3 +1,5 @@
+use std::any;
+
 use h5_tournaments_api::prelude::Game;
 
 use super::{types::Parse, utils::ParsingDataModel};
@@ -21,6 +23,7 @@ impl ParserService {
             .collect::<Vec<&str>>(); 
 
         let mut opponents_found = false;
+        let mut any_game_found = false;
         let mut parsed_data = ParsedData::default();  
 
         for message_part in message_parts {
@@ -37,11 +40,16 @@ impl ParserService {
             }
             else {
                 if let Some(game) = parser.parse_game(message_part, data_model) {
+                    if !any_game_found {
+                        any_game_found = true;
+                    }
                     tracing::info!("Got the game: {:?}", &game);
                     parsed_data.games.push(game);
                 }
                 else {
-                    break;
+                    if any_game_found {
+                        break;
+                    }
                 }
             }
         

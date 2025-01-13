@@ -153,13 +153,13 @@ pub struct Tournament {
 
 
 /// A match between two players in a concrete tournament. Contains Games.
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, sqlx::FromRow)]
 pub struct Match {
     pub id: Uuid,
     pub tournament_id: Uuid,
     pub first_player: String,
     pub second_player: String,
-    pub message: u64
+    pub message_id: i64
 }
 
 /// Possible game outcomes
@@ -193,7 +193,7 @@ pub struct BargainsColorModel {
 }
 
 /// A single game between two players.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Game {
     pub id: Uuid,
     pub match_id: Uuid,

@@ -1,4 +1,4 @@
-use h5_stats_types::{Game, Hero, Race, Tournament};
+use h5_tournaments_api::prelude::*;
 use serde::{Serialize, Deserialize};
 use strum::{EnumIter, FromRepr};
 use uuid::Uuid;
@@ -40,14 +40,16 @@ impl From<Hero> for HeroFrontendModel {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TournamentFrontendModel {
     pub id: Uuid,
-    pub name: String
+    pub name: String,
+    pub mod_type: i16
 }
 
 impl From<Tournament> for TournamentFrontendModel {
     fn from(value: Tournament) -> Self {
         TournamentFrontendModel { 
             id: value.id, 
-            name: value.name
+            name: value.name,
+            mod_type: value.mod_type
         }
     }
 }
@@ -72,7 +74,7 @@ impl From<Game> for GameFrontendModel {
             first_player_hero: value.first_player_hero as i32,
             second_player_race: value.second_player_race as i32,
             second_player_hero: value.second_player_hero as i32,
-            bargains_color: value.bargains_color as i16,
+            bargains_color: if value.bargains_color.is_none() { 0 } else {value.bargains_color.unwrap() as i16},
             bargains_amount: value.bargains_amount,
             result: value.result as i16
         }

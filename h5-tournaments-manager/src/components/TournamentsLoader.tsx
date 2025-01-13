@@ -3,12 +3,20 @@ import { useTournamentsStore } from "../stores/TournamentsStore";
 import { useMatchesStore } from "../stores/MatchesStore";
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useHeroesStore } from "../stores/HeroesStore";
 
 export function TournamentsLoader() {
-    const tournaments = useTournamentsStore((state) => state.tournaments);
-    const loadMatches = useMatchesStore((state) => state.load);
+    const tournaments = useTournamentsStore((state) => state.tournaments)
+    const loadHeroes = useHeroesStore((state) => state.load)
+    const loadMatches = useMatchesStore((state) => state.load)
 
-    const [tournamentId, setTournamentId] = useState<string>("");
+    const [tournamentId, setTournamentId] = useState<string>("")
+
+    async function selectTournament() {
+        const selectedTournamentType = tournaments.find((t) => t.id == tournamentId)!.mod_type
+        loadHeroes(selectedTournamentType)
+        loadMatches(tournamentId)
+    }
 
     return (
         <div style={{width: '50%', display: 'flex', flexDirection: 'row', alignContent: 'center'}}>
@@ -19,7 +27,7 @@ export function TournamentsLoader() {
             ))}</Select>
             <div style={{paddingLeft: 10}}>
                 <Button
-                    onClick={() => loadMatches(tournamentId)}
+                    onClick={selectTournament}
                 >Загрузить данные турнира</Button>
             </div>
             <div style={{paddingLeft: 10}}>

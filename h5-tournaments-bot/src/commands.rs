@@ -1,5 +1,6 @@
+use futures_executor::block_on_stream;
 use h5_tournaments_api::prelude::ModType;
-use poise::serenity_prelude::{ChannelId, GetMessages, Message, MessageId};
+use poise::serenity_prelude::{futures::StreamExt, ChannelId, GetMessages, Message, MessageId};
 use serde_json::json;
 
 use crate::parser::{types::HrtaParser, utils::ParsingDataModel};
@@ -41,6 +42,11 @@ pub async fn init_tournament(
     Ok(())
 }
 
+pub struct Msg {
+    pub id: u64,
+    pub content: String
+}
+
 /// This command checks is requested tournament registered and if so starts process of its parsing.
 #[poise::command(slash_command)]
 pub async fn parse_results(
@@ -55,16 +61,13 @@ pub async fn parse_results(
     let tournament = api_connection_service.get_tournament(tournament_id).await?;
 
     let channel = ChannelId::new(tournament.channel_id as u64);
-    let messages_builder = GetMessages::new()
-        .after(MessageId::new(tournament.first_message_id as u64))
-        .before(MessageId::new(tournament.last_message_id as u64));
+    let messages = channel.messages(context, GetMessages::new().after(tournament.first_message_id as u64).limit(100)).await.unwrap();
 
-    let messages = channel.messages(context, messages_builder).await.unwrap();
-    let cleaned_messages = messages.iter()
-        .filter(|m| m.id.get() >= tournament.first_message_id as u64)
-        .collect::<Vec<&Message>>();
+    let messages_filtered = messages.into_iter().filter(|message| {
+        message.id.get() <= tournament.last_message_id as u64
+    }).collect::<Vec<Message>>();
 
-    for message in &cleaned_messages {
+    for message in &messages_filtered {
         tracing::info!("{:?}", message.content);
     }
 
@@ -79,7 +82,7 @@ pub async fn parse_results(
         },
         ModType::Hrta => {
             tracing::info!("Processing hrta data");
-            for message in &cleaned_messages {
+            for message in &messages_filtered {
                 let mut parsed_data = parser_service.parse_match_structure(&message.content, &HrtaParser{}, &data_model);
                 api_connection_service.send_match(&mut parsed_data, tournament.id, message.id.get() as i64).await?;
             }

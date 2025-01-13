@@ -1,4 +1,4 @@
-use h5_stats_types::{Game, Hero, Match, Race, Tournament};
+use h5_tournaments_api::prelude::*;
 use reqwest::Client;
 use tauri::State;
 use tokio::sync::{Mutex, RwLock};
@@ -10,6 +10,7 @@ pub struct LocalAppManager {
     client: RwLock<Client>,
 }
 
+
 impl LocalAppManager {
     pub fn new() -> Self {
         LocalAppManager { 
@@ -18,12 +19,16 @@ impl LocalAppManager {
     }
 }
 
+pub(self) const MAIN_URL: &'static str = "https://h5-tournaments-api-5epg.shuttle.app/";
+
+
 #[tauri::command]
 pub async fn load_heroes(
-    app_manager: State<'_, LocalAppManager>
+    app_manager: State<'_, LocalAppManager>,
+    mod_type: i16
 ) -> Result<Vec<HeroFrontendModel>, ()> {
     let client = app_manager.client.read().await;
-    let response = client.get("https://h5-tournaments-api.shuttleapp.rs/heroes")
+    let response = client.get(format!("{}heroes/{}", MAIN_URL, mod_type))
         .send()
         .await;
     match response {
@@ -51,7 +56,7 @@ pub async fn load_races(
     app_manager: State<'_, LocalAppManager>
 ) -> Result<Vec<RaceFrontendModel>, ()> {
     let client = app_manager.client.read().await;
-    let response = client.get("https://h5-tournaments-api.shuttleapp.rs/races")
+    let response = client.get(format!("{}races", MAIN_URL))
         .send()
         .await;
     match response {
@@ -79,7 +84,7 @@ pub async fn load_tournaments(
     app_manager: State<'_, LocalAppManager>
 ) -> Result<Vec<TournamentFrontendModel>, ()> {
     let client = app_manager.client.read().await;
-    let response = client.get("https://h5-tournaments-api.shuttleapp.rs/tournaments")
+    let response = client.get(format!("{}tournaments", MAIN_URL))
         .send()
         .await;
     match response {
@@ -108,7 +113,7 @@ pub async fn load_matches(
     tournament_id: Uuid
 ) -> Result<Vec<Match>, ()> {
     let client = app_manager.client.read().await;
-    let response = client.get(format!("https://h5-tournaments-api.shuttleapp.rs/matches/{}", &tournament_id))
+    let response = client.get(format!("{}tournament/matches/{}", MAIN_URL, &tournament_id))
         .send()
         .await;
     match response {
@@ -137,7 +142,7 @@ pub async fn load_games(
     match_id: Uuid
 ) -> Result<Vec<GameFrontendModel>, ()> {
     let client = app_manager.client.read().await;
-    let response = client.get(format!("https://h5-tournaments-api.shuttleapp.rs/games/{}", &match_id))
+    let response = client.get(format!("{}match/games/{}", MAIN_URL, &match_id))
         .send()
         .await;
     match response {
@@ -169,12 +174,12 @@ pub async fn create_game(
     let mut new_game = Game::default();
     new_game.match_id = match_id;
     let client = app_manager.client.read().await;
-    let response = client.post("https://h5-tournaments-api.shuttleapp.rs/game")
+    let response = client.post(format!("{}game/create", MAIN_URL))
         .json(&new_game)
         .send()
         .await;
     match response {
-        Ok(success) => {
+        Ok(_success) => {
             println!("Game created");
             Ok(())
         },
@@ -191,12 +196,12 @@ pub async fn update_game(
     game: GameFrontendModel 
 ) -> Result<(), ()> {
     let client = app_manager.client.read().await;
-    let response = client.patch("https://h5-tournaments-api.shuttleapp.rs/game")
+    let response = client.patch(format!("{}game/update", MAIN_URL))
         .json(&game)
         .send()
         .await;
     match response {
-        Ok(success) => {
+        Ok(_success) => {
             println!("Game with id {} updated successfully", game.id);
             Ok(())
         },
@@ -214,12 +219,12 @@ pub async fn update_match(
 ) -> Result<(), ()> {
     println!("Got match to update: {:?}", &match_to_update);
     let client = app_manager.client.read().await;
-    let response = client.patch("https://h5-tournaments-api.shuttleapp.rs/match")
+    let response = client.patch(format!("{}match/update", MAIN_URL))
         .json(&match_to_update)
         .send()
         .await;
     match response {
-        Ok(success) => {
+        Ok(_success) => {
             println!("Match with id {} updated successfully", match_to_update.id);
             Ok(())
         },

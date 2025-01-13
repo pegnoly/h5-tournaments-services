@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::format};
 
-use h5_stats_types::{BargainsColor, BargainsColorModel, Game, GameResult, Hero, HeroType, Match, Race, RaceType};
+use h5_tournaments_api::prelude::*;
 use itertools::Itertools;
 use rust_xlsxwriter::Worksheet;
 
@@ -36,7 +36,7 @@ impl StatsBuilder for PlayersStatsBuilder {
             let player_matches = data.matches_data.iter()
                 .filter(|m| m.first_player == *player || m.second_player == *player)
                 .unique_by(|m| m.id)
-                .sorted_by_key(|m| m.message)
+                .sorted_by_key(|m| m.message_id)
                 .collect::<Vec<&Match>>();
             let worksheet = workbook.add_worksheet().set_name(player).unwrap();
             build_player_stats(player, player_matches, &data.games_data, &data.races_data, &data.heroes_data, &data.bargains_data, worksheet);
@@ -72,10 +72,10 @@ fn build_player_stats(
     worksheet.write_with_format(1, 0, "VS", &styles::TEXT_CENTER_COLOR_RED).unwrap();
 
     let mut games_count = 0;
-    let mut race_games_count = HashMap::<RaceType, u16>::new();
-    let mut race_games_wins = HashMap::<RaceType, u16>::new();
-    let mut hero_games_count = HashMap::<HeroType, u16>::new();
-    let mut hero_wins_count = HashMap::<HeroType, u16>::new();
+    let mut race_games_count = HashMap::<i32, u16>::new();
+    let mut race_games_wins = HashMap::<i32, u16>::new();
+    let mut hero_games_count = HashMap::<i32, u16>::new();
+    let mut hero_wins_count = HashMap::<i32, u16>::new();
 
     let mut total_wins_bargains = 0;
     let mut total_loss_bargains = 0;
@@ -234,7 +234,7 @@ fn build_player_stats(
     }
 }
 
-fn get_players_races<'a>(player: &'a String, actual_match: &Match, actual_game: &Game) -> (RaceType, RaceType) {
+fn get_players_races<'a>(player: &'a String, actual_match: &Match, actual_game: &Game) -> (i32, i32) {
     let (player_race_id, opponent_race_id) = if actual_match.first_player == *player { 
         (actual_game.first_player_race, actual_game.second_player_race) 
     }

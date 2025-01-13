@@ -7,13 +7,13 @@ type HeroesStoreData = {
 }
 
 type HeroesStoreActions = {
-    load: () => void
+    load: (mod_type: number) => void
 }
 
 export const useHeroesStore = create<HeroesStoreData & HeroesStoreActions>((set) => ({
     heroes: [],
-    async load() {
-        await invoke("load_heroes")
+    async load(mod_type: number) {
+        await invoke("load_heroes", {modType: mod_type})
             .then((heroes_data) => set({heroes: heroes_data as Hero[]}))
     },
 }))

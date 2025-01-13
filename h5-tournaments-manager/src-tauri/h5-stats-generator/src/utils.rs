@@ -1,4 +1,4 @@
-use h5_stats_types::{BargainsColorModel, Game, GameResultModel, Hero, Match, Race};
+use h5_tournaments_api::prelude::*;
 
 pub struct StatsGeneratorDataModel {
     pub heroes_data: Vec<Hero>,
@@ -18,12 +18,12 @@ impl StatsGeneratorDataModel {
             matches_data: vec![],
             games_data: vec![],
             bargains_data: vec![
-                BargainsColorModel { id: h5_stats_types::BargainsColor::ColorRed, name: "Красный".to_string() }, 
-                BargainsColorModel { id: h5_stats_types::BargainsColor::ColorBlue, name: "Синий".to_string() }
+                BargainsColorModel { id: BargainsColor::ColorRed, name: "Красный".to_string() }, 
+                BargainsColorModel { id: BargainsColor::ColorBlue, name: "Синий".to_string() }
             ],
             results_data: vec![
-                GameResultModel { id: h5_stats_types::GameResult::FirstPlayerWon, name: "Победа 1 игрока".to_string() },
-                GameResultModel { id: h5_stats_types::GameResult::SecondPlayerWon, name: "Победа 2 игрока".to_string() }
+                GameResultModel { id: GameResult::FirstPlayerWon, name: "Победа 1 игрока".to_string() },
+                GameResultModel { id: GameResult::SecondPlayerWon, name: "Победа 2 игрока".to_string() }
             ]
         }
     }

@@ -20,3 +20,5 @@ uuid = { version = "1.10.0", features = ["v4"] }
 human_regex = "0.3.0"
 
 h5-tournaments-api = {version = "0.1.4"}
+futures-util = "0.3.31"
+futures-executor = "0.3.31"

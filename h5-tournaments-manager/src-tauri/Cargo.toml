@@ -25,3 +25,4 @@ strum = { version = "0.26.3", features = ["derive"] }
 tokio = { version = "1.40.0", features = ["macros"] }
 h5-stats-types = { path = "h5-stats-types/" }
 h5-stats-generator = { path = "h5-stats-generator/" }
+h5-tournaments-api = "0.1.5"

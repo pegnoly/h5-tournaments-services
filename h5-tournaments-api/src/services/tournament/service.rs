@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::routes::models::MatchRegistrationForm;
 
-use super::types::{Game, Hero, ModType, Race, Tournament};
+use super::types::{Game, Hero, Match, ModType, Race, Tournament};
 
 #[derive(Clone)]
 pub struct TournamentService {
@@ -166,5 +166,109 @@ impl TournamentService {
         transaction.commit().await?;
 
         Ok(())
+    }
+
+    pub async fn load_existing_tournaments(&self) -> Result<Vec<Tournament>, super::error::Error> {
+        let tournaments = sqlx::query_as(r#"
+                SELECT * FROM tournaments;
+            "#)
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(tournaments)
+    }
+
+    pub async fn load_matches_for_tournament(&self, tournament_id: Uuid) -> Result<Vec<Match>, super::error::Error> {
+        let matches = sqlx::query_as(r#"
+                SELECT * FROM matches WHERE tournament_id=$1;
+            "#)
+            .bind(tournament_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(matches)
+    }
+
+    pub async fn load_games_for_match(&self, match_id: Uuid) -> Result<Vec<Game>, super::error::Error> {
+        let games = sqlx::query_as(r#"
+                SELECT * FROM games WHERE match_id=$1;
+            "#)
+            .bind(match_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(games)
+    }
+
+    pub async fn create_game(&self, game: Game) -> Result<(), super::error::Error> {
+        let res = sqlx::query(r#"
+                INSERT INTO games
+                (id, match_id, first_player_race, first_player_hero, second_player_race, second_player_hero, bargains_color, bargains_amount, result)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            "#)
+            .bind(game.id)
+            .bind(game.match_id)
+            .bind(game.first_player_race)
+            .bind(game.first_player_hero)
+            .bind(game.second_player_race)
+            .bind(game.second_player_hero)
+            .bind(game.bargains_color)
+            .bind(game.bargains_amount)
+            .bind(&game.result)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn update_game(&self, game: Game) -> Result<(), super::error::Error> {
+        let _res: Game = sqlx::query_as(
+        r#"
+                UPDATE games
+                SET first_player_race=$1, first_player_hero=$2, second_player_race=$3, second_player_hero=$4, bargains_color=$5, bargains_amount=$6, result=$7
+                WHERE id=$8
+                RETURNING *;
+            "#)
+            .bind(&game.first_player_race)
+            .bind(&game.first_player_hero)
+            .bind(&game.second_player_race)
+            .bind(&game.second_player_hero)
+            .bind(&game.bargains_color)
+            .bind(&game.bargains_amount)
+            .bind(&game.result)
+            .bind(&game.id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn update_match(&self, match_to_update: Match) -> Result<(), super::error::Error> {
+        let _res: Match = sqlx::query_as(r#"
+                UPDATE matches
+                SET first_player=$1, second_player=$2
+                WHERE id=$3
+                RETURNING *;
+            "#)
+            .bind(&match_to_update.first_player)
+            .bind(&match_to_update.second_player)
+            .bind(&match_to_update.id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn get_all_games_for_tournament(&self, tournament_id: Uuid) -> Result<Vec<Game>, super::error::Error> {
+        let games = sqlx::query_as(r#"
+                SELECT * FROM games 
+                LEFT JOIN matches
+                ON (games.match_id = matches.id AND matches.tournament_id = $1);         
+            "#)
+            .bind(tournament_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(games)
     }
 }

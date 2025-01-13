@@ -1,33 +1,35 @@
 use std::collections::HashMap;
 
-use h5_stats_types::{Game, GameResult, Race, RaceType};
+use h5_tournaments_api::prelude::*;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use rust_xlsxwriter::{Format, Workbook, Worksheet};
-use strum::IntoEnumIterator;
 
 use crate::utils::StatsGeneratorDataModel;
 
 use super::{styles, StatsBuilder};
 
 pub struct PairStatsBuilder {
-    pub wins_by_race: HashMap<RaceType, HashMap<RaceType, usize>>,
-    pub losses_by_race: HashMap<RaceType, HashMap<RaceType, usize>>
+    pub wins_by_race: HashMap<i32, HashMap<i32, usize>>,
+    pub losses_by_race: HashMap<i32, HashMap<i32, usize>>
 }
 
 impl PairStatsBuilder {
     pub fn new() -> Self {
+
+        let races_range = std::ops::Range {start: 0, end: 8};
+
         PairStatsBuilder { 
             wins_by_race: HashMap::from_iter(
-                RaceType::iter().map(|r| {
-                    (r, HashMap::from_iter(RaceType::iter().map(|r2| {
+                races_range.clone().map(|r| {
+                    (r, HashMap::from_iter(races_range.clone().map(|r2| {
                             (r2, 0)
                     })))
                 })), 
 
             losses_by_race: HashMap::from_iter(
-                RaceType::iter().map(|r| {
-                    (r, HashMap::from_iter(RaceType::iter().map(|r2| {
+                races_range.clone().map(|r| {
+                    (r, HashMap::from_iter(races_range.clone().map(|r2| {
                             (r2, 0)
                     })))
                 })) 
@@ -61,7 +63,7 @@ fn build_pairs_win_loss_stats(builder: &mut PairStatsBuilder, races_data: &Vec<R
 
     for race in races_data {
         match race.id {
-            RaceType::NotDetected => {},
+            0 => {},
             _=> {
                 worksheet.write_with_format(1 + (race.id as u32), 0, &race.actual_name, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
                 let col_offset = (race.id as u16) * 2 - 1;
@@ -80,7 +82,7 @@ fn build_pairs_win_loss_stats(builder: &mut PairStatsBuilder, races_data: &Vec<R
 
                 for opponent_race in races_data {
                     match opponent_race.id {
-                        RaceType::NotDetected => {},
+                        0 => {},
                         _=> {
                             let row_offset = (opponent_race.id as u32) + 1;
                             if race.id != opponent_race.id {
@@ -131,7 +133,7 @@ fn build_total_games_and_winrates(builder: &mut PairStatsBuilder, worksheet: &mu
         .map(|r| {
             (r.id, calc_games(builder.losses_by_race.get(&r.id).unwrap()) + calc_games(builder.wins_by_race.get(&r.id).unwrap()))
         })
-        .collect::<HashMap<RaceType, usize>>();
+        .collect::<HashMap<i32, usize>>();
 
         let least_played_race = races_total_games.iter()
         .min_by_key(|r| r.1)
@@ -147,7 +149,7 @@ fn build_total_games_and_winrates(builder: &mut PairStatsBuilder, worksheet: &mu
         .map(|r| {
             (r.id, (calc_games(builder.wins_by_race.get(&r.id).unwrap()) as f32) / (*races_total_games.get(&r.id).unwrap() as f32) * 100.0)
         })
-        .collect::<HashMap<RaceType, f32>>();
+        .collect::<HashMap<i32, f32>>();
 
     let race_with_least_winrate = races_winrates.iter()
         .min_by_key(|r| OrderedFloat(*r.1))
@@ -161,7 +163,7 @@ fn build_total_games_and_winrates(builder: &mut PairStatsBuilder, worksheet: &mu
 
     for race in races_data {
         match race.id {
-            RaceType::NotDetected => {},
+            0 => {},
             _=> {
                 let row_offset = 1 + (race.id as u32);
                 worksheet.write_with_format(row_offset, 17, *races_total_games.get(&race.id).unwrap() as u32, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
@@ -181,11 +183,11 @@ fn build_total_games_and_winrates(builder: &mut PairStatsBuilder, worksheet: &mu
 
 
 fn build_match_ups_games_and_winrates(worksheet: &mut Worksheet, races_data: &Vec<Race>, builder: &mut PairStatsBuilder) {
-    let mut most_played_pair_first = RaceType::NotDetected;
-    let mut most_played_pair_second = RaceType::NotDetected;
+    let mut most_played_pair_first = 0;
+    let mut most_played_pair_second = 0;
     
-    let mut least_played_pair_first = RaceType::NotDetected;
-    let mut least_played_pair_second = RaceType::NotDetected;
+    let mut least_played_pair_first = 0;
+    let mut least_played_pair_second = 0;
 
     let mut most_played_pair_games = u32::MIN;
     let mut least_played_pair_games = u32::MAX;
@@ -198,7 +200,7 @@ fn build_match_ups_games_and_winrates(worksheet: &mut Worksheet, races_data: &Ve
 
     for race in races_data {
         match race.id {
-            RaceType::NotDetected => {},
+            0 => {},
             _=> {
                 let col_offset = race.id as u16;
                 let games_row_offset = 23 + (race.id as u32);
@@ -212,7 +214,7 @@ fn build_match_ups_games_and_winrates(worksheet: &mut Worksheet, races_data: &Ve
 
                 for opponent_race in races_data {
                     match opponent_race.id {
-                        RaceType::NotDetected => {},
+                        0 => {},
                         _=> {
                             let col_offset = opponent_race.id as u16;
                             if race.id == opponent_race.id {
@@ -258,6 +260,6 @@ fn build_match_ups_games_and_winrates(worksheet: &mut Worksheet, races_data: &Ve
     worksheet.set_cell_format(23 + (least_played_pair_second as u32), least_played_pair_first as u16, &styles::BACKGROUND_RED).unwrap();
 }
 
-fn calc_games(data: &HashMap<RaceType, usize>) -> usize {
+fn calc_games(data: &HashMap<i32, usize>) -> usize {
     data.into_iter().map(|d| *d.1).sum()
 }

@@ -20,7 +20,7 @@ function App() {
   useEffect(() => {
     if (appState == AppState.Ready) {
       loadTournaments();
-      loadHeroes();
+      // loadHeroes();
       loadRaces();
     }
   }, [appState])

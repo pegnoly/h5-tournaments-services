@@ -1,6 +1,7 @@
 export type Tournament = {
     id: string,
-    name: string
+    name: string,
+    mod_type: number
 }
 
 export enum RaceType {

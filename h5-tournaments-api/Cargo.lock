@@ -788,7 +788,7 @@ dependencies = [
 
 [[package]]
 name = "h5-tournaments-api"
-version = "0.1.4"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.5",
  "derive_more",

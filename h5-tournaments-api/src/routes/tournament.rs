@@ -1,4 +1,4 @@
-use axum::{extract::{Path, Query, State}, routing::{get, post}, Json, Router};
+use axum::{extract::{Path, Query, State}, routing::{get, patch, post}, Json, Router};
 use uuid::Uuid;
 
 use crate::services::tournament::prelude::*;
@@ -9,10 +9,17 @@ pub fn tournament_routes() -> Router<TournamentService> {
     Router::new()
         .route("/tournament/create", post(create_tournament))
         .route("/tournament/get/:tournament_id", get(get_tournament))
+        .route("/tournament/matches/:tournament_id", get(load_matches_for_tournament))
+        .route("/tournament/games/:tournament_id", get(load_all_games_for_tournament))
+        .route("/tournaments", get(load_tournaments))
         .route("/races", get(load_races))
         .route("/heroes/:mod_type", get(load_heroes))
         .route("/match/register", post(register_match))
         .route("/match/games", post(upload_games))
+        .route("/match/games/:match_id", get(load_games_for_match))
+        .route("/game/create", post(create_game))
+        .route("/game/update", patch(update_game))
+        .route("/match/update", patch(update_match))
 }
 
 async fn create_tournament(
@@ -127,4 +134,55 @@ async fn upload_games(
     tournament_service.upload_games(&games).await.unwrap();
 
     Ok(())
+}
+
+async fn load_tournaments(
+    State(tournament_service): State<TournamentService>
+) -> Result<Json<Vec<Tournament>>, ()> {
+    Ok(Json(tournament_service.load_existing_tournaments().await.unwrap()))
+}
+
+async fn load_matches_for_tournament(
+    State(tournament_service): State<TournamentService>,
+    Path(tournament_id): Path<Uuid>
+) -> Result<Json<Vec<Match>>, ()> {
+    Ok(Json(tournament_service.load_matches_for_tournament(tournament_id).await.unwrap()))
+}
+
+async fn load_games_for_match(
+    State(tournament_service): State<TournamentService>,
+    Path(match_id): Path<Uuid>
+) -> Result<Json<Vec<Game>>, ()> {
+    Ok(Json(tournament_service.load_games_for_match(match_id).await.unwrap()))
+}
+
+async fn create_game(
+    State(tournament_service): State<TournamentService>,
+    Json(game): Json<Game>
+) -> Result<(), ()> {
+    tournament_service.create_game(game).await.unwrap();
+    Ok(())
+}
+
+async fn update_game(
+    State(tournament_service): State<TournamentService>,
+    Json(game): Json<Game>
+) -> Result<(), ()> {
+    tournament_service.update_game(game).await.unwrap();
+    Ok(())
+}
+
+async fn update_match(
+    State(tournament_service): State<TournamentService>,
+    Json(match_to_update): Json<Match>
+) -> Result<(), ()> {
+    tournament_service.update_match(match_to_update).await.unwrap();
+    Ok(())
+}
+
+async fn load_all_games_for_tournament(
+    State(tournament_service): State<TournamentService>,
+    Path(tournament_id): Path<Uuid>
+) -> Result<Json<Vec<Game>>, ()> {
+    Ok(Json(tournament_service.get_all_games_for_tournament(tournament_id).await.unwrap()))
 }
