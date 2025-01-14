@@ -11,7 +11,8 @@ use super::{styles, StatsBuilder};
 
 pub struct PairStatsBuilder {
     pub wins_by_race: HashMap<i32, HashMap<i32, usize>>,
-    pub losses_by_race: HashMap<i32, HashMap<i32, usize>>
+    pub losses_by_race: HashMap<i32, HashMap<i32, usize>>,
+    pub mirrors_by_race: HashMap<i32, usize>
 }
 
 impl PairStatsBuilder {
@@ -32,7 +33,13 @@ impl PairStatsBuilder {
                     (r, HashMap::from_iter(races_range.clone().map(|r2| {
                             (r2, 0)
                     })))
-                })) 
+                })),
+
+            mirrors_by_race: HashMap::from_iter(
+                races_range.clone().map(|r| {
+                    (r, 0)
+                })
+            )
         }
     }
 }
@@ -111,11 +118,20 @@ fn build_pairs_win_loss_stats(builder: &mut PairStatsBuilder, races_data: &Vec<R
                                 worksheet.write_with_format(row_offset, col_offset + 1, losses as u32, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
                             }
                             else {
-
-                                // !TODO Here must be logic of mirrors winrate calc
-
-                                worksheet.set_cell_format(row_offset, col_offset, &styles::BACKGROUND_BLACK).unwrap();
-                                worksheet.set_cell_format(row_offset, col_offset + 1, &styles::BACKGROUND_BLACK).unwrap();
+                                let games_count = games_data.iter().filter(|game| {
+                                    game.first_player_race == race.id && game.first_player_race == game.second_player_race
+                                })
+                                .collect::<Vec<&Game>>()
+                                .len();
+                                
+                                *builder.mirrors_by_race.get_mut(&race.id).unwrap() = games_count;
+                                
+                                worksheet.merge_range(
+                                    row_offset, 
+                                    col_offset, 
+                                    row_offset, 
+                                    col_offset + 1, 
+                                    &format!("{}", games_count), &styles::THIN_BORDER_TEXP_WRAP).unwrap();
                             }
                         }
                     }
@@ -134,7 +150,7 @@ fn build_total_games_and_winrates(builder: &mut PairStatsBuilder, worksheet: &mu
 
     let races_total_games = races_data.iter()
         .map(|r| {
-            (r.id, calc_games(builder.losses_by_race.get(&r.id).unwrap()) + calc_games(builder.wins_by_race.get(&r.id).unwrap()))
+            (r.id, calc_games(builder.losses_by_race.get(&r.id).unwrap()) + calc_games(builder.wins_by_race.get(&r.id).unwrap()) + builder.mirrors_by_race.get(&r.id).unwrap())
         })
         .collect::<HashMap<i32, usize>>();
 

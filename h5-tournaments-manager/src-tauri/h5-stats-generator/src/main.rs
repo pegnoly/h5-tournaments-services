@@ -9,7 +9,7 @@ pub(self) const MAIN_URL: &'static str = "https://h5-tournaments-api-5epg.shuttl
 #[tokio::main]
 async fn main() {
     let mut data_model = StatsGeneratorDataModel::new();
-    let tournament_id = uuid!("47b4090f-d284-418f-9983-56ca119cba31");
+    let tournament_id = uuid!("b3df11c0-b23a-461b-ba6e-fade24f2a167");
     let mut workbook = Workbook::new();
 
     let mut builders: Vec<Box<dyn StatsBuilder>> = vec![
