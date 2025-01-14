@@ -17,7 +17,7 @@ pub struct PairStatsBuilder {
 impl PairStatsBuilder {
     pub fn new() -> Self {
 
-        let races_range = std::ops::Range {start: 0, end: 8};
+        let races_range = std::ops::Range {start: 0, end: 9};
 
         PairStatsBuilder { 
             wins_by_race: HashMap::from_iter(
@@ -91,7 +91,7 @@ fn build_pairs_win_loss_stats(builder: &mut PairStatsBuilder, races_data: &Vec<R
                                         (game.first_player_race == opponent_race.id && game.second_player_race == race.id && game.result == GameResult::FirstPlayerWon) ||
                                         (game.first_player_race == race.id && game.second_player_race == opponent_race.id && game.result == GameResult::SecondPlayerWon)
                                     })
-                                    .unique_by(|g| g.id)
+                                    //.unique_by(|g| g.id)
                                     .collect::<Vec<&Game>>()
                                     .len();
 
@@ -101,7 +101,7 @@ fn build_pairs_win_loss_stats(builder: &mut PairStatsBuilder, races_data: &Vec<R
                                         (game.first_player_race == opponent_race.id && game.second_player_race == race.id && game.result == GameResult::SecondPlayerWon) ||
                                         (game.first_player_race == race.id && game.second_player_race == opponent_race.id && game.result == GameResult::FirstPlayerWon)
                                     })
-                                    .unique_by(|g| g.id)
+                                    //.unique_by(|g| g.id)
                                     .collect::<Vec<&Game>>()
                                     .len();
 
@@ -111,6 +111,9 @@ fn build_pairs_win_loss_stats(builder: &mut PairStatsBuilder, races_data: &Vec<R
                                 worksheet.write_with_format(row_offset, col_offset + 1, losses as u32, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
                             }
                             else {
+
+                                // !TODO Here must be logic of mirrors winrate calc
+
                                 worksheet.set_cell_format(row_offset, col_offset, &styles::BACKGROUND_BLACK).unwrap();
                                 worksheet.set_cell_format(row_offset, col_offset + 1, &styles::BACKGROUND_BLACK).unwrap();
                             }

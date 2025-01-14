@@ -1,16 +1,22 @@
 use h5_stats_generator::{builder::{pair::PairStatsBuilder, player::PlayersStatsBuilder, race::RaceStatsBuilder, StatsBuilder}, utils::StatsGeneratorDataModel};
-use h5_stats_types::{Game, Hero, Match, Race};
+use h5_tournaments_api::prelude::*;
 use reqwest::Client;
 use rust_xlsxwriter::Workbook;
 use uuid::{uuid, Uuid};
 
+pub(self) const MAIN_URL: &'static str = "https://h5-tournaments-api-5epg.shuttle.app/";
+
 #[tokio::main]
 async fn main() {
     let mut data_model = StatsGeneratorDataModel::new();
-    let tournament_id = uuid!("9cf9179a-afbb-4d81-b591-9e44e6e480ab");
+    let tournament_id = uuid!("47b4090f-d284-418f-9983-56ca119cba31");
     let mut workbook = Workbook::new();
 
-    let mut builders: Vec<Box<dyn StatsBuilder>> = vec![Box::new(PairStatsBuilder::new()), Box::new(RaceStatsBuilder::new()), Box::new(PlayersStatsBuilder{})];
+    let mut builders: Vec<Box<dyn StatsBuilder>> = vec![
+        Box::new(PairStatsBuilder::new()), 
+        Box::new(RaceStatsBuilder::new()), 
+        Box::new(PlayersStatsBuilder{})
+    ];
 
     load_data(&mut data_model, tournament_id).await;
 
@@ -31,7 +37,7 @@ async fn load_data(generator: &mut StatsGeneratorDataModel, id: Uuid) {
 }
 
 async fn load_matches(client: &Client, generator: &mut StatsGeneratorDataModel, tournament_id: Uuid) {
-    let response = client.get(format!("https://h5-tournaments-api.shuttleapp.rs/matches/{}", &tournament_id))
+    let response = client.get(format!("{}tournament/matches/{}", MAIN_URL, &tournament_id))
         .send()
         .await;
     match response {
@@ -39,6 +45,7 @@ async fn load_matches(client: &Client, generator: &mut StatsGeneratorDataModel, 
             let json: Result<Vec<Match>, reqwest::Error> = success.json().await;
             match json {
                 Ok(matches) => {
+                    println!("Got matches for stats count: {}", &matches.len());
                     generator.matches_data = matches;
                 },
                 Err(json_error) => {
@@ -53,7 +60,7 @@ async fn load_matches(client: &Client, generator: &mut StatsGeneratorDataModel, 
 }
 
 async fn load_games(client: &Client, generator: &mut StatsGeneratorDataModel, tournament_id: Uuid) {
-    let response = client.get(format!("https://h5-tournaments-api.shuttleapp.rs/games/by_tournament/{}", &tournament_id))
+    let response = client.get(format!("{}tournament/games/{}", MAIN_URL, &tournament_id))
         .send()
         .await;
     match response {
@@ -76,7 +83,7 @@ async fn load_games(client: &Client, generator: &mut StatsGeneratorDataModel, to
 }
 
 async fn load_heroes(client: &Client, generator: &mut StatsGeneratorDataModel) {
-    let response = client.get("https://h5-tournaments-api.shuttleapp.rs/heroes")
+    let response = client.get(format!("{}heroes/1", MAIN_URL))
         .send()
         .await;
     match response {
@@ -84,6 +91,7 @@ async fn load_heroes(client: &Client, generator: &mut StatsGeneratorDataModel) {
             let json: Result<Vec<Hero>, reqwest::Error> = success.json().await;
             match json {
                 Ok(heroes) => {
+                    println!("Got heroes for stats count: {}", &heroes.len());
                     generator.heroes_data = heroes;
                 },
                 Err(json_error) => {
@@ -98,7 +106,7 @@ async fn load_heroes(client: &Client, generator: &mut StatsGeneratorDataModel) {
 }
 
 async fn load_races(client: &Client, generator: &mut StatsGeneratorDataModel) {
-    let response = client.get("https://h5-tournaments-api.shuttleapp.rs/races")
+    let response = client.get(format!("{}races", MAIN_URL))
         .send()
         .await;
     match response {
@@ -106,6 +114,7 @@ async fn load_races(client: &Client, generator: &mut StatsGeneratorDataModel) {
             let json: Result<Vec<Race>, reqwest::Error> = success.json().await;
             match json {
                 Ok(races) => {
+                    println!("Got races for stats count: {}", &races.len());
                     generator.races_data = races;
                 },
                 Err(json_error) => {

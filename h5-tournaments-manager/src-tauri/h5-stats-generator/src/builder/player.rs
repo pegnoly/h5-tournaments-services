@@ -6,10 +6,9 @@ use rust_xlsxwriter::Worksheet;
 
 use super::{styles, StatsBuilder};
 
-const GAMES_HISTORY_CELLS: [&'static str; 7] = [
+const GAMES_HISTORY_CELLS: [&'static str; 6] = [
     "Раса игрока",
     "Раса оппонента",
-    "Цвет игрока",
     "Торг игрока",
     "Герой игрока",
     "Герой оппонента",
@@ -32,12 +31,14 @@ impl StatsBuilder for PlayersStatsBuilder {
             });
         
         let unique_players = players.into_iter().unique().collect::<Vec<String>>();
+        println!("Unique players: {:?}", unique_players);
         for player in &unique_players {
             let player_matches = data.matches_data.iter()
                 .filter(|m| m.first_player == *player || m.second_player == *player)
                 .unique_by(|m| m.id)
                 .sorted_by_key(|m| m.message_id)
                 .collect::<Vec<&Match>>();
+
             let worksheet = workbook.add_worksheet().set_name(player).unwrap();
             build_player_stats(player, player_matches, &data.games_data, &data.races_data, &data.heroes_data, &data.bargains_data, worksheet);
         }
@@ -99,19 +100,18 @@ fn build_player_stats(
             worksheet.write_with_format(
                 1 + games_count, 
                 1, 
-                &races_data.iter().find(|r| r.id == player_race ).unwrap().actual_name, 
+                get_race_actual_name(races_data, player_race), 
                 &styles::THIN_BORDER_TEXP_WRAP)
                 .unwrap();
             worksheet.write_with_format(
                 1 + games_count, 
                 2, 
-                &races_data.iter().find(|r| r.id == opponent_race ).unwrap().actual_name, 
+                get_race_actual_name(races_data, opponent_race), 
                 &styles::THIN_BORDER_TEXP_WRAP)
                 .unwrap();
 
-            let (bargains_color, bargains_amount) = get_player_color(player, actual_match, game, bargains_data);
-            worksheet.write_with_format(1 + games_count, 3, bargains_color, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
-            worksheet.write_with_format(1 + games_count, 4, bargains_amount, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
+            let bargains_amount = get_player_bargains_amount(player, actual_match, game);
+            worksheet.write_with_format(1 + games_count, 3, bargains_amount, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
 
             let (player_hero, opponent_hero) = get_players_heroes(player, actual_match, game);
 
@@ -124,20 +124,20 @@ fn build_player_stats(
 
             worksheet.write_with_format(
                 1 + games_count, 
-                5, 
-                &heroes_data.iter().find(|h| h.id == player_hero ).unwrap().actual_name, 
+                4, 
+                get_hero_actual_name(heroes_data, player_hero), 
                 &styles::THIN_BORDER_TEXP_WRAP)
                 .unwrap();
             worksheet.write_with_format(
                 1 + games_count, 
-                6, 
-                &heroes_data.iter().find(|h| h.id == opponent_hero ).unwrap().actual_name, 
+                5, 
+                get_hero_actual_name(heroes_data, opponent_hero),
                 &styles::THIN_BORDER_TEXP_WRAP)
                 .unwrap();
 
             match get_game_result(player, actual_match, game) {
                 GameRes::Win => {
-                    worksheet.write_with_format(1 + games_count, 7, "Победа", &styles::BACKGROUND_GREEN).unwrap();
+                    worksheet.write_with_format(1 + games_count, 6, "Победа", &styles::BACKGROUND_GREEN).unwrap();
                     total_wins_bargains += bargains_amount as i64;
 
                     if let Some(count ) = race_games_wins.get_mut(&player_race) {
@@ -155,7 +155,7 @@ fn build_player_stats(
                     }
                 },
                 GameRes::Loss => {
-                    worksheet.write_with_format(1 + games_count, 7, "Поражение", &styles::BACKGROUND_RED).unwrap();
+                    worksheet.write_with_format(1 + games_count, 6, "Поражение", &styles::BACKGROUND_RED).unwrap();
                     total_loss_bargains += bargains_amount as i64;
                 }
             }
@@ -206,7 +206,7 @@ fn build_player_stats(
         worksheet.write_with_format(
             row_offset + races_count, 
             0, 
-            &races_data.iter().find(|r| r.id == race_info.0).unwrap().actual_name, 
+            get_race_actual_name(races_data, race_info.0), 
             &styles::THIN_BORDER_TEXP_WRAP
         ).unwrap();
         worksheet.write_with_format(row_offset + races_count, 1, race_info.1, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
@@ -226,7 +226,7 @@ fn build_player_stats(
         worksheet.write_with_format(
             row_offset + heroes_count, 
             0, 
-            &heroes_data.iter().find(|h| h.id == hero_info.0).unwrap().actual_name, 
+            get_hero_actual_name(heroes_data, hero_info.0), 
             &styles::THIN_BORDER_TEXP_WRAP
         ).unwrap();
         worksheet.write_with_format(row_offset + heroes_count, 1, hero_info.1, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
@@ -245,21 +245,16 @@ fn get_players_races<'a>(player: &'a String, actual_match: &Match, actual_game: 
     (player_race_id, opponent_race_id)
 }
 
-fn get_player_color<'a>(player: &'a String, actual_match: &Match, actual_game: &Game, bargains_data: &'a Vec<BargainsColorModel>) -> (&'a String, i16) {
-    let (player_color_id, bargains_amount) = if actual_match.first_player == *player { 
-        (actual_game.bargains_color, actual_game.bargains_amount) 
+fn get_player_bargains_amount<'a>(player: &'a String, actual_match: &Match, actual_game: &Game) -> i16 {
+    let bargains_amount = if actual_match.first_player == *player { 
+        actual_game.bargains_amount
     } else { 
-        if actual_game.bargains_color == BargainsColor::ColorRed { 
-            (BargainsColor::ColorBlue, if actual_game.bargains_amount > 0 { -1 * actual_game.bargains_amount } else { actual_game.bargains_amount.abs() } )
-        } else { 
-            (BargainsColor::ColorRed, if actual_game.bargains_amount > 0 { -1 * actual_game.bargains_amount } else { actual_game.bargains_amount.abs() } )
-        } 
+        -1 * actual_game.bargains_amount
     };
-
-    (&bargains_data.iter().find(|b| b.id == player_color_id ).unwrap().name, bargains_amount)
+    bargains_amount
 }
 
-fn get_players_heroes<'a>(player: &'a String, actual_match: &Match, actual_game: &Game) -> (HeroType, HeroType) {
+fn get_players_heroes<'a>(player: &'a String, actual_match: &Match, actual_game: &Game) -> (i32, i32) {
     let (player_hero_id, opponent_hero_id) = if actual_match.first_player == *player { 
         (actual_game.first_player_hero, actual_game.second_player_hero) 
     }
@@ -276,4 +271,22 @@ fn get_game_result(player: &String, actual_match: &Match, actual_game: &Game) ->
     };
 
     res
+}
+ 
+fn get_hero_actual_name<'a>(heroes_data: &'a Vec<Hero>, hero: i32) -> &'a str {
+    if let Some(actual_hero) = heroes_data.iter().find(|h| h.id == hero) {
+        &actual_hero.actual_name
+    }
+    else {
+        "Не определено"
+    }
+}
+
+fn get_race_actual_name<'a>(races_data: &'a Vec<Race>, race: i32) -> &'a str {
+    if let Some(actual_race) = races_data.iter().find(|r| r.id == race) {
+        &actual_race.actual_name
+    }
+    else {
+        "Не определено"
+    }
 }
