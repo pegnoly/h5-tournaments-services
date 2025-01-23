@@ -1,0 +1,5 @@
+query GetOperatorQuery($id: UUID!) {
+    operator(id: $id) {
+        section
+    }
+}

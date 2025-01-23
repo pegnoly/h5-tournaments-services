@@ -1,0 +1,3 @@
+mutation CreateTournamentMutation($name: String!, $operatorId: UUID!, $channelId: String!) {
+    createTournament(name: $name, operatorId: $operatorId, channelId: $channelId) 
+}

@@ -31,7 +31,8 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
                 commands::init_tournament(),
                 commands::parse_results(),
                 commands::init_services(),
-                commands::create_user()
+                commands::create_user(),
+                commands::setup_tournament()
             ],
             ..Default::default()
         })

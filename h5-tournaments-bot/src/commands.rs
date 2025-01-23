@@ -2,6 +2,7 @@ use futures_executor::block_on_stream;
 use h5_tournaments_api::prelude::ModType;
 use poise::serenity_prelude::{futures::StreamExt, ChannelId, ChannelType, ComponentInteractionCollector, ComponentInteractionDataKind, CreateButton, CreateChannel, CreateMessage, GetMessages, Message, MessageId, PermissionOverwrite, PermissionOverwriteType, Permissions, UserId};
 use serde_json::json;
+use uuid::Uuid;
 
 use crate::{graphql::queries::create_user_mutation::Variables, parser::{types::HrtaParser, utils::ParsingDataModel}};
 
@@ -147,6 +148,29 @@ pub async fn init_services(
             _=> {}
         }
     }
+
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn setup_tournament(
+    context: crate::Context<'_>,
+    name: String,
+    operator_id: Uuid
+) -> Result<(), crate::Error> {
+
+    let api_connection_service = &context.data().api_connection_service;
+    let section_id = api_connection_service.get_operator(operator_id).await?;
+
+    let guild = context.guild_id().unwrap();
+    let channel_builder = CreateChannel::new(format!("отчеты-{}", &name)).kind(ChannelType::Text).category(ChannelId::from(section_id as u64));
+    let channel = guild.create_channel(context, channel_builder).await?;
+    let button = CreateButton::new("create_report_button").label("Написать отчет").disabled(true);
+    let message = CreateMessage::new().button(button);
+    channel.send_message(context, message).await?;
+
+    let create_tournament_res = api_connection_service.create_tournament(name, operator_id, section_id).await?;
+    context.say(create_tournament_res).await?;
 
     Ok(())
 }

@@ -202,6 +202,65 @@
                   "ofType": null
                 }
               }
+            },
+            {
+              "args": [
+                {
+                  "defaultValue": null,
+                  "description": null,
+                  "name": "name",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "String",
+                      "ofType": null
+                    }
+                  }
+                },
+                {
+                  "defaultValue": null,
+                  "description": null,
+                  "name": "operatorId",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "UUID",
+                      "ofType": null
+                    }
+                  }
+                },
+                {
+                  "defaultValue": null,
+                  "description": null,
+                  "name": "channelId",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "String",
+                      "ofType": null
+                    }
+                  }
+                }
+              ],
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "createTournament",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
             }
           ],
           "inputFields": null,
@@ -215,19 +274,30 @@
           "enumValues": null,
           "fields": [
             {
-              "args": [],
+              "args": [
+                {
+                  "defaultValue": null,
+                  "description": null,
+                  "name": "id",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "UUID",
+                      "ofType": null
+                    }
+                  }
+                }
+              ],
               "deprecationReason": null,
               "description": null,
               "isDeprecated": false,
-              "name": "users",
+              "name": "operator",
               "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                }
+                "kind": "OBJECT",
+                "name": "TournamentOperatorModel",
+                "ofType": null
               }
             }
           ],
@@ -245,6 +315,115 @@
           "interfaces": null,
           "kind": "SCALAR",
           "name": "String",
+          "possibleTypes": null
+        },
+        {
+          "description": null,
+          "enumValues": null,
+          "fields": [
+            {
+              "args": [],
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "id",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "UUID",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "args": [],
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "name",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "args": [],
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "server",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "args": [],
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "heroes",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "LIST",
+                  "name": null,
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "Int",
+                      "ofType": null
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "args": [],
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "section",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              }
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "kind": "OBJECT",
+          "name": "TournamentOperatorModel",
+          "possibleTypes": null
+        },
+        {
+          "description": "A UUID is a unique 128-bit number, stored as 16 octets. UUIDs are parsed as\nStrings within GraphQL. UUIDs are used to assign unique identifiers to\nentities without requiring a central allocating authority.\n\n# References\n\n* [Wikipedia: Universally Unique Identifier](http://en.wikipedia.org/wiki/Universally_unique_identifier)\n* [RFC4122: A Universally Unique IDentifier (UUID) URN Namespace](http://tools.ietf.org/html/rfc4122)",
+          "enumValues": null,
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "kind": "SCALAR",
+          "name": "UUID",
           "possibleTypes": null
         },
         {

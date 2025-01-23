@@ -1,15 +1,14 @@
 use sea_orm::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
-#[sea_orm(table_name = "operators")]
+#[sea_orm(table_name = "tournament_operators")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
     pub name: String,
     pub server_id: i64,
-    // represents users who can use bots commands on specific server
-    pub managers: Vec<i64>,
-    pub heroes: Vec<i32>
+    pub heroes: Vec<i32>,
+    pub section_id: i64
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -32,12 +31,12 @@ impl TournamentOperatorModel {
     async fn server(&self) -> i64 {
         self.server_id
     }
-
-    async fn managers(&self) -> Vec<i64> {
-        self.managers.clone()
-    }
-    
+ 
     async fn heroes(&self) -> Vec<i32> {
         self.heroes.clone()
+    }
+
+    async fn section(&self) -> i64 {
+        self.section_id
     }
 }

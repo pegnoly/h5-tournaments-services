@@ -1,5 +1,5 @@
 use rust_decimal::Decimal;
-use sea_orm::{sea_query::OnConflict, ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
+use sea_orm::{sea_query::OnConflict, ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use sqlx::{PgPool, Pool, Postgres};
 use uuid::Uuid;
 
@@ -7,7 +7,7 @@ use crate::routes::models::MatchRegistrationForm;
 
 use self::user::{Column, Entity, UserModel};
 
-use super::{models::user, types::{Game, Hero, Match, ModType, Race, Tournament}};
+use super::{models::{operator::{self, TournamentOperatorModel}, tournament, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
 
 #[derive(Clone)]
 pub struct LegacyTournamentService {
@@ -319,4 +319,43 @@ impl TournamentService {
             }
         }
     }
+
+    pub async fn get_operator(
+        &self,
+        db: &DatabaseConnection,
+        id: Uuid
+    ) -> Result<Option<TournamentOperatorModel>, String> {
+        let res = operator::Entity::find().filter(operator::Column::Id.eq(id)).one(db).await;
+        match res {
+            Ok(operator) => {
+                Ok(operator)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn create_tournament(&self, db: &DatabaseConnection, name: String, operator_id: Uuid, reports_channel_id: String) -> Result<String, String> {
+        let id = Uuid::new_v4();
+        let channel_id = i64::from_str_radix(&reports_channel_id, 10).unwrap();
+        let tournament_to_insert = tournament::ActiveModel {
+            id: Set(id),
+            operator_id: Set(operator_id),
+            channel_id: Set(channel_id),
+            name: Set(name.clone())
+        };
+
+        let res = tournament_to_insert.insert(db).await;
+
+        match res {
+            Ok(_model) => {
+                Ok(format!("Tournament {} created with id {}", &name, &id))
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
 }
