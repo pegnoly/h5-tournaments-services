@@ -1,18 +1,22 @@
+use rust_decimal::Decimal;
+use sea_orm::{sea_query::OnConflict, ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
 use sqlx::{PgPool, Pool, Postgres};
 use uuid::Uuid;
 
 use crate::routes::models::MatchRegistrationForm;
 
-use super::types::{Game, Hero, Match, ModType, Race, Tournament};
+use self::user::{Column, Entity, UserModel};
+
+use super::{models::user, types::{Game, Hero, Match, ModType, Race, Tournament}};
 
 #[derive(Clone)]
-pub struct TournamentService {
+pub struct LegacyTournamentService {
     pub pool: PgPool
 }
 
-impl TournamentService {
+impl LegacyTournamentService {
     pub fn new(pool: PgPool) -> Self {
-        TournamentService { pool: pool }
+        LegacyTournamentService { pool: pool }
     }
 
     pub async fn create_tournament(
@@ -270,5 +274,49 @@ impl TournamentService {
             .await?;
 
         Ok(games)
+    }
+}
+
+#[derive(Clone)]
+pub struct TournamentService;
+
+impl TournamentService {
+    pub async fn create_user(
+        &self,
+        db: &DatabaseConnection,
+        name: String,
+        discord_id: String
+    ) -> Result<String, String> {
+        let id = Uuid::new_v4();
+        let discord = i64::from_str_radix(&discord_id, 10).unwrap();
+
+        let on_conflict = OnConflict::column(Column::DiscordId).do_nothing().to_owned();
+
+        let user_to_insert = user::ActiveModel {
+            id: Set(id),
+            nickname: Set(name.clone()),
+            discord_id: Set(discord)
+        };
+
+        let res = Entity::insert(user_to_insert).on_conflict(on_conflict.clone()).exec(db).await;
+
+        match res {
+            Ok(_model) => {
+                Ok(format!("User {} created successfully", &name))
+            },
+            Err(error) => {
+                match error {
+                    sea_orm::DbErr::RecordNotFound(_s) => {
+                        Ok(format!("User {} with discord id {} already exists", &name, &discord_id))
+                    },
+                    sea_orm::DbErr::RecordNotInserted => {
+                        Ok(format!("User {} with discord id {} already exists", &name, &discord_id))
+                    }
+                    _=> {
+                        Err(error.to_string())
+                    }
+                }
+            }
+        }
     }
 }

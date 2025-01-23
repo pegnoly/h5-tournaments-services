@@ -1,9 +1,10 @@
 use std::str::FromStr;
 
+use graphql_client::{reqwest::post_graphql, GraphQLQuery, Response};
 use h5_tournaments_api::prelude::{Hero, ModType, Race, Tournament};
 use uuid::Uuid;
 
-use crate::parser::service::ParsedData;
+use crate::{graphql::queries::{create_user_mutation::ResponseData, CreateUserMutation}, parser::service::ParsedData};
 
 pub(self) const MAIN_URL: &'static str = "https://h5-tournaments-api-5epg.shuttle.app/";
 
@@ -159,4 +160,43 @@ impl ApiConnectionService {
 
         Ok(())
     }    
+
+    pub async fn create_user(&self, nickname: String, id: String) -> Result<String, crate::Error> {
+        let variables = crate::graphql::queries::create_user_mutation::Variables {
+            name: nickname,
+            discord: id
+        };
+        
+        let client = self.client.read().await;
+        let query = CreateUserMutation::build_query(variables);
+        let response = client.post("https://h5-tournaments-api-5epg.shuttle.app").json(&query).send().await;
+        match response {
+            Ok(response) => {
+                // tracing::info!("Responce: {:?}", &response.text().await.unwrap());
+                // Ok("test".to_string())
+                let result = response.json::<Response<ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        if let Some(data) = result.data {
+                            Ok(data.create_user)
+                        }
+                        else {
+                            if let Some(errors) = result.errors {
+                                Ok(errors.iter().map(|e| e.to_string()).collect::<Vec<String>>().concat().into())
+                            }
+                            else {
+                                Ok("Unknown interaction: no data and no errors returned".to_string())
+                            }
+                        }
+                    },
+                    Err(error) => {
+                        Err(crate::Error::from(error))
+                    }
+                }
+            }
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
 }

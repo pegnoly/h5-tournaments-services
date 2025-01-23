@@ -1,0 +1,3 @@
+mutation CreateUserMutation($name: String!, $discord: String!) {
+    createUser(name: $name, discord: $discord)
+} 

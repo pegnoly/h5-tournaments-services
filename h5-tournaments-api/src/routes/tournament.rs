@@ -5,25 +5,25 @@ use crate::services::tournament::prelude::*;
 
 use super::models::{MatchRegistrationForm, TournamentCreationModel};
 
-pub fn tournament_routes() -> Router<TournamentService> { 
+pub fn tournament_routes() -> Router<LegacyTournamentService> { 
     Router::new()
         .route("/tournament/create", post(create_tournament))
-        .route("/tournament/get/:tournament_id", get(get_tournament))
-        .route("/tournament/matches/:tournament_id", get(load_matches_for_tournament))
-        .route("/tournament/games/:tournament_id", get(load_all_games_for_tournament))
+        .route("/tournament/get/{tournament_id}", get(get_tournament))
+        .route("/tournament/matches/{tournament_id}", get(load_matches_for_tournament))
+        .route("/tournament/games/{tournament_id}", get(load_all_games_for_tournament))
         .route("/tournaments", get(load_tournaments))
         .route("/races", get(load_races))
-        .route("/heroes/:mod_type", get(load_heroes))
+        .route("/heroes/{mod_type}", get(load_heroes))
         .route("/match/register", post(register_match))
         .route("/match/games", post(upload_games))
-        .route("/match/games/:match_id", get(load_games_for_match))
+        .route("/match/games/{match_id}", get(load_games_for_match))
         .route("/game/create", post(create_game))
         .route("/game/update", patch(update_game))
         .route("/match/update", patch(update_match))
 }
 
 async fn create_tournament(
-    State(tournament_service): State<TournamentService>,
+    State(tournament_service): State<LegacyTournamentService>,
     Json(creation_model): Json<TournamentCreationModel>
 ) -> Result<String, ()> {
 
@@ -53,7 +53,7 @@ async fn create_tournament(
 }
 
 async fn get_tournament(
-    State(tournament_service): State<TournamentService>,
+    State(tournament_service): State<LegacyTournamentService>,
     Path(tournament_id): Path<Uuid>
 ) -> Result<Json<Tournament>, ()> {
 
@@ -71,7 +71,7 @@ async fn get_tournament(
 }
 
 async fn load_races(
-    State(tournament_service): State<TournamentService>
+    State(tournament_service): State<LegacyTournamentService>
 ) -> Result<Json<Vec<Race>>, ()> {
 
     let races_data = tournament_service.load_races().await;
@@ -88,7 +88,7 @@ async fn load_races(
 }
 
 async fn load_heroes(
-    State(tournament_service): State<TournamentService>,
+    State(tournament_service): State<LegacyTournamentService>,
     Path(mod_type): Path<i16>
 ) -> Result<Json<Vec<Hero>>, ()> {
     
@@ -107,7 +107,7 @@ async fn load_heroes(
 }
 
 async fn register_match(
-    State(tournament_service): State<TournamentService>,
+    State(tournament_service): State<LegacyTournamentService>,
     Query(registration_form): Query<MatchRegistrationForm>
 ) -> Result<Json<Uuid>, ()> {
 
@@ -127,7 +127,7 @@ async fn register_match(
 }
 
 async fn upload_games(
-    State(tournament_service): State<TournamentService>,
+    State(tournament_service): State<LegacyTournamentService>,
     Json(games): Json<Vec<Game>>
 ) -> Result<(), ()> {
 
@@ -137,27 +137,27 @@ async fn upload_games(
 }
 
 async fn load_tournaments(
-    State(tournament_service): State<TournamentService>
+    State(tournament_service): State<LegacyTournamentService>
 ) -> Result<Json<Vec<Tournament>>, ()> {
     Ok(Json(tournament_service.load_existing_tournaments().await.unwrap()))
 }
 
 async fn load_matches_for_tournament(
-    State(tournament_service): State<TournamentService>,
+    State(tournament_service): State<LegacyTournamentService>,
     Path(tournament_id): Path<Uuid>
 ) -> Result<Json<Vec<Match>>, ()> {
     Ok(Json(tournament_service.load_matches_for_tournament(tournament_id).await.unwrap()))
 }
 
 async fn load_games_for_match(
-    State(tournament_service): State<TournamentService>,
+    State(tournament_service): State<LegacyTournamentService>,
     Path(match_id): Path<Uuid>
 ) -> Result<Json<Vec<Game>>, ()> {
     Ok(Json(tournament_service.load_games_for_match(match_id).await.unwrap()))
 }
 
 async fn create_game(
-    State(tournament_service): State<TournamentService>,
+    State(tournament_service): State<LegacyTournamentService>,
     Json(game): Json<Game>
 ) -> Result<(), ()> {
     tournament_service.create_game(game).await.unwrap();
@@ -165,7 +165,7 @@ async fn create_game(
 }
 
 async fn update_game(
-    State(tournament_service): State<TournamentService>,
+    State(tournament_service): State<LegacyTournamentService>,
     Json(game): Json<Game>
 ) -> Result<(), ()> {
     tournament_service.update_game(game).await.unwrap();
@@ -173,7 +173,7 @@ async fn update_game(
 }
 
 async fn update_match(
-    State(tournament_service): State<TournamentService>,
+    State(tournament_service): State<LegacyTournamentService>,
     Json(match_to_update): Json<Match>
 ) -> Result<(), ()> {
     tournament_service.update_match(match_to_update).await.unwrap();
@@ -181,7 +181,7 @@ async fn update_match(
 }
 
 async fn load_all_games_for_tournament(
-    State(tournament_service): State<TournamentService>,
+    State(tournament_service): State<LegacyTournamentService>,
     Path(tournament_id): Path<Uuid>
 ) -> Result<Json<Vec<Game>>, ()> {
     Ok(Json(tournament_service.get_all_games_for_tournament(tournament_id).await.unwrap()))

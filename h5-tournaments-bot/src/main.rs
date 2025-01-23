@@ -8,6 +8,7 @@ use shuttle_serenity::ShuttleSerenity;
 pub mod commands;
 pub mod parser;
 pub mod api_connector;
+pub mod graphql;
 
 struct Data {
     pub api_connection_service: ApiConnectionService,
@@ -28,7 +29,9 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
         .options(poise::FrameworkOptions {
             commands: vec![
                 commands::init_tournament(),
-                commands::parse_results()
+                commands::parse_results(),
+                commands::init_services(),
+                commands::create_user()
             ],
             ..Default::default()
         })
