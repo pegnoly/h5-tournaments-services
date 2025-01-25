@@ -21,7 +21,23 @@ pub struct CreateTournamentMutation;
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/queries/get_operator.graphql",
+    query_path = "src/graphql/queries/get_operator_section.graphql",
     response_derives = "Debug"
 )]
-pub struct GetOperatorQuery;
+pub struct GetOperatorSectionQuery;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/get_operator_data.graphql",
+    response_derives = "Debug"
+)]
+pub struct GetOperatorDataQuery;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/get_tournament.graphql",
+    response_derives = "Debug"
+)]
+pub struct GetTournamentQuery;

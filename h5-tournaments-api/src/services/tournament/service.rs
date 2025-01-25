@@ -1,11 +1,11 @@
 use rust_decimal::Decimal;
-use sea_orm::{sea_query::OnConflict, ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use sea_orm::{sea_query::{expr, OnConflict, SimpleExpr}, ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use sqlx::{PgPool, Pool, Postgres};
 use uuid::Uuid;
 
 use crate::routes::models::MatchRegistrationForm;
 
-use self::user::{Column, Entity, UserModel};
+use self::{tournament::TournamentModel, user::{Column, Entity, UserModel}};
 
 use super::{models::{operator::{self, TournamentOperatorModel}, tournament, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
 
@@ -358,4 +358,71 @@ impl TournamentService {
         }
     }
 
+    pub async fn get_tournament(
+        &self,
+        db: &DatabaseConnection,
+        id: Option<Uuid>,
+        reports_channel_id: Option<String>,
+    ) -> Result<Option<TournamentModel>, String> {
+        let conditions = Condition::all()
+            .add_option( if id.is_some() { 
+                Some(expr::Expr::col(tournament::Column::Id).eq(id.unwrap())) 
+            } else { 
+                None::<SimpleExpr> 
+            })
+            .add_option( if reports_channel_id.is_some() { 
+                Some(expr::Expr::col(tournament::Column::ChannelId).eq(i64::from_str_radix(&reports_channel_id.unwrap(), 10).unwrap()))
+            } else {
+                None::<SimpleExpr>
+            }
+        );
+
+        let res = tournament::Entity::find()
+            .filter(conditions)
+            .one(db)
+            .await;
+
+        match res {
+            Ok(tournament) => {
+                Ok(tournament)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_user(
+        &self,
+        db: &DatabaseConnection,
+        id: Option<Uuid>,
+        discord_id: Option<String>
+    ) -> Result<Option<UserModel>, String> {
+
+        let conditions = Condition::all()
+            .add_option(if id.is_some() { 
+                Some(expr::Expr::col(user::Column::Id).eq(id.unwrap()))
+            } else {
+                None::<SimpleExpr>
+            })
+            .add_option(if discord_id.is_some() {
+                Some(expr::Expr::col(user::Column::DiscordId).eq(i64::from_str_radix(&discord_id.unwrap(), 10).unwrap()))
+            } else {
+                None::<SimpleExpr>
+            });
+
+        let res = user::Entity::find()
+            .filter(conditions)
+            .one(db)
+            .await;
+
+        match res {
+            Ok(user) => {
+                Ok(user)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
 }

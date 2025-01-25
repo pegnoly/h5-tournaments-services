@@ -9,8 +9,8 @@ pub mod commands;
 pub mod parser;
 pub mod api_connector;
 pub mod graphql;
-
-struct Data {
+pub mod builders;
+pub struct Data {
     pub api_connection_service: ApiConnectionService,
     pub parser_service: ParserService
 } // User data, which is stored and accessible in all command invocations

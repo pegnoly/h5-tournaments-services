@@ -1,10 +1,12 @@
+use std::vec;
+
 use futures_executor::block_on_stream;
 use h5_tournaments_api::prelude::ModType;
 use poise::serenity_prelude::{futures::StreamExt, ChannelId, ChannelType, ComponentInteractionCollector, ComponentInteractionDataKind, CreateButton, CreateChannel, CreateMessage, GetMessages, Message, MessageId, PermissionOverwrite, PermissionOverwriteType, Permissions, UserId};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::{graphql::queries::create_user_mutation::Variables, parser::{types::HrtaParser, utils::ParsingDataModel}};
+use crate::{builders, graphql::queries::create_user_mutation::Variables, parser::{types::HrtaParser, utils::ParsingDataModel}};
 
 /// This command collects user input and if everything is correct sends tournament creating request
 // Correctness check isn't implemented yet and i think won't be cause in new project this won't be used.
@@ -156,21 +158,30 @@ pub async fn init_services(
 pub async fn setup_tournament(
     context: crate::Context<'_>,
     name: String,
-    operator_id: Uuid
+    operator_id: Uuid,
+    reports_channel: String
 ) -> Result<(), crate::Error> {
 
     let api_connection_service = &context.data().api_connection_service;
-    let section_id = api_connection_service.get_operator(operator_id).await?;
+    let channel = ChannelId::from(u64::from_str_radix(&reports_channel, 10)?);
 
-    let guild = context.guild_id().unwrap();
-    let channel_builder = CreateChannel::new(format!("отчеты-{}", &name)).kind(ChannelType::Text).category(ChannelId::from(section_id as u64));
-    let channel = guild.create_channel(context, channel_builder).await?;
-    let button = CreateButton::new("create_report_button").label("Написать отчет").disabled(true);
+    let button = CreateButton::new("create_report_button").label("Написать отчет").disabled(false);
     let message = CreateMessage::new().button(button);
     channel.send_message(context, message).await?;
 
-    let create_tournament_res = api_connection_service.create_tournament(name, operator_id, section_id).await?;
+    let create_tournament_res = api_connection_service.create_tournament(name, operator_id, channel.get() as i64).await?;
     context.say(create_tournament_res).await?;
 
+    while let Some(interaction) = ComponentInteractionCollector::new(context).channel_id(channel).next().await {
+        match interaction.data.kind {
+            ComponentInteractionDataKind::Button => {
+                if interaction.data.custom_id == "create_report_button".to_string()  {
+                    //builders::report_message::initial_build(&context, &interaction).await?;
+                    context.say(format!("Report creation invoked by user {}", &interaction.user.id.get())).await?;
+                }
+            },
+            _=> {}
+        }
+    }
     Ok(())
 }
