@@ -1,0 +1,3 @@
+mutation CreateMatchMutation($tournamentId: UUID!, $interaction: String!, $firstPlayer: UUID!) {
+    createMatch(tournamentId: $tournamentId, interaction: $interaction, firstPlayer: $firstPlayer)
+}

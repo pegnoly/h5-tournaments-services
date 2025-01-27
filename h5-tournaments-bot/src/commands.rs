@@ -162,7 +162,53 @@ pub async fn setup_tournament(
     reports_channel: String
 ) -> Result<(), crate::Error> {
 
+    // let api_connection_service = &context.data().api_connection_service;
+    // let section_id = api_connection_service.get_operator(operator_id).await?;
+    // let guild = context.guild_id().unwrap();
+    // let permissions = guild.roles(context).await?.iter()
+    //     .filter_map(|(id, role)| {
+    //         if role.has_permission(Permissions::ADMINISTRATOR) {
+    //             None
+    //         }
+    //         else {
+    //             match role.name.as_str() {
+    //                 "homm5-tournaments-bot" | "Статистика" => {
+    //                     // tracing::info!("Changing permissions for role {}", role.name);
+    //                     // Some(PermissionOverwrite { 
+    //                     //     allow: Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES | Permissions::USE_APPLICATION_COMMANDS | Permissions::USE_EXTERNAL_APPS, 
+    //                     //     deny: Permissions::MANAGE_GUILD | Permissions::MANAGE_CHANNELS, 
+    //                     //     kind: PermissionOverwriteType::Role(*id)
+    //                     // })
+    //                     None
+    //                 },
+    //                 _=> {
+    //                     Some(PermissionOverwrite { 
+    //                         allow: role.permissions, 
+    //                         deny: Permissions::empty(), 
+    //                         kind: PermissionOverwriteType::Role(*id) 
+    //                     })
+    //                 }
+    //             }
+    //         }
+    //     }).collect::<Vec<PermissionOverwrite>>();
+
+    // let channel = guild.create_channel(context, 
+    //     CreateChannel::new(format!("отчеты-{}", &name))
+    //         .kind(ChannelType::Text)
+    //         //.category(ChannelId::from(section_id as u64))
+    //         .permissions(permissions)
+    //     ).await?;
+    
+    // tracing::info!("Channel created: {}", &channel.id.get());
+    // let button = CreateButton::new("create_report_button").label("Написать отчет").disabled(false);
+    // let message = CreateMessage::new().button(button);
+    // channel.send_message(context, message).await?;
+
+    // let create_tournament_res = api_connection_service.create_tournament(name, operator_id, channel.id.get() as i64).await?;
+    // context.say(create_tournament_res).await?;
+
     let api_connection_service = &context.data().api_connection_service;
+    let section_id = api_connection_service.get_operator_section(operator_id).await?;
     let channel = ChannelId::from(u64::from_str_radix(&reports_channel, 10)?);
 
     let button = CreateButton::new("create_report_button").label("Написать отчет").disabled(false);
@@ -172,16 +218,5 @@ pub async fn setup_tournament(
     let create_tournament_res = api_connection_service.create_tournament(name, operator_id, channel.get() as i64).await?;
     context.say(create_tournament_res).await?;
 
-    while let Some(interaction) = ComponentInteractionCollector::new(context).channel_id(channel).next().await {
-        match interaction.data.kind {
-            ComponentInteractionDataKind::Button => {
-                if interaction.data.custom_id == "create_report_button".to_string()  {
-                    //builders::report_message::initial_build(&context, &interaction).await?;
-                    context.say(format!("Report creation invoked by user {}", &interaction.user.id.get())).await?;
-                }
-            },
-            _=> {}
-        }
-    }
     Ok(())
 }

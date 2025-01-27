@@ -5,9 +5,9 @@ use uuid::Uuid;
 
 use crate::routes::models::MatchRegistrationForm;
 
-use self::{tournament::TournamentModel, user::{Column, Entity, UserModel}};
+use self::{match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
 
-use super::{models::{operator::{self, TournamentOperatorModel}, tournament, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
+use super::{models::{match_structure, operator::{self, TournamentOperatorModel}, tournament, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
 
 #[derive(Clone)]
 pub struct LegacyTournamentService {
@@ -419,6 +419,121 @@ impl TournamentService {
         match res {
             Ok(user) => {
                 Ok(user)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn create_match(
+        &self,
+        db: &DatabaseConnection,
+        tournament_id: Uuid,
+        interaction: String,
+        first_player: Uuid
+    ) -> Result<(), String> {
+        let id = Uuid::new_v4();
+        let interaction_id = i64::from_str_radix(&interaction, 10).unwrap();
+
+        let match_to_create = match_structure::ActiveModel {
+            id: Set(id),
+            first_player: Set(first_player),
+            interaction_id: Set(interaction_id),
+            tournament_id: Set(tournament_id),
+            ..Default::default()
+        };
+
+        let res = match_to_create.insert(db).await;
+        match res {
+            Ok(_success) => {
+                Ok(())
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn update_match(
+        &self,
+        db: &DatabaseConnection,
+        id: Uuid,
+        games_count: Option<i32>,
+        second_player: Option<Uuid>,
+        data_message: Option<String>
+    ) -> Result<(), String> {
+
+        let current_match = match_structure::Entity::find_by_id(id).one(db).await.unwrap();
+        if let Some(current_match) = current_match {
+
+            let mut match_to_update: match_structure::ActiveModel = current_match.into();
+
+            if let Some(games) = games_count {
+                match_to_update.games_count = Set(Some(games));
+            }
+
+            if let Some(second_player) = second_player {
+                match_to_update.second_player = Set(Some(second_player));
+            }
+
+            if let Some(data_message) = data_message {
+                match_to_update.data_message = Set(Some(i64::from_str_radix(&data_message, 10).unwrap()));
+            }
+
+            match_to_update.update(db).await.unwrap();
+        }
+
+        Ok(())
+    }
+
+    pub async fn get_match(
+        &self,
+        db: &DatabaseConnection,
+        id: Option<Uuid>,
+        data_message: Option<String>,
+        interaction: Option<String>
+    ) -> Result<Option<MatchModel>, String> {
+        let conditions = Condition::all()
+            .add_option(if id.is_some() {
+                Some(expr::Expr::col(match_structure::Column::Id).eq(id.unwrap()))
+            } else {
+                None::<SimpleExpr>
+            })
+            .add_option(if data_message.is_some() {
+                Some(expr::Expr::col(match_structure::Column::DataMessage).eq(i64::from_str_radix(&data_message.unwrap(), 10).unwrap()))
+            } else {
+                None::<SimpleExpr>
+            })
+            .add_option(if interaction.is_some() {
+                Some(expr::Expr::col(match_structure::Column::InteractionId).eq(i64::from_str_radix(&interaction.unwrap(), 10).unwrap()))
+            } else {
+                None::<SimpleExpr>
+            });
+        
+        let res = match_structure::Entity::find()
+            .filter(conditions)
+            .one(db)
+            .await;
+
+        match res {
+            Ok(match_model) => {
+                Ok(match_model)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_users(
+        &self, 
+        db: &DatabaseConnection
+    ) -> Result<Vec<UserModel>, String> {
+        let res = user::Entity::find().all(db).await;
+        match res {
+            Ok(users) => {
+                Ok(users)
             },
             Err(error) => {
                 Err(error.to_string())

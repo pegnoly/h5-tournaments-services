@@ -4,7 +4,7 @@ use graphql_client::{reqwest::post_graphql, GraphQLQuery, Response};
 use h5_tournaments_api::prelude::{Hero, ModType, Race, Tournament};
 use uuid::Uuid;
 
-use crate::{graphql::queries::{self, create_user_mutation::ResponseData, CreateTournamentMutation, CreateUserMutation, GetOperatorSectionQuery, GetTournamentQuery}, parser::service::ParsedData};
+use crate::{graphql::queries::{self, create_user_mutation::ResponseData, get_match_query::GetMatchQueryTournamentMatch, get_user_query::GetUserQueryUser, CreateMatchMutation, CreateTournamentMutation, CreateUserMutation, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateMatchMutation}, parser::service::ParsedData};
 
 pub(self) const MAIN_URL: &'static str = "https://h5-tournaments-api-5epg.shuttle.app/";
 
@@ -200,7 +200,7 @@ impl ApiConnectionService {
         }
     }
 
-    pub async fn get_operator(&self, id: Uuid) -> Result<i64, crate::Error> {
+    pub async fn get_operator_section(&self, id: Uuid) -> Result<i64, crate::Error> {
         let variables = queries::get_operator_section_query::Variables {
             id: id
         };
@@ -230,6 +230,38 @@ impl ApiConnectionService {
             }
         }
     }
+
+    pub async fn get_operator_data(&self, id: Uuid) -> Result<String, crate::Error> {
+        let variables = queries::get_operator_data_query::Variables {
+            id: id
+        };
+
+        let client = self.client.read().await;
+        let query = GetOperatorDataQuery::build_query(variables);
+        let response = client.post(MAIN_URL).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::get_operator_data_query::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        if let Some(data) = result.data {
+                            Ok(data.operator.unwrap().name)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
+
 
     pub async fn create_tournament(&self, name: String, operator_id: Uuid, channel_id: i64) -> Result<String, crate::Error>{
         let variables = crate::graphql::queries::create_tournament_mutation::Variables {
@@ -264,10 +296,10 @@ impl ApiConnectionService {
         }
     }
 
-    pub async fn get_tournament_data(&self, channel_id: String) -> Result<(String, Uuid), crate::Error> {
+    pub async fn get_tournament_data(&self, id: Option<Uuid>, channel_id: Option<String>) -> Result<Option<queries::GetTournamentResult>, crate::Error> {
         let variables = queries::get_tournament_query::Variables {
-            reports_channel_id: Some(channel_id.clone()),
-            id: None
+            reports_channel_id: channel_id,
+            id: id
         };
 
         let client = self.client.read().await;
@@ -279,7 +311,172 @@ impl ApiConnectionService {
                 match result {
                     Ok(result) => {
                         if let Some(data) = result.data {
-                            Ok((data.tournament.as_ref().unwrap().name.clone(), data.tournament.unwrap().operator))
+                            Ok(data.tournament)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
+
+    pub async fn get_user(&self, id: Option<Uuid>, discord_id: Option<String>) -> Result<Option<GetUserQueryUser>, crate::Error> {
+        let variables = queries::get_user_query::Variables {
+            discord_id: discord_id,
+            id: id
+        };
+
+        let client = self.client.read().await;
+        let query = GetUserQuery::build_query(variables);
+        let response = client.post(MAIN_URL).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::get_user_query::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        if let Some(data) = result.data {
+                            Ok(data.user)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
+
+    pub async fn create_match(
+        &self,
+        tournament_id: Uuid,
+        first_player: Uuid,
+        interaction_id: u64
+    ) -> Result<String, crate::Error> {
+        let variables = queries::create_match_mutation::Variables {
+            tournament_id: tournament_id,
+            interaction: interaction_id.to_string(),
+            first_player: first_player
+        };
+
+        let client = self.client.read().await;
+        let query = CreateMatchMutation::build_query(variables);
+        let response = client.post(MAIN_URL).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::create_match_mutation::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        if let Some(data) = result.data {
+                            Ok(data.create_match)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
+
+    pub async fn get_match(&self, id: Option<Uuid>, interaction_id: Option<String>, data_message: Option<String>) -> Result<Option<queries::GetMatchResult>, crate::Error> {
+        let variables = queries::get_match_query::Variables {
+            id: id,
+            interaction: interaction_id,
+            data_message: data_message
+        };
+
+        let client = self.client.read().await;
+        let query = GetMatchQuery::build_query(variables);
+        let response = client.post(MAIN_URL).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::get_match_query::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        if let Some(data) = result.data {
+                            Ok(data.tournament_match)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
+
+    pub async fn update_match(&self, id: Uuid, data_message: Option<String>, games_count: Option<i64>, second_player: Option<Uuid>) -> Result<String, crate::Error> {
+        let variables = queries::update_match_mutation::Variables {
+            id: id,
+            data_message: data_message,
+            games_count: games_count,
+            second_player: second_player
+        };
+
+        let client = self.client.read().await;
+        let query = UpdateMatchMutation::build_query(variables);
+        let response = client.post(MAIN_URL).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::update_match_mutation::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        if let Some(data) = result.data {
+                            Ok(data.update_match)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
+
+    pub async fn get_users(&self) -> Result<Option<Vec<GetUsersResult>>, crate::Error> {
+        let variables = queries::get_users_query::Variables;
+        let client = self.client.read().await;
+        let query = GetUsersQuery::build_query(variables);
+        let response = client.post(MAIN_URL).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::get_users_query::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        if let Some(data) = result.data {
+                            Ok(data.users)
                         }
                         else {
                             Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))

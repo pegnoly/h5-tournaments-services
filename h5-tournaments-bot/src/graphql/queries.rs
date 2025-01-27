@@ -1,3 +1,6 @@
+use get_match_query::GetMatchQueryTournamentMatch;
+use get_tournament_query::GetTournamentQueryTournament;
+use get_users_query::GetUsersQueryUsers;
 use graphql_client::GraphQLQuery;
 
 type UUID = uuid::Uuid;
@@ -41,3 +44,49 @@ pub struct GetOperatorDataQuery;
     response_derives = "Debug"
 )]
 pub struct GetTournamentQuery;
+pub type GetTournamentResult = GetTournamentQueryTournament;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/get_user.graphql",
+    response_derives = "Debug"
+)]
+pub struct GetUserQuery;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/create_match.graphql",
+    response_derives = "Debug"
+)]
+pub struct CreateMatchMutation;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/update_match.graphql",
+    response_derives = "Debug"
+)]
+pub struct UpdateMatchMutation;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/get_match.graphql",
+    response_derives = "Debug"
+)]
+pub struct GetMatchQuery;
+
+pub type GetMatchResult = GetMatchQueryTournamentMatch;
+
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/get_users.graphql",
+    response_derives = "Debug"
+)]
+pub struct GetUsersQuery;
+
+pub type GetUsersResult = GetUsersQueryUsers;
