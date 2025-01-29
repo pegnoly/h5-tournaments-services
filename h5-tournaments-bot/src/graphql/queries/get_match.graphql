@@ -6,6 +6,7 @@ query GetMatchQuery($id: UUID, $dataMessage: String, $interaction: String) {
         gamesCount,
         secondPlayer,
         tournament,
-        firstPlayer
+        firstPlayer,
+        currentGame
     }
 }

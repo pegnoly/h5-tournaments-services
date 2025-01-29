@@ -1,0 +1,3 @@
+mutation UpdateGameMutation($matchId: UUID!, $number: Int!, $editState: GameEditState, $firstPlayerRace: Int, $firstPlayerHero: Int, $secondPlayerRace: Int, $secondPlayerHero: Int, $bargainsAmount: Int) {
+    updateGame(matchId: $matchId, number: $number, editState: $editState, firstPlayerRace: $firstPlayerRace, firstPlayerHero: $firstPlayerHero, secondPlayerRace: $secondPlayerRace, secondPlayerHero: $secondPlayerHero, bargainsAmount: $bargainsAmount)
+}

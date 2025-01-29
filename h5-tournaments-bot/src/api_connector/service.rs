@@ -4,7 +4,7 @@ use graphql_client::{reqwest::post_graphql, GraphQLQuery, Response};
 use h5_tournaments_api::prelude::{Hero, ModType, Race, Tournament};
 use uuid::Uuid;
 
-use crate::{graphql::queries::{self, create_user_mutation::ResponseData, get_match_query::GetMatchQueryTournamentMatch, get_user_query::GetUserQueryUser, CreateMatchMutation, CreateTournamentMutation, CreateUserMutation, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateMatchMutation}, parser::service::ParsedData};
+use crate::{graphql::queries::{self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_user_mutation::ResponseData, get_game_query::{self, GetGameQueryGame}, get_match_query::GetMatchQueryTournamentMatch, get_user_query::GetUserQueryUser, update_game_mutation, CreateGameMutation, CreateMatchMutation, CreateTournamentMutation, CreateUserMutation, GameEditState, GetGameQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation}, parser::service::ParsedData};
 
 pub(self) const MAIN_URL: &'static str = "https://h5-tournaments-api-5epg.shuttle.app/";
 
@@ -431,12 +431,20 @@ impl ApiConnectionService {
         }
     }
 
-    pub async fn update_match(&self, id: Uuid, data_message: Option<String>, games_count: Option<i64>, second_player: Option<Uuid>) -> Result<String, crate::Error> {
+    pub async fn update_match(
+        &self, 
+        id: Uuid, 
+        data_message: Option<String>, 
+        games_count: Option<i64>, 
+        second_player: Option<Uuid>,
+        current_game: Option<i64>
+    ) -> Result<String, crate::Error> {
         let variables = queries::update_match_mutation::Variables {
             id: id,
             data_message: data_message,
             games_count: games_count,
-            second_player: second_player
+            second_player: second_player,
+            current_game: current_game
         };
 
         let client = self.client.read().await;
@@ -492,4 +500,126 @@ impl ApiConnectionService {
             }
         }
     }
+
+    pub async fn get_game(
+        &self,
+        match_id: Uuid,
+        number: i64
+    ) -> Result<Option<GetGameQueryGame>, crate::Error> {
+        let variables = get_game_query::Variables {
+            match_id: match_id,
+            number: number as i64
+        };
+        let client = self.client.read().await;
+        let query = GetGameQuery::build_query(variables);
+        let response = client.post(MAIN_URL).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::get_game_query::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        if let Some(data) = result.data {
+                            Ok(data.game)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
+    
+    pub async fn create_game(
+        &self,
+        match_id: Uuid,
+        number: i64
+    ) -> Result<CreateGameMutationCreateGame, crate::Error> {
+        let variables = create_game_mutation::Variables {
+            match_id: match_id,
+            number: number as i64
+        };
+
+        let client = self.client.read().await;
+        let query = CreateGameMutation::build_query(variables);
+        let response = client.post(MAIN_URL).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::create_game_mutation::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        tracing::info!("Game creation result: {:?}", &result);
+                        if let Some(data) = result.data {
+                            Ok(data.create_game)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
+
+    pub async fn update_game(
+        &self,
+        match_id: Uuid,
+        number: i64,
+        edit_state: Option<update_game_mutation::GameEditState>,
+        first_player_race: Option<i64>,
+        first_player_hero: Option<i64>,
+        second_player_race: Option<i64>,
+        second_player_hero: Option<i64>,
+        bargains_amount: Option<i64>
+    ) -> Result<String, crate::Error> {
+        let variables = update_game_mutation::Variables {
+            match_id: match_id,
+            number: number,
+            edit_state: edit_state,
+            first_player_race: first_player_race,
+            first_player_hero: first_player_hero,
+            second_player_race: second_player_race,
+            second_player_hero: second_player_hero,
+            bargains_amount: bargains_amount
+        };
+
+        let client = self.client.read().await;
+        let query = UpdateGameMutation::build_query(variables);
+        let response = client.post(MAIN_URL).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::update_game_mutation::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        tracing::info!("Game update result: {:?}", &result);
+                        if let Some(data) = result.data {
+                            Ok(data.update_game)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
+
 }

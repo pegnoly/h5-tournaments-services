@@ -1,0 +1,11 @@
+mutation CreateGameMutation($matchId: UUID!, $number: Int!) {
+    createGame(matchId: $matchId, number: $number) {
+        number,
+        editState,
+        firstPlayerRace,
+        firstPlayerHero,
+        secondPlayerRace,
+        secondPlayerHero,
+        bargainsAmount
+    }
+}

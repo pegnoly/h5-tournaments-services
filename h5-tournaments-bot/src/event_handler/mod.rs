@@ -1,11 +1,11 @@
-use std::str::FromStr;
+use std::{str::FromStr, thread::current};
 
-use poise::serenity_prelude::{ChannelId, ComponentInteraction, ComponentInteractionDataKind, Context, EventHandler, GuildId, Interaction, Message, MessageId, MessageInteractionMetadata};
+use poise::{modal, serenity_prelude::{ActionRowComponent, ChannelId, ComponentInteraction, ComponentInteractionDataKind, ComponentType, Context, CreateActionRow, CreateInputText, CreateInteractionResponse, CreateModal, CreateSelectMenu, CreateSelectMenuKind, CreateSelectMenuOption, EventHandler, GuildId, InputText, InputTextStyle, Interaction, Message, MessageId, MessageInteractionMetadata}};
 use shuttle_runtime::async_trait;
 use tokio::sync::RwLock;
 use uuid::{uuid, Uuid};
 
-use crate::{api_connector::service::ApiConnectionService, builders};
+use crate::{api_connector::service::ApiConnectionService, builders, graphql::queries::update_game_mutation};
 
 pub struct MainEventHandler {
     api: ApiConnectionService
@@ -22,10 +22,78 @@ impl MainEventHandler {
                 builders::report_message::initial_build(context, &self.api, &interaction, id, channel, user).await.unwrap();
             },
             "start_report" => {
-                let response_message = builders::report_message::build_games_message(
+                let response_message = builders::report_message::build_game_message(
                     context, &self.api, interaction.message.id.get()).await.unwrap();
-                
                 interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(response_message)).await.unwrap();
+                // interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::Message(second_part)).await.unwrap();
+            },
+            "bargains_data_button" => {
+                interaction.create_response(context, CreateInteractionResponse::Modal(
+                    CreateModal::new("player_data_modal", "Указать размер торга")
+                        .components(vec![
+                            CreateActionRow::InputText(CreateInputText::new(InputTextStyle::Short, "Торг", "bargains_amount_input"))
+                        ])
+                )).await.unwrap();
+            },
+            "opponent_data_button" => {
+                let message = interaction.message.id.get();
+                let current_match = self.api.get_match(None, None, Some(message.to_string())).await.unwrap();
+                if let Some(match_data) = current_match {
+                    self.api.update_game(
+                        match_data.id, 
+                        match_data.current_game, 
+                        Some(update_game_mutation::GameEditState::OPPONENT_DATA), 
+                        None,
+                        None, 
+                        None, 
+                        None, 
+                    None).await.unwrap();
+                    let updated_message = builders::report_message::build_game_message(&context, &self.api, message).await.unwrap();
+                    interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(updated_message)).await.unwrap();
+                }
+            },
+            "player_data_button" => {
+                let message = interaction.message.id.get();
+                let current_match = self.api.get_match(None, None, Some(message.to_string())).await.unwrap();
+                if let Some(match_data) = current_match {
+                    self.api.update_game(
+                        match_data.id, 
+                        match_data.current_game, 
+                        Some(update_game_mutation::GameEditState::PLAYER_DATA), 
+                        None,
+                        None, 
+                        None, 
+                        None, 
+                    None).await.unwrap();
+                    let updated_message = builders::report_message::build_game_message(&context, &self.api, message).await.unwrap();
+                    interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(updated_message)).await.unwrap();
+                }
+            },
+            "result_data_button" => {
+                let message = interaction.message.id.get();
+                let current_match = self.api.get_match(None, None, Some(message.to_string())).await.unwrap();
+                if let Some(match_data) = current_match {
+                    self.api.update_game(
+                        match_data.id, 
+                        match_data.current_game, 
+                        Some(update_game_mutation::GameEditState::RESULT_DATA), 
+                        None,
+                        None, 
+                        None, 
+                        None, 
+                    None).await.unwrap();
+                    let updated_message = builders::report_message::build_game_message(&context, &self.api, message).await.unwrap();
+                    interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(updated_message)).await.unwrap();
+                }
+            },
+            "next_message" => {
+
+            },
+            "previous_message" => {
+                
+            },
+            "submit_report" => {
+                
             }
             _=> {}
         }
@@ -38,7 +106,7 @@ impl MainEventHandler {
             "games_count_selector" => {
                 let value = i32::from_str_radix(&selected, 10).unwrap();
                 if let Some(existing_match) = match_data {
-                    let res = api.update_match(existing_match.id, None, Some(value as i64), None).await?;
+                    let res = api.update_match(existing_match.id, None, Some(value as i64), None, None).await?;
                     let rebuilt_message = builders::report_message::rebuild_initial(existing_match.id, &self.api).await?;
                     tracing::info!("Match was updated with games_count of {} with reply {}", value, res);
                     interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(rebuilt_message)).await?;
@@ -46,12 +114,12 @@ impl MainEventHandler {
             },
             "opponent_selector" => {
                 if let Some(existing_match) = match_data {
-                    let res = api.update_match(existing_match.id, None, None, Some(Uuid::from_str(&selected).unwrap())).await?;
+                    let res = api.update_match(existing_match.id, None, None, Some(Uuid::from_str(&selected).unwrap()), None).await?;
                     let rebuilt_message = builders::report_message::rebuild_initial(existing_match.id, &self.api).await?;
                     tracing::info!("Match was updated with selected user of {} with reply {}", selected, res);
                     interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(rebuilt_message)).await?;
                 }
-            }
+            },
             _=> {}
         }
         Ok(())
@@ -62,7 +130,7 @@ impl MainEventHandler {
         let existing_match = api.get_match(None, Some(interaction_id.to_string()), None).await?;
         if let Some(existing_match) = existing_match {
             let id = existing_match.id;
-            let res = api.update_match(id, Some(message_id.to_string()), None, None).await?;
+            let res = api.update_match(id, Some(message_id.to_string()), None, None, None).await?;
             tracing::info!("Match {} was updated with data_message with id {} in response of {}", id, message_id, res);
         }
 
@@ -73,7 +141,7 @@ impl MainEventHandler {
 #[async_trait]
 impl EventHandler for MainEventHandler {
     async fn interaction_create(&self, context: Context, interaction: Interaction) {
-        if let Some(component_interaction) =  interaction.message_component() {
+        if let Some(component_interaction) =  interaction.as_message_component() {
             let channel = component_interaction.channel_id;
             let user = &component_interaction.user;
             tracing::info!("Component interaction in channel {} by user {}", channel.name(&context.http).await.unwrap(), user.name);
@@ -88,7 +156,35 @@ impl EventHandler for MainEventHandler {
                     let selected_value = values.first();
                     let message = component_interaction.message.id.get();
                     self.dispatch_selection(&context, &component_interaction, message, id, selected_value.unwrap()).await.unwrap();
-                }
+                },
+                _=> {}
+            }
+        }
+        else if let Some(modal_interaction) = interaction.as_modal_submit() {
+            match modal_interaction.data.custom_id.as_str() {
+                "player_data_modal" => {
+                    let message = &modal_interaction.message.as_ref().unwrap().content;
+                    let mut bargains_value = 0;
+                    tracing::info!("Modal was created from message: {}", message);
+                    tracing::info!("Modal data: {:?}", &modal_interaction.data);
+                    for row in &modal_interaction.data.components {
+                        for component in &row.components {
+                            match component {
+                                ActionRowComponent::InputText(text) => {
+                                    if text.custom_id.as_str() == "bargains_amount_input" {
+                                        let value = i32::from_str_radix(&text.value.as_ref().unwrap(), 10).unwrap();
+                                        bargains_value = value;
+                                        tracing::info!("Bargains amount: {}", value);
+                                    }
+                                },
+                                _=> {}
+                            }
+                        }
+                    }
+                    let rebuilt_message: poise::serenity_prelude::CreateInteractionResponseMessage = 
+                        builders::report_message::build_game_message(&context, &self.api, modal_interaction.message.as_ref().unwrap().id.get()).await.unwrap();
+                    modal_interaction.create_response(context, CreateInteractionResponse::UpdateMessage(rebuilt_message)).await.unwrap();
+                },
                 _=> {}
             }
         }
@@ -105,6 +201,7 @@ impl EventHandler for MainEventHandler {
                     let id = component_interaction.id.get();
                     tracing::info!("Message {} created as response to interaction {}", new_message.id.get(), id);
                     self.dispatch_message_created_by_interaction(&context, new_message.id.get(), id).await.unwrap();
+                    
                 },
                 _=> {}
             }

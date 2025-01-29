@@ -7,7 +7,7 @@ use crate::routes::models::MatchRegistrationForm;
 
 use self::{match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
 
-use super::{models::{match_structure, operator::{self, TournamentOperatorModel}, tournament, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
+use super::{models::{game_builder::{self, GameBuilderModel, GameEditState}, match_structure, operator::{self, TournamentOperatorModel}, tournament, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
 
 #[derive(Clone)]
 pub struct LegacyTournamentService {
@@ -441,6 +441,7 @@ impl TournamentService {
             first_player: Set(first_player),
             interaction_id: Set(interaction_id),
             tournament_id: Set(tournament_id),
+            current_game: Set(1),
             ..Default::default()
         };
 
@@ -461,7 +462,8 @@ impl TournamentService {
         id: Uuid,
         games_count: Option<i32>,
         second_player: Option<Uuid>,
-        data_message: Option<String>
+        data_message: Option<String>,
+        current_game: Option<i32>
     ) -> Result<(), String> {
 
         let current_match = match_structure::Entity::find_by_id(id).one(db).await.unwrap();
@@ -479,6 +481,10 @@ impl TournamentService {
 
             if let Some(data_message) = data_message {
                 match_to_update.data_message = Set(Some(i64::from_str_radix(&data_message, 10).unwrap()));
+            }
+
+            if let Some(current_game) = current_game {
+                match_to_update.current_game = Set(current_game);
             }
 
             match_to_update.update(db).await.unwrap();
@@ -534,6 +540,114 @@ impl TournamentService {
         match res {
             Ok(users) => {
                 Ok(users)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn create_game(
+        &self,
+        db: &DatabaseConnection,
+        match_id: Uuid,
+        number: i16
+    ) -> Result<GameBuilderModel, String> {
+        let id = Uuid::new_v4();
+        let game_to_insert = game_builder::ActiveModel {
+            id: Set(id),
+            match_id: Set(match_id),
+            number: Set(number),
+            edit_state: Set(Some(GameEditState::PlayerData)),
+            ..Default::default()
+        };
+
+        let res = game_to_insert.insert(db).await;
+        match res {
+            Ok(model) => {
+                Ok(model)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn update_game(
+        &self,
+        db: &DatabaseConnection,
+        match_id: Uuid,
+        number: i32,
+        edit_state: Option<GameEditState>,
+        first_player_race: Option<i32>,
+        first_player_hero: Option<i32>,
+        second_player_race: Option<i32>,
+        second_player_hero: Option<i32>,
+        bargains_amount: Option<i32>,
+    ) -> Result<String, String> {
+        let current_game = game_builder::Entity::find()
+            .filter(
+                Condition::all()
+                    .add(game_builder::Column::MatchId.eq(match_id))
+                    .add(game_builder::Column::Number.eq(number))
+            )
+            .one(db)
+            .await.unwrap();
+
+        if let Some(game) = current_game {
+            let mut game_to_update: game_builder::ActiveModel = game.into();
+            if let Some(edit_state) = edit_state {
+                game_to_update.edit_state = Set(Some(edit_state));
+            }
+            if let Some(first_player_race) = first_player_race {
+                game_to_update.first_player_race = Set(Some(first_player_race));
+            }
+            if let Some(first_player_hero) = first_player_hero {
+                game_to_update.first_player_hero = Set(Some(first_player_hero));
+            }
+            if let Some(second_player_race) = second_player_race {
+                game_to_update.second_player_race = Set(Some(second_player_race));
+            }
+            if let Some(second_player_hero) = second_player_hero {
+                game_to_update.second_player_hero = Set(Some(second_player_hero));
+            }
+            if let Some(bargains_amount) = bargains_amount {
+                game_to_update.bargains_amount = Set(Some(bargains_amount));
+            }
+
+            let res = game_to_update.update(db).await;
+            match res {
+                Ok(_success) => {
+                    Ok("Game updated successfully".to_string())
+                },
+                Err(error) => {
+                    Err(error.to_string())
+                }
+            }
+        }
+        else {
+            Err("Failed to find game".to_string())
+        }
+    }
+
+    pub async fn get_game(
+        &self,
+        db: &DatabaseConnection,
+        match_id: Uuid,
+        number: i32
+    ) -> Result<Option<GameBuilderModel>, String> {
+        let res = game_builder::Entity::find()
+            .filter(
+                Condition::all()
+                .add(game_builder::Column::MatchId.eq(match_id))
+                .add(game_builder::Column::Number.eq(number))
+            )
+            .one(db)
+            .await;
+
+        match res {
+            Ok(game) => { 
+                Ok(game)
             },
             Err(error) => {
                 Err(error.to_string())

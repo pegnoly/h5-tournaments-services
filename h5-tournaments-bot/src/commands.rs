@@ -220,3 +220,17 @@ pub async fn setup_tournament(
 
     Ok(())
 }
+
+#[poise::command(slash_command)]
+pub async fn delete_unused(
+    context: crate::Context<'_>,
+    channel: String,
+    message_id: String
+) -> Result<(), crate::Error> {
+    let id = u64::from_str_radix(&message_id, 10).unwrap();
+    let guild = context.guild_id().unwrap();
+    let channel_id = u64::from_str_radix(&channel, 10).unwrap();
+    let channel = ChannelId::from(channel_id);
+    channel.delete_message(context, id).await.unwrap();
+    Ok(())
+}

@@ -2,7 +2,7 @@ use async_graphql::Context;
 use sea_orm::DatabaseConnection;
 use uuid::Uuid;
 
-use crate::prelude::TournamentService;
+use crate::{prelude::TournamentService, services::tournament::models::game_builder::{GameBuilderModel, GameEditState}};
 
 pub struct Mutation;
 
@@ -76,14 +76,69 @@ impl Mutation {
         id: Uuid,
         games_count: Option<i32>,
         second_player: Option<Uuid>,
-        data_message: Option<String>
+        data_message: Option<String>,
+        current_game: Option<i32>
     ) -> Result<String, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.update_match(db, id, games_count, second_player, data_message).await;
+        let res = service.update_match(db, id, games_count, second_player, data_message, current_game).await;
         match res {
             Ok(_res) => {
                 Ok("Match updated".to_string())
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
+
+    async fn create_game<'a>(
+        &self,
+        context: &Context<'a>,
+        match_id: Uuid,
+        number: i16
+    ) -> Result<GameBuilderModel, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.create_game(db, match_id, number).await;
+        match res {
+            Ok(_res) => {
+                Ok(_res)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
+
+    async fn update_game<'a>(
+        &self,
+        context: &Context<'a>,
+        match_id: Uuid,
+        number: i32,
+        edit_state: Option<GameEditState>,
+        first_player_race: Option<i32>,
+        first_player_hero: Option<i32>,
+        second_player_race: Option<i32>,
+        second_player_hero: Option<i32>,
+        bargains_amount: Option<i32>
+    ) -> Result<String, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.update_game(
+            db, 
+            match_id, 
+            number, 
+            edit_state, 
+            first_player_race, 
+            first_player_hero, 
+            second_player_race, 
+            second_player_hero, 
+            bargains_amount
+        ).await;
+        match res {
+            Ok(_res) => {
+                Ok(_res)
             },
             Err(error) => {
                 Err(error)

@@ -2,7 +2,7 @@ use async_graphql::Context;
 use sea_orm::{error, DatabaseConnection};
 use uuid::Uuid;
 
-use crate::{prelude::TournamentService, services::tournament::models::{match_structure::MatchModel, operator::TournamentOperatorModel, tournament::TournamentModel, user::UserModel}};
+use crate::{prelude::TournamentService, services::tournament::models::{game_builder::GameBuilderModel, match_structure::MatchModel, operator::TournamentOperatorModel, tournament::TournamentModel, user::UserModel}};
 
 pub struct Query;
 
@@ -103,6 +103,26 @@ impl Query {
         match res {
             Ok(users) => {
                 Ok(Some(users))
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
+
+    async fn game<'a>(
+        &self,
+        context: &Context<'a>,
+        match_id: Uuid,
+        number: i32
+    ) -> Result<Option<GameBuilderModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_game(db, match_id, number).await;
+        
+        match res {
+            Ok(game) => {
+                Ok(game)
             },
             Err(error) => {
                 Err(error)

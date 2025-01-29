@@ -1,0 +1,10 @@
+query GetGameQuery($matchId: UUID!, $number: Int!) {
+    game(matchId: $matchId, number: $number) {
+        editState,
+        firstPlayerRace,
+        firstPlayerHero,
+        secondPlayerRace,
+        secondPlayerHero,
+        bargainsAmount
+    }
+}

@@ -14,11 +14,28 @@ pub struct Model {
     pub data_message: Option<i64>,
     pub first_player: Uuid,
     pub second_player: Option<Uuid>,
-    pub games_count: Option<i32>
+    pub games_count: Option<i32>,
+    pub current_game: i32
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+#[derive(Copy, Clone, Debug, EnumIter)]
+pub enum Relation {
+    Game
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::Game => Entity::has_many(super::game_builder::Entity).into()
+        }
+    }
+}
+
+impl Related<super::game_builder::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Game.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}
 
@@ -50,5 +67,9 @@ impl MatchModel {
 
     async fn games_count(&self) -> Option<i32> {
         self.games_count
+    }
+
+    async fn current_game(&self) -> i32 {
+        self.current_game
     }
 }
