@@ -2,7 +2,7 @@ use async_graphql::Context;
 use sea_orm::{error, DatabaseConnection};
 use uuid::Uuid;
 
-use crate::{prelude::TournamentService, services::tournament::models::{game_builder::GameBuilderModel, match_structure::MatchModel, operator::TournamentOperatorModel, tournament::TournamentModel, user::UserModel}};
+use crate::{prelude::TournamentService, services::tournament::models::{game_builder::GameBuilderModel, hero::HeroModel, match_structure::MatchModel, operator::TournamentOperatorModel, tournament::TournamentModel, user::UserModel}};
 
 pub struct Query;
 
@@ -123,6 +123,25 @@ impl Query {
         match res {
             Ok(game) => {
                 Ok(game)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
+
+    async fn heroes<'a>(
+        &self,
+        context: &Context<'a>,
+        race: i32
+    ) -> Result<Vec<HeroModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_heroes(db, race).await;
+
+        match res {
+            Ok(heroes) => {
+                Ok(heroes)
             },
             Err(error) => {
                 Err(error)

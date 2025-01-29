@@ -1,9 +1,8 @@
-use std::{str::FromStr, thread::current};
+use std::str::FromStr;
 
-use poise::{modal, serenity_prelude::{ActionRowComponent, ChannelId, ComponentInteraction, ComponentInteractionDataKind, ComponentType, Context, CreateActionRow, CreateInputText, CreateInteractionResponse, CreateModal, CreateSelectMenu, CreateSelectMenuKind, CreateSelectMenuOption, EventHandler, GuildId, InputText, InputTextStyle, Interaction, Message, MessageId, MessageInteractionMetadata}};
+use poise::serenity_prelude::*;
 use shuttle_runtime::async_trait;
-use tokio::sync::RwLock;
-use uuid::{uuid, Uuid};
+use uuid::Uuid;
 
 use crate::{api_connector::service::ApiConnectionService, builders, graphql::queries::update_game_mutation};
 
@@ -120,12 +119,80 @@ impl MainEventHandler {
                     interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(rebuilt_message)).await?;
                 }
             },
+            "player_race_selector" => {
+                if let Some(existing_match) = match_data {
+                    let selected_race = i64::from_str_radix(&selected, 10)?;
+                    self.api.update_game(
+                        existing_match.id, 
+                        existing_match.current_game, 
+                        None, 
+                        Some(selected_race), 
+                        None,
+                        None, 
+                        None,
+                    None)
+                    .await?;
+                    let rebuild_message = builders::report_message::build_game_message(context, &self.api, message_id).await?;
+                    interaction.create_response(context, CreateInteractionResponse::UpdateMessage(rebuild_message)).await?;
+                }
+            },
+            "opponent_race_selector" => {
+                if let Some(existing_match) = match_data {
+                    let selected_race = i64::from_str_radix(&selected, 10)?;
+                    self.api.update_game(
+                        existing_match.id, 
+                        existing_match.current_game, 
+                        None, 
+                        None, 
+                        None,
+                        Some(selected_race), 
+                        None,
+                    None)
+                    .await?;
+                    let rebuild_message = builders::report_message::build_game_message(context, &self.api, message_id).await?;
+                    interaction.create_response(context, CreateInteractionResponse::UpdateMessage(rebuild_message)).await?;
+                }
+            },
+            "player_hero_selector" => {
+                if let Some(existing_match) = match_data {
+                    let selected_hero = i64::from_str_radix(&selected, 10)?;
+                    self.api.update_game(
+                        existing_match.id, 
+                        existing_match.current_game, 
+                        None, 
+                        None, 
+                        Some(selected_hero),
+                        None, 
+                        None,
+                    None)
+                    .await?;
+                    let rebuild_message = builders::report_message::build_game_message(context, &self.api, message_id).await?;
+                    interaction.create_response(context, CreateInteractionResponse::UpdateMessage(rebuild_message)).await?;
+                }
+            },
+            "opponent_hero_selector" => {
+                if let Some(existing_match) = match_data {
+                    let selected_hero = i64::from_str_radix(&selected, 10)?;
+                    self.api.update_game(
+                        existing_match.id, 
+                        existing_match.current_game, 
+                        None, 
+                        None, 
+                        None,
+                        None, 
+                        Some(selected_hero),
+                    None)
+                    .await?;
+                    let rebuild_message = builders::report_message::build_game_message(context, &self.api, message_id).await?;
+                    interaction.create_response(context, CreateInteractionResponse::UpdateMessage(rebuild_message)).await?;
+                }
+            },
             _=> {}
         }
         Ok(())
     }
 
-    async fn dispatch_message_created_by_interaction(&self, context: &Context, message_id: u64, interaction_id: u64) -> Result<(), crate::Error> {
+    async fn dispatch_message_created_by_interaction(&self, _context: &Context, message_id: u64, interaction_id: u64) -> Result<(), crate::Error> {
         let api = &self.api;
         let existing_match = api.get_match(None, Some(interaction_id.to_string()), None).await?;
         if let Some(existing_match) = existing_match {
@@ -190,7 +257,7 @@ impl EventHandler for MainEventHandler {
         }
     }
 
-    async fn message_delete(&self, context: Context, channel_id: ChannelId, deleted_message_id: MessageId, guild_id: Option<GuildId>) {
+    async fn message_delete(&self, context: Context, channel_id: ChannelId, deleted_message_id: MessageId, _guild_id: Option<GuildId>) {
         tracing::info!("Message {} was deleted from channel {}", deleted_message_id.get(), &channel_id.name(context).await.unwrap());
     }
 

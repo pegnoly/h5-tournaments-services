@@ -92,37 +92,6 @@ fn create_games_count_selector(games_count: i32, selected_value: Option<i64>) ->
         .placeholder("Укажите число игр")
 }
 
-pub async fn build_game_first_part(
-    context: &Context,
-    api: &ApiConnectionService,
-    initial_message: u64
-) -> Result<CreateInteractionResponseMessage, crate::Error> {
-    let match_data = api.get_match(None, None, Some(initial_message.to_string())).await?;
-    if let Some(existing_match) = match_data {
-        Ok(
-            CreateInteractionResponseMessage::new()
-                .content("**Игра 1**\n\n**Данные игрока**\n\n")
-                .select_menu(build_race_selector(1, false))
-                .select_menu(build_hero_selector(1, false))
-                .ephemeral(true)
-        )
-    }
-    else {
-        Err(crate::Error::from("Failed to build message part"))
-    }
-}
-
-pub async fn build_game_second_part(
-) -> Result<CreateInteractionResponseMessage, crate::Error> {
-    Ok(
-        CreateInteractionResponseMessage::new()
-            .content("**Данные оппонента**\n\n")
-            .select_menu(build_race_selector(1, true))
-            .select_menu(build_hero_selector(1, true))
-            .ephemeral(true)
-    )
-}
-
 pub async fn build_game_message(
     context: &Context,
     api: &ApiConnectionService,
@@ -164,7 +133,7 @@ pub async fn build_game_message(
             if actual_game.bargains_amount.is_some() { actual_game.bargains_amount.unwrap().to_string() } else { "Неизвестно".to_string() },
         );
         let mut core_components = build_core_components(api, actual_game.edit_state.as_ref().unwrap());
-        let mut second_row = generate_second_row(api, &actual_game);
+        let mut second_row = generate_second_row(api, &actual_game).await;
         core_components.append(&mut second_row);
         core_components.push(CreateActionRow::Buttons(vec![
             CreateButton::new("previous_game_button").label("Предыдущая игра").disabled(true),
@@ -184,13 +153,13 @@ pub async fn build_game_message(
     }
 }
 
-fn generate_second_row(api: &ApiConnectionService, game_data: &GetGameQueryGame) -> Vec<CreateActionRow> {
+async fn generate_second_row(api: &ApiConnectionService, game_data: &GetGameQueryGame) -> Vec<CreateActionRow> {
     match game_data.edit_state.as_ref().unwrap() {
         get_game_query::GameEditState::PLAYER_DATA => {
-            build_player_selector(api, game_data.first_player_race, game_data.first_player_hero)
+            build_player_selector(api, game_data.first_player_race, game_data.first_player_hero).await
         },
         get_game_query::GameEditState::OPPONENT_DATA => {
-            build_opponent_selector(api, game_data.second_player_race, game_data.second_player_hero)
+            build_opponent_selector(api, game_data.second_player_race, game_data.second_player_hero).await
         },
         get_game_query::GameEditState::RESULT_DATA => {
             build_result_selector(api)
@@ -243,34 +212,36 @@ fn build_core_components(api: &ApiConnectionService, edit_state: &get_game_query
     ]
 }
 
-fn build_player_selector(api: &ApiConnectionService, race: Option<i64>, hero: Option<i64>) -> Vec<CreateActionRow> {
+async fn build_player_selector(api: &ApiConnectionService, race: Option<i64>, hero: Option<i64>) -> Vec<CreateActionRow> {
     vec![
         CreateActionRow::SelectMenu(
-            CreateSelectMenu::new("player_race_selector", poise::serenity_prelude::CreateSelectMenuKind::String { options: vec![
-                CreateSelectMenuOption::new("Орден порядка", "race1"),
-                CreateSelectMenuOption::new("Инферно", "race2")
-            ]}).placeholder("Выбрать расу игрока")
+            CreateSelectMenu::new("player_race_selector", poise::serenity_prelude::CreateSelectMenuKind::String { 
+                options: api.races.iter().map(|race_new| {
+                    CreateSelectMenuOption::new(race_new.name.clone(), race_new.id.to_string())
+                        .default_selection(if race.is_some() && race.unwrap() == race_new.id { true } else { false })
+                }).collect::<Vec<CreateSelectMenuOption>>() }).placeholder("Выбрать расу игрока")
         ),
         CreateActionRow::SelectMenu(
-            CreateSelectMenu::new("player_hero_selector", CreateSelectMenuKind::String { options: vec![
-                CreateSelectMenuOption::new("Герой 1", "hero1")
-            ]}).disabled(race.is_none()).placeholder("Выбрать героя игрока")
+            CreateSelectMenu::new("player_hero_selector", CreateSelectMenuKind::String { 
+                options: build_heroes_list(api, race, hero).await 
+            }).disabled(race.is_none()).placeholder("Выбрать героя игрока")
         )
     ]
 }
 
-fn build_opponent_selector(api: &ApiConnectionService, race: Option<i64>, hero: Option<i64>) -> Vec<CreateActionRow> {
+async fn build_opponent_selector(api: &ApiConnectionService, race: Option<i64>, hero: Option<i64>) -> Vec<CreateActionRow> {
     vec![
         CreateActionRow::SelectMenu(
-            CreateSelectMenu::new("opponent_race_selector", poise::serenity_prelude::CreateSelectMenuKind::String { options: vec![
-                CreateSelectMenuOption::new("Орден порядка", "race1"),
-                CreateSelectMenuOption::new("Инферно", "race2")
-            ]}).placeholder("Выбрать расу оппонента")
+            CreateSelectMenu::new("opponent_race_selector", poise::serenity_prelude::CreateSelectMenuKind::String {                 
+                options: api.races.iter().map(|race_new| {
+                CreateSelectMenuOption::new(race_new.name.clone(), race_new.id.to_string())
+                    .default_selection(if race.is_some() && race.unwrap() == race_new.id { true } else { false })
+            }).collect::<Vec<CreateSelectMenuOption>>() }).placeholder("Выбрать расу оппонента")
         ),
         CreateActionRow::SelectMenu(
-            CreateSelectMenu::new("opponent_hero_selector", CreateSelectMenuKind::String { options: vec![
-                CreateSelectMenuOption::new("Герой 1", "hero1")
-            ]}).disabled(race.is_none()).placeholder("Выбрать героя оппонента")
+            CreateSelectMenu::new("opponent_hero_selector", CreateSelectMenuKind::String { 
+                options: build_heroes_list(api, race, hero).await 
+            }).disabled(race.is_none()).placeholder("Выбрать героя оппонента")
         )
     ]
 }
@@ -281,38 +252,23 @@ fn build_result_selector(api: &ApiConnectionService) -> Vec<CreateActionRow> {
             CreateSelectMenu::new("game_result_selector", poise::serenity_prelude::CreateSelectMenuKind::String { options: vec![
                 CreateSelectMenuOption::new("Победа игрока", "win"),
                 CreateSelectMenuOption::new("Победа оппонента", "loss")
-            ]}).placeholder("Выбрать расу оппонента")
+            ]}).placeholder("Указать результат игры")
         )
     ]
 }
 
 
-
-
-fn build_race_selector(game_number: i64, opponent: bool) -> CreateSelectMenu {
-
-    let selector_id = format!("race_selector_{}", if opponent { "opponent" } else { "player" });
-    let placeholder = format!("Укажите {} в игре {}", if opponent { "расу оппонента" } else { "свою расу" }, game_number);
-
-    CreateSelectMenu::new(
-        selector_id,
-        poise::serenity_prelude::CreateSelectMenuKind::String { options: vec![
-            CreateSelectMenuOption::new("Орден порядка", "1"),
-            CreateSelectMenuOption::new("Инферно", "2")
-        ]})
-        .placeholder(placeholder)
-}
-
-fn build_hero_selector(game_number: i64, opponent: bool) -> CreateSelectMenu {
-
-    let selector_id = format!("hero_selector_{}", if opponent { "opponent" } else { "player" });
-    let placeholder = format!("Укажите {} в игре {}", if opponent { "героя оппонента" } else { "своего героя" }, game_number);
-
-    CreateSelectMenu::new(
-        selector_id,
-        poise::serenity_prelude::CreateSelectMenuKind::String { options: vec![
-            CreateSelectMenuOption::new("Орден порядка", "1"),
-            CreateSelectMenuOption::new("Инферно", "2")
-        ]})
-        .placeholder(placeholder)
+async fn build_heroes_list(api: &ApiConnectionService, race: Option<i64>, current_hero: Option<i64>) -> Vec<CreateSelectMenuOption> {
+    if race.is_none() {
+        vec![
+            CreateSelectMenuOption::new("Нет героя", "-1")
+        ]
+    }
+    else {
+        let heroes = api.get_heroes(race.unwrap()).await.unwrap();
+        heroes.iter().map(|hero| {
+            CreateSelectMenuOption::new(hero.name.to_string(), hero.id.to_string())
+                .default_selection(if current_hero.is_some() && hero.id == current_hero.unwrap() { true } else { false })
+        }).collect::<Vec<CreateSelectMenuOption>>()
+    }
 }

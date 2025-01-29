@@ -4,18 +4,59 @@ use graphql_client::{reqwest::post_graphql, GraphQLQuery, Response};
 use h5_tournaments_api::prelude::{Hero, ModType, Race, Tournament};
 use uuid::Uuid;
 
-use crate::{graphql::queries::{self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_user_mutation::ResponseData, get_game_query::{self, GetGameQueryGame}, get_match_query::GetMatchQueryTournamentMatch, get_user_query::GetUserQueryUser, update_game_mutation, CreateGameMutation, CreateMatchMutation, CreateTournamentMutation, CreateUserMutation, GameEditState, GetGameQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation}, parser::service::ParsedData};
+use crate::{graphql::queries::{self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_user_mutation::ResponseData, get_game_query::{self, GetGameQueryGame}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_match_query::GetMatchQueryTournamentMatch, get_user_query::GetUserQueryUser, update_game_mutation, CreateGameMutation, CreateMatchMutation, CreateTournamentMutation, CreateUserMutation, GameEditState, GetGameQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation}, parser::service::ParsedData};
 
 pub(self) const MAIN_URL: &'static str = "https://h5-tournaments-api-5epg.shuttle.app/";
 
-pub struct ApiConnectionService {
-    client: tokio::sync::RwLock<reqwest::Client>
+pub struct RaceNew {
+    pub id: i64,
+    pub name: String
 }
+
+pub struct ApiConnectionService {
+    client: tokio::sync::RwLock<reqwest::Client>,
+    pub races: Vec<RaceNew>
+}
+
 
 impl ApiConnectionService {
     pub fn new(client: reqwest::Client) -> Self {
         ApiConnectionService {
-            client: tokio::sync::RwLock::new(client)
+            client: tokio::sync::RwLock::new(client),
+            races: vec![
+                RaceNew {
+                    name: "Орден порядка".to_string(),
+                    id: 1,
+                },
+                RaceNew {
+                    name: "Инферно".to_string(),
+                    id: 2
+                },
+                RaceNew {
+                    name: "Некрополис".to_string(),
+                    id: 3
+                },
+                RaceNew {
+                    name: "Лесной союз".to_string(),
+                    id: 4
+                },
+                RaceNew {
+                    name: "Лига теней".to_string(),
+                    id: 5
+                },
+                RaceNew {
+                    name: "Академия волшебства".to_string(),
+                    id: 6
+                },
+                RaceNew {
+                    name: "Северные кланы".to_string(),
+                    id: 7
+                },
+                RaceNew {
+                    name: "Великая орда".to_string(),
+                    id: 8
+                },
+            ]
         }
     }
 
@@ -622,4 +663,38 @@ impl ApiConnectionService {
         }
     }
 
+    pub async fn get_heroes(
+        &self,
+        race: i64
+    ) -> Result<Vec<GetHeroesQueryHeroes>, crate::Error> {
+        let variables = get_heroes_query::Variables {
+            race: race
+        };
+
+        let client = self.client.read().await;
+        let query = GetHeroesQuery::build_query(variables);
+        let response = client.post(MAIN_URL).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::get_heroes_query::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        tracing::info!("Heroes fetch result: {:?}", &result);
+                        if let Some(data) = result.data {
+                            Ok(data.heroes)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
 }

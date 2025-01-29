@@ -123,3 +123,11 @@ pub struct UpdateGameMutation;
     response_derives = "Debug, PartialEq, Eq"
 )]
 pub struct GetGameQuery;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/get_heroes.graphql",
+    response_derives = "Debug"
+)]
+pub struct GetHeroesQuery;

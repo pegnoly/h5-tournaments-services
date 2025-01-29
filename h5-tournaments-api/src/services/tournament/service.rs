@@ -7,7 +7,7 @@ use crate::routes::models::MatchRegistrationForm;
 
 use self::{match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
 
-use super::{models::{game_builder::{self, GameBuilderModel, GameEditState}, match_structure, operator::{self, TournamentOperatorModel}, tournament, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
+use super::{models::{game_builder::{self, GameBuilderModel, GameEditState}, hero::{self, HeroModel}, match_structure, operator::{self, TournamentOperatorModel}, tournament, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
 
 #[derive(Clone)]
 pub struct LegacyTournamentService {
@@ -648,6 +648,26 @@ impl TournamentService {
         match res {
             Ok(game) => { 
                 Ok(game)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_heroes(
+        &self,
+        db: &DatabaseConnection,
+        race: i32
+    ) -> Result<Vec<HeroModel>, String> {
+        let res = hero::Entity::find()
+            .filter(hero::Column::Race.eq(race))
+            .all(db)
+            .await;
+
+        match res {
+            Ok(heroes) => {
+                Ok(heroes)
             },
             Err(error) => {
                 Err(error.to_string())
