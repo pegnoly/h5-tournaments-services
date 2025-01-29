@@ -2,7 +2,7 @@ use async_graphql::Context;
 use sea_orm::DatabaseConnection;
 use uuid::Uuid;
 
-use crate::{prelude::TournamentService, services::tournament::models::game_builder::{GameBuilderModel, GameEditState}};
+use crate::{prelude::TournamentService, services::tournament::models::game_builder::{GameBuilderModel, GameEditState, GameResult}};
 
 pub struct Mutation;
 
@@ -121,7 +121,8 @@ impl Mutation {
         first_player_hero: Option<i32>,
         second_player_race: Option<i32>,
         second_player_hero: Option<i32>,
-        bargains_amount: Option<i32>
+        bargains_amount: Option<i32>,
+        result: Option<GameResult>
     ) -> Result<String, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
@@ -134,7 +135,8 @@ impl Mutation {
             first_player_hero, 
             second_player_race, 
             second_player_hero, 
-            bargains_amount
+            bargains_amount,
+            result
         ).await;
         match res {
             Ok(_res) => {

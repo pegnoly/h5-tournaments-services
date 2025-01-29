@@ -257,6 +257,22 @@
                 "name": "Int",
                 "ofType": null
               }
+            },
+            {
+              "args": [],
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "result",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "GameResult",
+                  "ofType": null
+                }
+              }
             }
           ],
           "inputFields": null,
@@ -298,6 +314,35 @@
           "interfaces": null,
           "kind": "ENUM",
           "name": "GameEditState",
+          "possibleTypes": null
+        },
+        {
+          "description": null,
+          "enumValues": [
+            {
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "NOT_SELECTED"
+            },
+            {
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "FIRST_PLAYER_WON"
+            },
+            {
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "SECOND_PLAYER_WON"
+            }
+          ],
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "kind": "ENUM",
+          "name": "GameResult",
           "possibleTypes": null
         },
         {
@@ -878,6 +923,16 @@
                     "name": "Int",
                     "ofType": null
                   }
+                },
+                {
+                  "defaultValue": null,
+                  "description": null,
+                  "name": "result",
+                  "type": {
+                    "kind": "ENUM",
+                    "name": "GameResult",
+                    "ofType": null
+                  }
                 }
               ],
               "deprecationReason": null,
@@ -1139,6 +1194,33 @@
                     }
                   }
                 }
+              }
+            },
+            {
+              "args": [
+                {
+                  "defaultValue": null,
+                  "description": null,
+                  "name": "id",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "Int",
+                      "ofType": null
+                    }
+                  }
+                }
+              ],
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "hero",
+              "type": {
+                "kind": "OBJECT",
+                "name": "HeroModel",
+                "ofType": null
               }
             }
           ],

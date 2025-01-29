@@ -148,4 +148,23 @@ impl Query {
             }
         }
     }
+
+    async fn hero<'a>(
+        &self,
+        context: &Context<'a>,
+        id: i32
+    ) -> Result<Option<HeroModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_hero(db, id).await;
+
+        match res {
+            Ok(hero) => {
+                Ok(hero)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
 }

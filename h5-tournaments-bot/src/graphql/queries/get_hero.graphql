@@ -1,0 +1,5 @@
+query GetHeroQuery($id: Int!) {
+    hero(id: $id) {
+        name
+    }
+}

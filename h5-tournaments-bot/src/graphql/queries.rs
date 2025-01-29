@@ -14,6 +14,14 @@ pub enum GameEditState {
     ResultData = 3
 }
 
+#[derive(Debug, PartialEq, Eq)]
+#[repr(i32)]
+pub enum GameResult {
+    NotSelected = 0,
+    FirstPlayerWon = 1,
+    SecondPlayerWon = 2
+}
+
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
@@ -131,3 +139,19 @@ pub struct GetGameQuery;
     response_derives = "Debug"
 )]
 pub struct GetHeroesQuery;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/get_hero.graphql",
+    response_derives = "Debug"
+)]
+pub struct GetHeroQuery;
+
+pub fn int_to_game_result(num: i32) -> update_game_mutation::GameResult {
+    match num {
+        1 => update_game_mutation::GameResult::FIRST_PLAYER_WON,
+        2 => update_game_mutation::GameResult::SECOND_PLAYER_WON,
+        _=> update_game_mutation::GameResult::NOT_SELECTED
+    }
+}

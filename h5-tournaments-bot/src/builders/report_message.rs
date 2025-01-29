@@ -101,6 +101,8 @@ pub async fn build_game_message(
     let match_data = api.get_match(None, None, Some(initial_message.to_string())).await?;
     tracing::info!("Match data: {:?}", &match_data);
     if let Some(existing_match) = match_data {
+        let first_user = api.get_user(Some(existing_match.first_player), None).await?.unwrap().nickname;
+        let second_user = api.get_user(Some(existing_match.second_player.unwrap()), None).await?.unwrap().nickname;
         let games_count = existing_match.games_count.unwrap();
         let current_game = existing_match.current_game;
         // get current game data of this match
@@ -115,8 +117,9 @@ pub async fn build_game_message(
                 first_player_hero: created_game.first_player_hero,
                 second_player_race: created_game.second_player_race,
                 second_player_hero: created_game.second_player_hero,
-                edit_state: Some(crate::graphql::queries::get_game_query::GameEditState::PLAYER_DATA),
-                bargains_amount: created_game.bargains_amount
+                edit_state: Some(get_game_query::GameEditState::PLAYER_DATA),
+                bargains_amount: created_game.bargains_amount,
+                result: get_game_query::GameResult::NOT_SELECTED
             }
         };
         tracing::info!("Game data: {:?}", &actual_game);
@@ -125,11 +128,33 @@ pub async fn build_game_message(
             "
                 **{}(**_{}_**)** {} **{}(**_{}_**)**. **Торг: {}**
             ",
-            if actual_game.first_player_race.is_some() { actual_game.first_player_race.unwrap().to_string() } else { "Неизвестная раса".to_string() },
-            if actual_game.first_player_hero.is_some() { actual_game.first_player_hero.unwrap().to_string() } else { "Неизвестный герой".to_string() },
-            "Неизвестный результат",
-            if actual_game.second_player_race.is_some() { actual_game.second_player_race.unwrap().to_string() } else { "Неизвестная раса".to_string() },
-            if actual_game.second_player_hero.is_some() { actual_game.second_player_hero.unwrap().to_string() } else { "Неизвестный герой".to_string() },
+            if actual_game.first_player_race.is_some() { 
+                api.races.iter().find(|r| r.id == actual_game.first_player_race.unwrap()).unwrap().name.clone()
+            } 
+            else { 
+                "Неизвестная раса".to_string() 
+            },
+            if actual_game.first_player_hero.is_some() { 
+                api.get_hero(actual_game.first_player_hero.unwrap()).await?.unwrap().name.clone()
+            } else { 
+                "Неизвестный герой".to_string() 
+            },
+            match actual_game.result {
+                get_game_query::GameResult::NOT_SELECTED => "Неизвестный результат".to_string(),
+                get_game_query::GameResult::FIRST_PLAYER_WON => ">".to_string(),
+                get_game_query::GameResult::SECOND_PLAYER_WON => "<".to_string(),
+                _=> "Неизвестный результат".to_string()
+            },
+            if actual_game.second_player_race.is_some() { 
+                api.races.iter().find(|r| r.id == actual_game.second_player_race.unwrap()).unwrap().name.clone()
+            } else { 
+                "Неизвестная раса".to_string() 
+            },
+            if actual_game.second_player_hero.is_some() { 
+                api.get_hero(actual_game.second_player_hero.unwrap()).await?.unwrap().name.clone()
+            } else { 
+                "Неизвестный герой".to_string() 
+            },
             if actual_game.bargains_amount.is_some() { actual_game.bargains_amount.unwrap().to_string() } else { "Неизвестно".to_string() },
         );
         let mut core_components = build_core_components(api, actual_game.edit_state.as_ref().unwrap());
@@ -141,9 +166,8 @@ pub async fn build_game_message(
         ]));
         Ok(
             CreateInteractionResponseMessage::new()
-                //.content("\t\t**Игра 1**\n\n")
                 .add_embed(CreateEmbed::new()
-                    .title(format!("Игра {}", existing_match.current_game))
+                    .title(format!("**{}** VS **{}**, **игра {}**\n", &first_user, &second_user, existing_match.current_game))
                     .description(description))
                 .components(core_components)
             )
@@ -162,7 +186,7 @@ async fn generate_second_row(api: &ApiConnectionService, game_data: &GetGameQuer
             build_opponent_selector(api, game_data.second_player_race, game_data.second_player_hero).await
         },
         get_game_query::GameEditState::RESULT_DATA => {
-            build_result_selector(api)
+            build_result_selector(&game_data.result)
         },
         _=> {
             vec![]
@@ -246,12 +270,24 @@ async fn build_opponent_selector(api: &ApiConnectionService, race: Option<i64>, 
     ]
 }
 
-fn build_result_selector(api: &ApiConnectionService) -> Vec<CreateActionRow> {
+fn build_result_selector(current_result: &get_game_query::GameResult) -> Vec<CreateActionRow> {
     vec![
         CreateActionRow::SelectMenu(
             CreateSelectMenu::new("game_result_selector", poise::serenity_prelude::CreateSelectMenuKind::String { options: vec![
-                CreateSelectMenuOption::new("Победа игрока", "win"),
-                CreateSelectMenuOption::new("Победа оппонента", "loss")
+                CreateSelectMenuOption::new("Победа игрока", "1").default_selection(
+                    if *current_result == get_game_query::GameResult::FIRST_PLAYER_WON {
+                        true
+                    } else {
+                        false
+                    }
+                ),
+                CreateSelectMenuOption::new("Победа оппонента", "2").default_selection(
+                    if *current_result == get_game_query::GameResult::SECOND_PLAYER_WON {
+                        true
+                    } else {
+                        false
+                    }
+                )
             ]}).placeholder("Указать результат игры")
         )
     ]

@@ -11,6 +11,14 @@ pub enum GameEditState {
     ResultData = 3
 }
 
+#[derive(Debug, EnumIter, DeriveActiveEnum, Clone, Copy, PartialEq, Eq, async_graphql::Enum)]
+#[sea_orm(rs_type = "i32", db_type = "Integer")]
+pub enum GameResult {
+    NotSelected = 0,
+    FirstPlayerWon = 1,
+    SecondPlayerWon = 2
+}
+
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "games_new")]
@@ -24,7 +32,8 @@ pub struct Model {
     pub first_player_hero: Option<i32>,
     pub second_player_race: Option<i32>,
     pub second_player_hero: Option<i32>,
-    pub bargains_amount: Option<i32>
+    pub bargains_amount: Option<i32>,
+    pub result: GameResult
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -87,5 +96,9 @@ impl GameBuilderModel {
 
     async fn bargains_amount(&self) -> Option<i32> {
         self.bargains_amount
+    }
+
+    async fn result(&self) -> GameResult {
+        self.result
     }
 }

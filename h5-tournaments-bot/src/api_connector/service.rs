@@ -4,7 +4,7 @@ use graphql_client::{reqwest::post_graphql, GraphQLQuery, Response};
 use h5_tournaments_api::prelude::{Hero, ModType, Race, Tournament};
 use uuid::Uuid;
 
-use crate::{graphql::queries::{self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_user_mutation::ResponseData, get_game_query::{self, GetGameQueryGame}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_match_query::GetMatchQueryTournamentMatch, get_user_query::GetUserQueryUser, update_game_mutation, CreateGameMutation, CreateMatchMutation, CreateTournamentMutation, CreateUserMutation, GameEditState, GetGameQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation}, parser::service::ParsedData};
+use crate::{graphql::queries::{self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_user_mutation::ResponseData, get_game_query::{self, GetGameQueryGame}, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_match_query::GetMatchQueryTournamentMatch, get_user_query::GetUserQueryUser, update_game_mutation, CreateGameMutation, CreateMatchMutation, CreateTournamentMutation, CreateUserMutation, GameEditState, GetGameQuery, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation}, parser::service::ParsedData};
 
 pub(self) const MAIN_URL: &'static str = "https://h5-tournaments-api-5epg.shuttle.app/";
 
@@ -623,7 +623,8 @@ impl ApiConnectionService {
         first_player_hero: Option<i64>,
         second_player_race: Option<i64>,
         second_player_hero: Option<i64>,
-        bargains_amount: Option<i64>
+        bargains_amount: Option<i64>,
+        result: Option<update_game_mutation::GameResult>
     ) -> Result<String, crate::Error> {
         let variables = update_game_mutation::Variables {
             match_id: match_id,
@@ -633,7 +634,8 @@ impl ApiConnectionService {
             first_player_hero: first_player_hero,
             second_player_race: second_player_race,
             second_player_hero: second_player_hero,
-            bargains_amount: bargains_amount
+            bargains_amount: bargains_amount,
+            result: result
         };
 
         let client = self.client.read().await;
@@ -682,6 +684,41 @@ impl ApiConnectionService {
                         tracing::info!("Heroes fetch result: {:?}", &result);
                         if let Some(data) = result.data {
                             Ok(data.heroes)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
+
+    pub async fn get_hero(
+        &self,
+        id: i64
+    ) -> Result<Option<GetHeroQueryHero>, crate::Error> {
+        let variables = get_hero_query::Variables {
+            id: id
+        };
+
+        let client = self.client.read().await;
+        let query = GetHeroQuery::build_query(variables);
+        let response = client.post(MAIN_URL).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::get_hero_query::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        tracing::info!("Hero fetch result: {:?}", &result);
+                        if let Some(data) = result.data {
+                            Ok(data.hero)
                         }
                         else {
                             Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))

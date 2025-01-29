@@ -4,7 +4,7 @@ use poise::serenity_prelude::*;
 use shuttle_runtime::async_trait;
 use uuid::Uuid;
 
-use crate::{api_connector::service::ApiConnectionService, builders, graphql::queries::update_game_mutation};
+use crate::{api_connector::service::ApiConnectionService, builders, graphql::queries::{int_to_game_result, update_game_mutation::{self, GameResult}}};
 
 pub struct MainEventHandler {
     api: ApiConnectionService
@@ -46,6 +46,7 @@ impl MainEventHandler {
                         None, 
                         None, 
                         None, 
+                        None,
                     None).await.unwrap();
                     let updated_message = builders::report_message::build_game_message(&context, &self.api, message).await.unwrap();
                     interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(updated_message)).await.unwrap();
@@ -63,6 +64,7 @@ impl MainEventHandler {
                         None, 
                         None, 
                         None, 
+                        None,
                     None).await.unwrap();
                     let updated_message = builders::report_message::build_game_message(&context, &self.api, message).await.unwrap();
                     interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(updated_message)).await.unwrap();
@@ -80,6 +82,7 @@ impl MainEventHandler {
                         None, 
                         None, 
                         None, 
+                        None,
                     None).await.unwrap();
                     let updated_message = builders::report_message::build_game_message(&context, &self.api, message).await.unwrap();
                     interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(updated_message)).await.unwrap();
@@ -130,6 +133,7 @@ impl MainEventHandler {
                         None,
                         None, 
                         None,
+                        None,
                     None)
                     .await?;
                     let rebuild_message = builders::report_message::build_game_message(context, &self.api, message_id).await?;
@@ -146,6 +150,7 @@ impl MainEventHandler {
                         None, 
                         None,
                         Some(selected_race), 
+                        None,
                         None,
                     None)
                     .await?;
@@ -164,6 +169,7 @@ impl MainEventHandler {
                         Some(selected_hero),
                         None, 
                         None,
+                        None,
                     None)
                     .await?;
                     let rebuild_message = builders::report_message::build_game_message(context, &self.api, message_id).await?;
@@ -181,12 +187,32 @@ impl MainEventHandler {
                         None,
                         None, 
                         Some(selected_hero),
+                        None,
                     None)
                     .await?;
                     let rebuild_message = builders::report_message::build_game_message(context, &self.api, message_id).await?;
                     interaction.create_response(context, CreateInteractionResponse::UpdateMessage(rebuild_message)).await?;
                 }
             },
+            "game_result_selector" => {
+                if let Some(existing_match) = match_data {
+                    let selected_result = i32::from_str_radix(&selected, 10)?;
+                    let result = int_to_game_result(selected_result);
+                    self.api.update_game(
+                        existing_match.id, 
+                        existing_match.current_game, 
+                        None, 
+                        None, 
+                        None,
+                        None, 
+                        None,
+                        None,
+                    Some(result))
+                    .await?;
+                    let rebuild_message = builders::report_message::build_game_message(context, &self.api, message_id).await?;
+                    interaction.create_response(context, CreateInteractionResponse::UpdateMessage(rebuild_message)).await?;
+                }
+            }
             _=> {}
         }
         Ok(())
@@ -248,9 +274,26 @@ impl EventHandler for MainEventHandler {
                             }
                         }
                     }
-                    let rebuilt_message: poise::serenity_prelude::CreateInteractionResponseMessage = 
-                        builders::report_message::build_game_message(&context, &self.api, modal_interaction.message.as_ref().unwrap().id.get()).await.unwrap();
-                    modal_interaction.create_response(context, CreateInteractionResponse::UpdateMessage(rebuilt_message)).await.unwrap();
+                    let match_data = self.api.get_match(
+                        None, 
+                        None, 
+                        Some(modal_interaction.message.as_ref().unwrap().id.get().to_string())
+                    ).await.unwrap();
+                    if let Some(existing_match) = match_data {
+                        self.api.update_game(
+                            existing_match.id, 
+                            existing_match.current_game, 
+                            None, 
+                            None,
+                            None, 
+                            None,
+                            None,
+                            Some(bargains_value as i64),
+                            None
+                        ).await.unwrap();
+                        let rebuilt_message=  builders::report_message::build_game_message(&context, &self.api, modal_interaction.message.as_ref().unwrap().id.get()).await.unwrap();
+                        modal_interaction.create_response(context, CreateInteractionResponse::UpdateMessage(rebuilt_message)).await.unwrap();
+                    }
                 },
                 _=> {}
             }

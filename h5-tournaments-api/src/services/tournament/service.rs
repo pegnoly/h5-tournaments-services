@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::routes::models::MatchRegistrationForm;
 
-use self::{match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
+use self::{game_builder::GameResult, match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
 
 use super::{models::{game_builder::{self, GameBuilderModel, GameEditState}, hero::{self, HeroModel}, match_structure, operator::{self, TournamentOperatorModel}, tournament, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
 
@@ -559,6 +559,7 @@ impl TournamentService {
             match_id: Set(match_id),
             number: Set(number),
             edit_state: Set(Some(GameEditState::PlayerData)),
+            result: Set(GameResult::NotSelected),
             ..Default::default()
         };
 
@@ -584,6 +585,7 @@ impl TournamentService {
         second_player_race: Option<i32>,
         second_player_hero: Option<i32>,
         bargains_amount: Option<i32>,
+        result: Option<GameResult>
     ) -> Result<String, String> {
         let current_game = game_builder::Entity::find()
             .filter(
@@ -613,6 +615,9 @@ impl TournamentService {
             }
             if let Some(bargains_amount) = bargains_amount {
                 game_to_update.bargains_amount = Set(Some(bargains_amount));
+            }
+            if let Some(result) = result {
+                game_to_update.result = Set(result);
             }
 
             let res = game_to_update.update(db).await;
@@ -668,6 +673,26 @@ impl TournamentService {
         match res {
             Ok(heroes) => {
                 Ok(heroes)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_hero(
+        &self,
+        db: &DatabaseConnection,
+        id: i32
+    ) -> Result<Option<HeroModel>, String> {
+        let res = hero::Entity::find()
+            .filter(hero::Column::Id.eq(id))
+            .one(db)
+            .await;
+
+        match res {
+            Ok(hero) => {
+                Ok(hero)
             },
             Err(error) => {
                 Err(error.to_string())

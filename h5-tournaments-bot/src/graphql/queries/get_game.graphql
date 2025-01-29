@@ -5,6 +5,7 @@ query GetGameQuery($matchId: UUID!, $number: Int!) {
         firstPlayerHero,
         secondPlayerRace,
         secondPlayerHero,
-        bargainsAmount
+        bargainsAmount,
+        result
     }
 }
