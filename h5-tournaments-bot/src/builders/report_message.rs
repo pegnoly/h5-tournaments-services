@@ -25,7 +25,7 @@ pub async fn initial_build(
         .content(format!("Отчет для турнира **{}** турнирного оператора **{}** от игрока **{}**", tournament_data.as_ref().unwrap().name, operator_data.name, user_data.nickname))
         .select_menu(create_opponent_selector(users, None))
         .select_menu(create_games_count_selector(5, None))
-        .button(CreateButton::new("start_report").label("Начать заполнение отчета"))
+        .button(CreateButton::new("start_report").label("Начать заполнение отчета").disabled(true))
         .ephemeral(true);
 
     interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::Message(message_builder)).await?;
@@ -47,7 +47,13 @@ pub async fn rebuild_initial(match_id: Uuid, api: &ApiConnectionService) -> Resu
             .content(format!("Отчет для турнира **{}** турнирного оператора **{}** от игрока **{}**", tournament_data.as_ref().unwrap().name, operator_data.name, user_data.nickname))
             .select_menu(create_opponent_selector(users, existing_match.second_player))
             .select_menu(create_games_count_selector(5, existing_match.games_count))
-            .button(CreateButton::new("start_report").label("Начать заполнение отчета"))
+            .button(CreateButton::new("start_report").label("Начать заполнение отчета").disabled(
+                if existing_match.games_count.is_some() && existing_match.second_player.is_some() {
+                    false
+                } else {
+                    true
+                }
+            ))
             .ephemeral(true);
         Ok(message_builder)
     }

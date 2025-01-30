@@ -166,8 +166,13 @@ impl MainEventHandler {
                         );
                     
                     output_channel.send_message(context, message_builder).await.unwrap();
-                    interaction.create_response(context, CreateInteractionResponse::Acknowledge).await.unwrap();
-                    context.http.delete_message(ChannelId::from(tournament_data.channel as u64), MessageId::from(interaction.message.id.get()), Some("Report cleanup")).await.unwrap();
+                    interaction.create_response(context, CreateInteractionResponse::UpdateMessage(
+                        CreateInteractionResponseMessage::new()
+                            //.content("Отчет успешно создан, можете закрыть это сообщение.")
+                            .add_embed(CreateEmbed::new().title("Отчет успешно создан, можете закрыть это сообщение."))
+                            .components(vec![])
+                    )).await.unwrap();
+                    //context.http.delete_message(ChannelId::from(tournament_data.channel as u64), MessageId::from(interaction.message.id.get()), Some("Report cleanup")).await.unwrap();
                 }
             }
             _=> {}
