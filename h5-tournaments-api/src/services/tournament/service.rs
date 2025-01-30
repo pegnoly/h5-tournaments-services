@@ -1,5 +1,5 @@
 use rust_decimal::Decimal;
-use sea_orm::{sea_query::{expr, OnConflict, SimpleExpr}, ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use sea_orm::{sea_query::{expr, OnConflict, SimpleExpr}, ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, Related, Set};
 use sqlx::{PgPool, Pool, Postgres};
 use uuid::Uuid;
 
@@ -7,7 +7,7 @@ use crate::routes::models::MatchRegistrationForm;
 
 use self::{game_builder::GameResult, match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
 
-use super::{models::{game_builder::{self, GameBuilderModel, GameEditState}, hero::{self, HeroModel}, match_structure, operator::{self, TournamentOperatorModel}, tournament, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
+use super::{models::{game_builder::{self, GameBuilderModel, GameEditState}, hero::{self, HeroModel}, match_structure, operator::{self, TournamentOperatorModel}, participant, tournament, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
 
 #[derive(Clone)]
 pub struct LegacyTournamentService {
@@ -343,7 +343,8 @@ impl TournamentService {
             id: Set(id),
             operator_id: Set(operator_id),
             channel_id: Set(channel_id),
-            name: Set(name.clone())
+            name: Set(name.clone()),
+            stage: Set(tournament::TournamentStage::Unknown)
         };
 
         let res = tournament_to_insert.insert(db).await;
@@ -560,6 +561,7 @@ impl TournamentService {
             number: Set(number),
             edit_state: Set(Some(GameEditState::PlayerData)),
             result: Set(GameResult::NotSelected),
+            bargains_amount: Set(0),
             ..Default::default()
         };
 
@@ -614,7 +616,7 @@ impl TournamentService {
                 game_to_update.second_player_hero = Set(Some(second_player_hero));
             }
             if let Some(bargains_amount) = bargains_amount {
-                game_to_update.bargains_amount = Set(Some(bargains_amount));
+                game_to_update.bargains_amount = Set(bargains_amount);
             }
             if let Some(result) = result {
                 game_to_update.result = Set(result);
@@ -718,5 +720,81 @@ impl TournamentService {
                 Err(error.to_string())
             }
         }
+    }
+
+    pub async fn get_participants(
+        &self,
+        db: &DatabaseConnection,
+        tournament_id: Uuid,
+        group: i32 
+    ) -> Result<Vec<UserModel>, String> {
+        let res = participant::Entity::find_related()
+            .filter(
+                Condition::all()
+                    .add(participant::Column::TournamentId.eq(tournament_id))
+                    .add(participant::Column::GroupNumber.eq(group))
+            )
+            .all(db)
+            .await;
+            
+        match res {
+            Ok(users) => {
+                Ok(users)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_participant(
+        &self,
+        db: &DatabaseConnection,
+        user_id: Uuid,
+        tournament_id: Uuid
+    ) -> Result<Option<participant::Model>, String> {
+        let res = participant::Entity::find()
+            .filter(
+                Condition::all()
+                    .add(participant::Column::TournamentId.eq(tournament_id))
+                    .add(participant::Column::UserId.eq(user_id))
+            )
+            .one(db)
+            .await;
+
+        match res {
+            Ok(participant) => {
+                Ok(participant)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn create_participant(
+        &self,
+        db: &DatabaseConnection,
+        tournament_id: Uuid,
+        user_id: Uuid,
+        group: i32
+    ) -> Result<String, String> {
+        let participant_to_insert = participant::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            tournament_id: Set(tournament_id),
+            user_id: Set(user_id),
+            group_number: Set(group)
+        };
+
+        let res = participant_to_insert.insert(db).await;
+        match res {
+            Ok(_model) => {
+                Ok("Participant created".to_string())
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+
     }
 }

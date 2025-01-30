@@ -2,7 +2,7 @@ use std::fmt::format;
 
 use poise::serenity_prelude::*;
 use uuid::Uuid;
-use crate::{api_connector::service::ApiConnectionService, graphql::queries::{get_game_query::{self, GetGameQueryGame}, get_users_query::GetUsersQueryUsers}};
+use crate::{api_connector::service::ApiConnectionService, graphql::queries::{get_game_query::{self, GetGameQueryGame}, get_participants::GetParticipantsParticipants, get_users_query::GetUsersQueryUsers}};
 
 pub async fn initial_build(
     context: &Context,
@@ -16,14 +16,17 @@ pub async fn initial_build(
     let tournament_data = api.get_tournament_data(None, Some(channel.to_string())).await?;
     let operator_data = api.get_operator_data(tournament_data.as_ref().unwrap().operator).await?;
     let user_data = api.get_user(None, Some(user.to_string())).await?.unwrap();
-    let users = api.get_users().await?.unwrap();
+    let participant = api.get_participant(tournament_data.as_ref().unwrap().id, user_data.id).await?.unwrap();
+    let participants = api.get_participants(tournament_data.as_ref().unwrap().id, participant.group).await?;
     tracing::info!("Match build started by interaction {}", interaction.id.get());
 
     let match_creation_response = api.create_match(tournament_data.as_ref().unwrap().id, user_data.id, interaction.id.get()).await?;
 
     let message_builder = CreateInteractionResponseMessage::new()
-        .content(format!("Отчет для турнира **{}** турнирного оператора **{}** от игрока **{}**", tournament_data.as_ref().unwrap().name, operator_data.name, user_data.nickname))
-        .select_menu(create_opponent_selector(users, None))
+        .content(format!(
+            "Отчет для турнира **{}** турнирного оператора **{}** от игрока **{}**. Группа {}", 
+            tournament_data.as_ref().unwrap().name, operator_data.name, user_data.nickname, participant.group))
+        .select_menu(create_opponent_selector(participants, None))
         .select_menu(create_games_count_selector(5, None))
         .button(CreateButton::new("start_report").label("Начать заполнение отчета").disabled(true))
         .ephemeral(true);
@@ -35,7 +38,6 @@ pub async fn initial_build(
 pub async fn rebuild_initial(match_id: Uuid, api: &ApiConnectionService) -> Result<CreateInteractionResponseMessage, crate::Error> {
     let match_data = api.get_match(Some(match_id), None, None).await?;
     if let Some(existing_match) = match_data {
-        let users = api.get_users().await?.unwrap();;
         tracing::info!("Match data: {:?}", &existing_match);
         let tournament_data = api.get_tournament_data(Some(existing_match.tournament), None).await?;
         tracing::info!("Tournament data: {:?}", &tournament_data);
@@ -43,9 +45,11 @@ pub async fn rebuild_initial(match_id: Uuid, api: &ApiConnectionService) -> Resu
         tracing::info!("Operator data: {:?}", &operator_data);
         let user_data = api.get_user(Some(existing_match.first_player), None).await?.unwrap();
         tracing::info!("User data: {:?}", &user_data);
+        let participant = api.get_participant(tournament_data.as_ref().unwrap().id, user_data.id).await?.unwrap();
+        let participants = api.get_participants(tournament_data.as_ref().unwrap().id, participant.group).await?;
         let message_builder = CreateInteractionResponseMessage::new()
-            .content(format!("Отчет для турнира **{}** турнирного оператора **{}** от игрока **{}**", tournament_data.as_ref().unwrap().name, operator_data.name, user_data.nickname))
-            .select_menu(create_opponent_selector(users, existing_match.second_player))
+            .content(format!("Отчет для турнира **{}** турнирного оператора **{}** от игрока **{}**,", tournament_data.as_ref().unwrap().name, operator_data.name, user_data.nickname))
+            .select_menu(create_opponent_selector(participants, existing_match.second_player))
             .select_menu(create_games_count_selector(5, existing_match.games_count))
             .button(CreateButton::new("start_report").label("Начать заполнение отчета").disabled(
                 if existing_match.games_count.is_some() && existing_match.second_player.is_some() {
@@ -62,7 +66,7 @@ pub async fn rebuild_initial(match_id: Uuid, api: &ApiConnectionService) -> Resu
     }
 }
 
-fn create_opponent_selector(users: Vec<GetUsersQueryUsers>, current_selected_user: Option<Uuid>) -> CreateSelectMenu {
+fn create_opponent_selector(users: Vec<GetParticipantsParticipants>, current_selected_user: Option<Uuid>) -> CreateSelectMenu {
     let options = users.iter()
         .map(|user| {
             CreateSelectMenuOption::new(user.nickname.clone(), user.id.to_string())
@@ -132,7 +136,7 @@ pub async fn build_game_message(
         let description = 
         format!(
             "
-                **{}(**_{}_**)** {} **{}(**_{}_**)**. **Торг: {}**
+                **{},** _{}_ {} **{},** _{}_. **Торг: {}**
             ",
             if actual_game.first_player_race.is_some() { 
                 api.races.iter().find(|r| r.id == actual_game.first_player_race.unwrap()).unwrap().name.clone()
@@ -161,7 +165,7 @@ pub async fn build_game_message(
             } else { 
                 "Неизвестный герой".to_string() 
             },
-            if actual_game.bargains_amount.is_some() { actual_game.bargains_amount.unwrap().to_string() } else { "Неизвестно".to_string() },
+            actual_game.bargains_amount.to_string()
         );
         let mut core_components = build_core_components(api, actual_game.edit_state.as_ref().unwrap());
         let mut second_row = generate_second_row(api, &actual_game).await;
@@ -205,7 +209,7 @@ fn check_game_is_full_built(game: &GetGameQueryGame) -> bool {
     game.first_player_hero.is_some() && 
     game.second_player_race.is_some() && 
     game.second_player_hero.is_some() &&
-    game.bargains_amount.is_some() &&
+    //game.bargains_amount.is_some() &&
     game.result != get_game_query::GameResult::NOT_SELECTED
 }
 

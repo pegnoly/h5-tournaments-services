@@ -32,7 +32,7 @@ pub struct Model {
     pub first_player_hero: Option<i32>,
     pub second_player_race: Option<i32>,
     pub second_player_hero: Option<i32>,
-    pub bargains_amount: Option<i32>,
+    pub bargains_amount: i32,
     pub result: GameResult
 }
 
@@ -94,7 +94,7 @@ impl GameBuilderModel {
         self.second_player_hero
     }
 
-    async fn bargains_amount(&self) -> Option<i32> {
+    async fn bargains_amount(&self) -> i32 {
         self.bargains_amount
     }
 

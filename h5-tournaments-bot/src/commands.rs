@@ -1,4 +1,4 @@
-use std::vec;
+use std::{str::FromStr, vec};
 
 use futures_executor::block_on_stream;
 use h5_tournaments_api::prelude::ModType;
@@ -232,5 +232,20 @@ pub async fn delete_unused(
     let channel_id = u64::from_str_radix(&channel, 10).unwrap();
     let channel = ChannelId::from(channel_id);
     channel.delete_message(context, id).await.unwrap();
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn register_in_tournament(
+    context: crate::Context<'_>,
+    tournament: String,
+    user: String,
+    group: i64
+) -> Result<(), crate::Error> {
+    let tournament_id = Uuid::from_str(&tournament).unwrap();
+    let user_id = Uuid::from_str(&user).unwrap();
+    let api = &context.data().api_connection_service;
+    let res = api.create_participant(tournament_id, user_id, group).await?;
+    context.say(res).await?;
     Ok(())
 }

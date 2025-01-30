@@ -11,8 +11,24 @@ pub struct Model {
     pub nickname: String
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+#[derive(Copy, Clone, Debug, EnumIter)]
+pub enum Relation {
+    Participant
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::Participant => Entity::has_one(super::participant::Entity).into()
+        }
+    }
+}
+
+impl Related<super::participant::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Participant.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}
 

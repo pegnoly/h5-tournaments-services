@@ -147,4 +147,25 @@ impl Mutation {
             }
         }
     }
+
+    async fn create_participant<'a>(
+        &self,
+        context: &Context<'a>,
+        tournament_id: Uuid,
+        user_id: Uuid,
+        group: i32
+    ) -> Result<String, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.create_participant(db, tournament_id, user_id, group).await;
+
+        match res {
+            Ok(_res) => {
+                Ok(_res)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
 }

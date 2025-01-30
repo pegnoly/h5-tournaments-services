@@ -135,12 +135,20 @@ impl MainEventHandler {
                         .sorted_by_key(|g| g.number)
                         .collect::<Vec<&GetGamesQueryGames>>();
 
+                    let first_player_wins = sorted_games.iter()
+                        .filter(|g| g.result == get_games_query::GameResult::FIRST_PLAYER_WON)
+                        .count();
+
+                    let second_player_wins = sorted_games.iter()
+                        .filter(|g| g.result == get_games_query::GameResult::SECOND_PLAYER_WON)
+                        .count();
+
                     let mut fields = vec![];
                     for game in &sorted_games {
                         fields.push(
                             (
                                 format!("_Игра {}_", game.number),
-                                format!("**{}(**_{}_**)** **{}** **{}** **(**_{}_**)** [**{}**]", 
+                                format!("**{},** _{}_ **{}** **{},** _{}_ [**{}**]", 
                                 &self.api.races.iter().find(|r| r.id == game.first_player_race.unwrap()).unwrap().name,
                                 &self.api.get_hero(game.first_player_hero.unwrap()).await.unwrap().unwrap().name,
                                 match game.result {
@@ -150,12 +158,20 @@ impl MainEventHandler {
                                 },
                                 &self.api.races.iter().find(|r| r.id == game.second_player_race.unwrap()).unwrap().name,
                                 &self.api.get_hero(game.second_player_hero.unwrap()).await.unwrap().unwrap().name,
-                                game.bargains_amount.unwrap().to_string()
+                                game.bargains_amount.to_string()
                                 ),
                                 false
                             ) 
                         )
                     }
+
+                    fields.push(
+                        (
+                            "_Счёт_".to_string(),
+                            format!("**{} - {}**", first_player_wins, second_player_wins),
+                            false
+                        )
+                    );
 
                     let message_builder = CreateMessage::new()
                         .add_embed(

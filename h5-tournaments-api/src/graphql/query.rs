@@ -2,7 +2,7 @@ use async_graphql::Context;
 use sea_orm::{error, DatabaseConnection};
 use uuid::Uuid;
 
-use crate::{prelude::TournamentService, services::tournament::models::{game_builder::GameBuilderModel, hero::HeroModel, match_structure::MatchModel, operator::TournamentOperatorModel, tournament::TournamentModel, user::UserModel}};
+use crate::{prelude::TournamentService, services::tournament::models::{game_builder::GameBuilderModel, hero::HeroModel, match_structure::MatchModel, operator::TournamentOperatorModel, participant, tournament::TournamentModel, user::UserModel}};
 
 pub struct Query;
 
@@ -185,5 +185,45 @@ impl Query {
                 Err(error)
             }
         }
+    }
+
+    async fn participants<'a>(
+        &self,
+        context: &Context<'a>,
+        tournament_id: Uuid,
+        group: i32
+    ) -> Result<Vec<UserModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_participants(db, tournament_id, group).await;
+
+        match res {
+            Ok(users) => {
+                Ok(users)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        } 
+    }
+
+    async fn participant<'a>(
+        &self,
+        context: &Context<'a>,
+        tournament_id: Uuid,
+        user_id: Uuid
+    ) -> Result<Option<participant::Model>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_participant(db, user_id, tournament_id).await;
+
+        match res {
+            Ok(user) => {
+                Ok(user)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        } 
     }
 }

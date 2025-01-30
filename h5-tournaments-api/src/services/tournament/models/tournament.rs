@@ -2,6 +2,14 @@ use sea_orm::prelude::*;
 
 pub type TournamentModel = Model;
 
+#[derive(Debug, EnumIter, DeriveActiveEnum, Clone, Copy, PartialEq, Eq, async_graphql::Enum)]
+#[sea_orm(rs_type = "i32", db_type = "Integer")]
+pub enum TournamentStage {
+    Unknown = 0,
+    GroupStage = 1,
+    PlayOff = 2
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "tournaments_new")]
 pub struct Model {
@@ -9,7 +17,8 @@ pub struct Model {
     pub id: Uuid,
     pub operator_id: Uuid,
     pub channel_id: i64,
-    pub name: String
+    pub name: String,
+    pub stage: TournamentStage
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -33,5 +42,9 @@ impl TournamentModel {
 
     async fn name(&self) -> String {
         self.name.clone()
+    }
+
+    async fn stage(&self) -> TournamentStage {
+        self.stage
     }
 }

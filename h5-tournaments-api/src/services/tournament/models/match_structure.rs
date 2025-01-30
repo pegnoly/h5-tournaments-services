@@ -15,7 +15,7 @@ pub struct Model {
     pub first_player: Uuid,
     pub second_player: Option<Uuid>,
     pub games_count: Option<i32>,
-    pub current_game: i32
+    pub current_game: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
