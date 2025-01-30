@@ -1,10 +1,11 @@
 use std::str::FromStr;
 
+use itertools::Itertools;
 use poise::serenity_prelude::*;
 use shuttle_runtime::async_trait;
 use uuid::Uuid;
 
-use crate::{api_connector::service::ApiConnectionService, builders, graphql::queries::{int_to_game_result, update_game_mutation::{self, GameResult}}};
+use crate::{api_connector::service::ApiConnectionService, builders, graphql::queries::{get_game_query, get_games_query::{self, GetGamesQueryGames}, int_to_game_result, update_game_mutation::{self, GameResult}}};
 
 pub struct MainEventHandler {
     api: ApiConnectionService
@@ -121,7 +122,53 @@ impl MainEventHandler {
                 }
             },
             "submit_report" => {
-                
+                let message = interaction.message.id.get();
+                let current_match = self.api.get_match(None, None, Some(message.to_string())).await.unwrap();
+                if let Some(match_data) = current_match {
+                    let tournament_data = self.api.get_tournament_data(Some(match_data.tournament), None).await.unwrap().unwrap();
+                    let operator_data = self.api.get_operator_data(tournament_data.operator).await.unwrap();
+                    let output_channel = ChannelId::from(operator_data.generated as u64);
+                    let first_user = self.api.get_user(Some(match_data.first_player), None).await.unwrap().unwrap().nickname;
+                    let second_user = self.api.get_user(Some(match_data.second_player.unwrap()), None).await.unwrap().unwrap().nickname;
+                    let games = self.api.get_games(match_data.id).await.unwrap();
+                    let sorted_games = games.iter()
+                        .sorted_by_key(|g| g.number)
+                        .collect::<Vec<&GetGamesQueryGames>>();
+
+                    let mut fields = vec![];
+                    for game in &sorted_games {
+                        fields.push(
+                            (
+                                format!("_Игра {}_", game.number),
+                                format!("**{}(**_{}_**)** **{}** **{}** **(**_{}_**)** [**{}**]", 
+                                &self.api.races.iter().find(|r| r.id == game.first_player_race.unwrap()).unwrap().name,
+                                &self.api.get_hero(game.first_player_hero.unwrap()).await.unwrap().unwrap().name,
+                                match game.result {
+                                    get_games_query::GameResult::FIRST_PLAYER_WON => ">".to_string(),
+                                    get_games_query::GameResult::SECOND_PLAYER_WON => "<".to_string(),
+                                    _=> "?".to_string()
+                                },
+                                &self.api.races.iter().find(|r| r.id == game.second_player_race.unwrap()).unwrap().name,
+                                &self.api.get_hero(game.second_player_hero.unwrap()).await.unwrap().unwrap().name,
+                                game.bargains_amount.unwrap().to_string()
+                                ),
+                                false
+                            ) 
+                        )
+                    }
+
+                    let message_builder = CreateMessage::new()
+                        .add_embed(
+                            CreateEmbed::new()
+                                .title(format!("**Турнир {}**", &tournament_data.name))
+                                .description(format!("**{}** _VS_ **{}**", &first_user, &second_user))
+                                .fields(fields)
+                        );
+                    
+                    output_channel.send_message(context, message_builder).await.unwrap();
+                    interaction.create_response(context, CreateInteractionResponse::Acknowledge).await.unwrap();
+                    context.http.delete_message(ChannelId::from(tournament_data.channel as u64), MessageId::from(interaction.message.id.get()), Some("Report cleanup")).await.unwrap();
+                }
             }
             _=> {}
         }

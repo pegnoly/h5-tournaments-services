@@ -2,6 +2,7 @@ query GetTournamentQuery($id: UUID, $reportsChannelId: String) {
     tournament(id: $id, reportsChannelId: $reportsChannelId) {
         name,
         operator,
-        id
+        id,
+        channel
     }
 }

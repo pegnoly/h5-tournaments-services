@@ -167,4 +167,23 @@ impl Query {
             }
         }
     }
+
+    async fn games<'a>(
+        &self,
+        context: &Context<'a>,
+        match_id: Uuid
+    ) -> Result<Vec<GameBuilderModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_games(db, match_id).await;
+
+        match res {
+            Ok(games) => {
+                Ok(games)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
 }

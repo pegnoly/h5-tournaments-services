@@ -699,4 +699,24 @@ impl TournamentService {
             }
         }
     }
+
+    pub async fn get_games(
+        &self,
+        db: &DatabaseConnection,
+        match_id: Uuid
+    ) -> Result<Vec<GameBuilderModel>, String> {
+        let res = game_builder::Entity::find()
+            .filter(game_builder::Column::MatchId.eq(match_id))
+            .all(db)
+            .await;
+
+        match res {
+            Ok(games) => {
+                Ok(games)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
 }

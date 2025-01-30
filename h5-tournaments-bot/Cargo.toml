@@ -24,3 +24,4 @@ futures-util = "0.3.31"
 futures-executor = "0.3.31"
 graphql_client = { version = "0.14.0", features = ["reqwest"] }
 rust_decimal = "1.36.0"
+itertools = "0.14.0"

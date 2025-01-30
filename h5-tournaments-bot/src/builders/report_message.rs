@@ -22,7 +22,7 @@ pub async fn initial_build(
     let match_creation_response = api.create_match(tournament_data.as_ref().unwrap().id, user_data.id, interaction.id.get()).await?;
 
     let message_builder = CreateInteractionResponseMessage::new()
-        .content(format!("Отчет для турнира **{}** турнирного оператора **{}** от игрока **{}**", tournament_data.as_ref().unwrap().name, operator_data, user_data.nickname))
+        .content(format!("Отчет для турнира **{}** турнирного оператора **{}** от игрока **{}**", tournament_data.as_ref().unwrap().name, operator_data.name, user_data.nickname))
         .select_menu(create_opponent_selector(users, None))
         .select_menu(create_games_count_selector(5, None))
         .button(CreateButton::new("start_report").label("Начать заполнение отчета"))
@@ -44,7 +44,7 @@ pub async fn rebuild_initial(match_id: Uuid, api: &ApiConnectionService) -> Resu
         let user_data = api.get_user(Some(existing_match.first_player), None).await?.unwrap();
         tracing::info!("User data: {:?}", &user_data);
         let message_builder = CreateInteractionResponseMessage::new()
-            .content(format!("Отчет для турнира **{}** турнирного оператора **{}** от игрока **{}**", tournament_data.as_ref().unwrap().name, operator_data, user_data.nickname))
+            .content(format!("Отчет для турнира **{}** турнирного оператора **{}** от игрока **{}**", tournament_data.as_ref().unwrap().name, operator_data.name, user_data.nickname))
             .select_menu(create_opponent_selector(users, existing_match.second_player))
             .select_menu(create_games_count_selector(5, existing_match.games_count))
             .button(CreateButton::new("start_report").label("Начать заполнение отчета"))

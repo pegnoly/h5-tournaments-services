@@ -8,7 +8,8 @@ pub struct Model {
     pub name: String,
     pub server_id: i64,
     pub heroes: Vec<i32>,
-    pub section_id: i64
+    pub section_id: i64,
+    pub generated_channel: i64
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -38,5 +39,9 @@ impl TournamentOperatorModel {
 
     async fn section(&self) -> i64 {
         self.section_id
+    }
+
+    async fn generated(&self) -> i64 {
+        self.generated_channel
     }
 }
