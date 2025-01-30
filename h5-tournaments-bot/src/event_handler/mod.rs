@@ -88,11 +88,37 @@ impl MainEventHandler {
                     interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(updated_message)).await.unwrap();
                 }
             },
-            "next_message" => {
-
+            "next_game_button" => {
+                let message = interaction.message.id.get();
+                let current_match = self.api.get_match(None, None, Some(message.to_string())).await.unwrap();
+                if let Some(match_data) = current_match {
+                    let new_game = match_data.current_game + 1;
+                    self.api.update_match(
+                        match_data.id, 
+                        None, 
+                        None, 
+                        None,
+                    Some(new_game))
+                    .await.unwrap();
+                    let updated_message = builders::report_message::build_game_message(&context, &self.api, message).await.unwrap();
+                    interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(updated_message)).await.unwrap();
+                }
             },
-            "previous_message" => {
-                
+            "previous_game_button" => {
+                let message = interaction.message.id.get();
+                let current_match = self.api.get_match(None, None, Some(message.to_string())).await.unwrap();
+                if let Some(match_data) = current_match {
+                    let new_game = match_data.current_game - 1;
+                    self.api.update_match(
+                        match_data.id, 
+                        None, 
+                        None, 
+                        None,
+                    Some(new_game))
+                    .await.unwrap();
+                    let updated_message = builders::report_message::build_game_message(&context, &self.api, message).await.unwrap();
+                    interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(updated_message)).await.unwrap();
+                }
             },
             "submit_report" => {
                 

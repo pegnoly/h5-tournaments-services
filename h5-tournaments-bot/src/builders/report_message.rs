@@ -161,8 +161,25 @@ pub async fn build_game_message(
         let mut second_row = generate_second_row(api, &actual_game).await;
         core_components.append(&mut second_row);
         core_components.push(CreateActionRow::Buttons(vec![
-            CreateButton::new("previous_game_button").label("Предыдущая игра").disabled(true),
-            CreateButton::new("next_game_button").label("Следующая игра").disabled(true)
+            CreateButton::new("previous_game_button").label("Предыдущая игра")
+                .disabled(
+                if existing_match.current_game == 1 {
+                    true
+                } else {
+                    false
+                }),
+            CreateButton::new("next_game_button").label("Следующая игра")
+                .disabled(if existing_match.current_game == existing_match.games_count.unwrap() || !check_game_is_full_built(&actual_game) {
+                    true
+                } else {
+                    false
+                }),
+            CreateButton::new("submit_report").label("Закончить отчет")
+                .disabled(if existing_match.current_game != existing_match.games_count.unwrap() || !check_game_is_full_built(&actual_game) {
+                    true
+                } else {
+                    false
+                }),
         ]));
         Ok(
             CreateInteractionResponseMessage::new()
@@ -175,6 +192,15 @@ pub async fn build_game_message(
     else {
         Err(crate::Error::from("Failed to build game message"))   
     }
+}
+
+fn check_game_is_full_built(game: &GetGameQueryGame) -> bool {
+    game.first_player_race.is_some() && 
+    game.first_player_hero.is_some() && 
+    game.second_player_race.is_some() && 
+    game.second_player_hero.is_some() &&
+    game.bargains_amount.is_some() &&
+    game.result != get_game_query::GameResult::NOT_SELECTED
 }
 
 async fn generate_second_row(api: &ApiConnectionService, game_data: &GetGameQueryGame) -> Vec<CreateActionRow> {
