@@ -23,10 +23,30 @@ pub async fn initial_build(
     let match_creation_response = api.create_match(tournament_data.as_ref().unwrap().id, user_data.id, interaction.id.get()).await?;
 
     let message_builder = CreateInteractionResponseMessage::new()
-        .content(format!(
-            "Отчет для турнира **{}** турнирного оператора **{}** от игрока **{}**. Группа {}", 
-            tournament_data.as_ref().unwrap().name, operator_data.name, user_data.nickname, participant.group))
-        .select_menu(create_opponent_selector(participants, None))
+        .add_embed(
+            CreateEmbed::new()
+                .title("Отчет о турнирной игре")
+                .description(format!("Турнир **{}** by **{}**", tournament_data.as_ref().unwrap().name.to_uppercase(), operator_data.name))
+                .fields(
+                [
+                    (
+                        "Автор",
+                        format!("{}", &user_data.nickname),
+                        false
+                    ),
+                    (
+                        "Стадия",
+                        "Групповой этап".to_string(),
+                        false
+                    ),
+                    (
+                        "Группа",
+                        participant.group.to_string(),
+                        true
+                    )
+                ])
+        )
+        .select_menu(create_opponent_selector(participants, None, user_data.id))
         .select_menu(create_games_count_selector(5, None))
         .button(CreateButton::new("start_report").label("Начать заполнение отчета").disabled(true))
         .ephemeral(true);
@@ -48,8 +68,30 @@ pub async fn rebuild_initial(match_id: Uuid, api: &ApiConnectionService) -> Resu
         let participant = api.get_participant(tournament_data.as_ref().unwrap().id, user_data.id).await?.unwrap();
         let participants = api.get_participants(tournament_data.as_ref().unwrap().id, participant.group).await?;
         let message_builder = CreateInteractionResponseMessage::new()
-            .content(format!("Отчет для турнира **{}** турнирного оператора **{}** от игрока **{}**,", tournament_data.as_ref().unwrap().name, operator_data.name, user_data.nickname))
-            .select_menu(create_opponent_selector(participants, existing_match.second_player))
+            .add_embed(
+                CreateEmbed::new()
+                    .title("Отчет о турнирной игре")
+                    .description(format!("Турнир **{}** by **{}**", tournament_data.as_ref().unwrap().name.to_uppercase(), operator_data.name))
+                    .fields(
+                    [
+                        (
+                            "Автор",
+                            format!("{}", &user_data.nickname),
+                            false
+                        ),
+                        (
+                            "Стадия",
+                            "Групповой этап".to_string(),
+                            false
+                        ),
+                        (
+                            "Группа",
+                            participant.group.to_string(),
+                            true
+                        )
+                    ])
+            )            
+            .select_menu(create_opponent_selector(participants, existing_match.second_player, user_data.id))
             .select_menu(create_games_count_selector(5, existing_match.games_count))
             .button(CreateButton::new("start_report").label("Начать заполнение отчета").disabled(
                 if existing_match.games_count.is_some() && existing_match.second_player.is_some() {
@@ -66,17 +108,24 @@ pub async fn rebuild_initial(match_id: Uuid, api: &ApiConnectionService) -> Resu
     }
 }
 
-fn create_opponent_selector(users: Vec<GetParticipantsParticipants>, current_selected_user: Option<Uuid>) -> CreateSelectMenu {
+fn create_opponent_selector(users: Vec<GetParticipantsParticipants>, current_selected_opponent: Option<Uuid>, current_user: Uuid) -> CreateSelectMenu {
     let options = users.iter()
-        .map(|user| {
-            CreateSelectMenuOption::new(user.nickname.clone(), user.id.to_string())
-                .default_selection(
-            if current_selected_user.is_some() && current_selected_user.unwrap() == user.id {
-                        true
-                    }
-                    else {
-                        false
-                    }) 
+        .filter_map(|user| {
+            if user.id != current_user {
+                Some(
+                    CreateSelectMenuOption::new(user.nickname.clone(), user.id.to_string())
+                        .default_selection(
+                            if current_selected_opponent.is_some() && current_selected_opponent.unwrap() == user.id {
+                                true
+                            }
+                            else {
+                                false
+                            })
+                )
+            }
+            else {
+                None
+            }
         })
         .collect::<Vec<CreateSelectMenuOption>>();
 

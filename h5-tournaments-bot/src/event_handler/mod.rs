@@ -128,7 +128,8 @@ impl MainEventHandler {
                     let tournament_data = self.api.get_tournament_data(Some(match_data.tournament), None).await.unwrap().unwrap();
                     let operator_data = self.api.get_operator_data(tournament_data.operator).await.unwrap();
                     let output_channel = ChannelId::from(operator_data.generated as u64);
-                    let first_user = self.api.get_user(Some(match_data.first_player), None).await.unwrap().unwrap().nickname;
+                    let first_user = self.api.get_user(Some(match_data.first_player), None).await.unwrap().unwrap();
+                    let participant = self.api.get_participant(tournament_data.id, first_user.id).await.unwrap().unwrap();
                     let second_user = self.api.get_user(Some(match_data.second_player.unwrap()), None).await.unwrap().unwrap().nickname;
                     let games = self.api.get_games(match_data.id).await.unwrap();
                     let sorted_games = games.iter()
@@ -176,8 +177,8 @@ impl MainEventHandler {
                     let message_builder = CreateMessage::new()
                         .add_embed(
                             CreateEmbed::new()
-                                .title(format!("**Турнир {}**", &tournament_data.name))
-                                .description(format!("**{}** _VS_ **{}**", &first_user, &second_user))
+                                .title(format!("**Турнир {}**, _групповой этап, группа_ **{}**", &tournament_data.name.to_uppercase(), participant.group))
+                                .description(format!("**{}** _VS_ **{}**", &first_user.nickname, &second_user))
                                 .fields(fields)
                         );
                     
