@@ -1,7 +1,7 @@
 use poise::serenity_prelude::*;
 use uuid::Uuid;
 
-use crate::{api_connector::service::ApiConnectionService, graphql::queries::get_tournament_query::GetTournamentQueryTournament, types::payloads::{GetTournament, GetUser}};
+use crate::{api_connector::service::ApiConnectionService, graphql::queries::get_tournament_query::GetTournamentQueryTournament};
 
 pub async fn try_register_in_tournament(
     interaction: &ComponentInteraction,
@@ -11,9 +11,9 @@ pub async fn try_register_in_tournament(
     let channel = interaction.channel_id;
     let guild = interaction.guild_id.unwrap();
     let user = &interaction.user;
-    let tournament = api.get_tournament_data(GetTournament::default().with_register_channel(channel.get().to_string())).await?.unwrap();
+    let tournament = api.get_tournament_data(None, None, Some(channel.get().to_string())).await?.unwrap();
                 
-    if let Some(existing_user) = api.get_user(GetUser::default().with_discord_id(user.id.get().to_string())).await? {
+    if let Some(existing_user) = api.get_user(None, Some(user.id.get().to_string())).await? {
         if let Some(_existing_participant) = api.get_participant(tournament.id, existing_user.id).await? {
             interaction.create_response(context, CreateInteractionResponse::Message(
                 CreateInteractionResponseMessage::new().ephemeral(true).content("Вы уже зарегистрированы в этом турнире")
@@ -43,15 +43,15 @@ pub async fn process_registration_modal(
     let user = interaction.user.id.get();
     let channel = interaction.channel.as_ref().unwrap().id.get();
     let guild = interaction.guild_id.unwrap();
-    let mut _nickname = "";
+    let mut nickname = "";
     for row in &interaction.data.components {
         for component in &row.components {
             match component {
                 ActionRowComponent::InputText(text) => {
                     if text.custom_id.as_str() == "user_lobby_nickname_input" {
-                        _nickname = text.value.as_ref().unwrap();
-                        let new_user_id = api.create_user(_nickname.to_string(), user.to_string(), true).await?;
-                        let tournament = api.get_tournament_data(GetTournament::default().with_register_channel(channel.to_string())).await?.unwrap();
+                        nickname = text.value.as_ref().unwrap();
+                        let new_user_id = api.create_user(nickname.to_string(), user.to_string(), true).await?;
+                        let tournament = api.get_tournament_data(None, None, Some(channel.to_string())).await?.unwrap();
                         register_participant(
                             ChannelId::from(channel), 
                             guild, 
@@ -79,9 +79,9 @@ pub async fn try_remove_registration(
     let channel = interaction.channel_id;
     let user = &interaction.user;
     let guild = interaction.guild_id.unwrap();
-    let tournament = api.get_tournament_data(GetTournament::default().with_register_channel(channel.get().to_string())).await?.unwrap();
+    let tournament = api.get_tournament_data(None, None, Some(channel.get().to_string())).await?.unwrap();
                 
-    if let Some(existing_user) = api.get_user(GetUser::default().with_discord_id(user.id.get().to_string())).await? {
+    if let Some(existing_user) = api.get_user(None, Some(user.id.get().to_string())).await? {
         if let Some(_participant) = api.get_participant(tournament.id, existing_user.id).await? {
             api.delete_participant(tournament.id, existing_user.id).await?;
             let mut roles_to_update = vec![];
@@ -115,7 +115,7 @@ pub async fn try_update_user_data(
     api: &ApiConnectionService
 ) -> Result<(), crate::Error> {
     let user = &interaction.user;
-    if let Some(_existing_user) = api.get_user(GetUser::default().with_discord_id(user.id.get().to_string())).await? {
+    if let Some(_existing_user) = api.get_user(None, Some(user.id.get().to_string())).await? {
         build_update_user_modal(interaction, context).await?;
     } else {
         interaction.create_response(context, CreateInteractionResponse::Message(
@@ -132,15 +132,15 @@ pub async fn process_user_update_modal(
     api: &ApiConnectionService
 ) -> Result<(), crate::Error> {
     let user = interaction.user.id.get();
-    let user_data = api.get_user(GetUser::default().with_discord_id(user.to_string())).await?.unwrap();
-    let mut _new_nickname = "";
+    let user_data = api.get_user(None, Some(user.to_string())).await?.unwrap();
+    let mut new_nickname = "";
     for row in &interaction.data.components {
         for component in &row.components {
             match component {
                 ActionRowComponent::InputText(text) => {
                     if text.custom_id.as_str() == "user_update_nickname_input" {
-                        _new_nickname = text.value.as_ref().unwrap();
-                        api.update_user(user_data.id, Some(_new_nickname.to_string()), None).await?;
+                        new_nickname = text.value.as_ref().unwrap();
+                        api.update_user(user_data.id, Some(new_nickname.to_string()), None).await?;
                     }
                 },
                 _=> {}
@@ -190,6 +190,10 @@ async fn register_participant(
     context: &Context,
     api: &ApiConnectionService
 ) -> Result<(), crate::Error> {
+    let count = api.create_participant(tournament.id, tournament_user_id, 0).await?;
+    let registered_message = CreateMessage::new()
+        .content(format!("<@{}> зарегистрировался в турнире! Всего регистраций: **{}**", discord_user.id.get(), count));
+    channel.send_message(context, registered_message).await?;
     let mut existing_roles = vec![];
     for role in guild.roles(context).await? {
         if discord_user.has_role(context, guild, role.0).await? {
@@ -201,13 +205,6 @@ async fn register_participant(
     if !existing_roles.contains(&tournament_role) {
         existing_roles.push(tournament_role);
         guild.edit_member(context, discord_user.id, EditMember::new().roles(existing_roles)).await?;
-    } else {
-        tracing::info!("User {:?} who already have participant role tries to get it twice", discord_user);
-        return Ok(());
     }
-    let count = api.create_participant(tournament.id, tournament_user_id, 0).await?;
-    let registered_message = CreateMessage::new()
-        .content(format!("<@{}> зарегистрировался в турнире! Всего регистраций: **{}**", discord_user.id.get(), count));
-    channel.send_message(context, registered_message).await?;
     Ok(())
 }

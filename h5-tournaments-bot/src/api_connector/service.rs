@@ -4,7 +4,11 @@ use graphql_client::{reqwest::post_graphql, GraphQLQuery, Response};
 use h5_tournaments_api::prelude::{Hero, ModType, Race, Tournament};
 use uuid::Uuid;
 
+<<<<<<< HEAD
 use crate::{graphql::queries::{self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_participant, create_user_mutation::ResponseData, delete_participant, get_game_query::{self, GetGameQueryGame}, get_games_query::{self, GetGamesQueryGames}, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_match_query::GetMatchQueryTournamentMatch, get_operator_data_query::{self, GetOperatorDataQueryOperator}, get_participant::{self, GetParticipantParticipant}, get_participants::{self, GetParticipantsParticipants}, get_tournament_query, get_user_query::{self, GetUserQueryUser}, update_game_mutation, update_match_mutation, update_user, CreateGameMutation, CreateMatchMutation, CreateParticipant, CreateTournamentMutation, CreateUserMutation, DeleteParticipant, GameEditState, GetGameQuery, GetGamesQuery, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetParticipant, GetParticipants, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation, UpdateUser}, parser::service::ParsedData, types::payloads::{GetMatch, GetTournament, GetUser, UpdateGame, UpdateMatch}};
+=======
+use crate::{graphql::queries::{self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_participant, create_user_mutation::ResponseData, delete_participant, get_game_query::{self, GetGameQueryGame}, get_games_query::{self, GetGamesQueryGames}, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_match_query::GetMatchQueryTournamentMatch, get_operator_data_query::GetOperatorDataQueryOperator, get_participant::{self, GetParticipantParticipant}, get_participants::{self, GetParticipantsParticipants}, get_user_query::GetUserQueryUser, update_game_mutation, update_user, CreateGameMutation, CreateMatchMutation, CreateParticipant, CreateTournamentMutation, CreateUserMutation, DeleteParticipant, GameEditState, GetGameQuery, GetGamesQuery, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetParticipant, GetParticipants, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation, UpdateUser}, parser::service::ParsedData};
+>>>>>>> f5c5226 (registration logic)
 
 pub(self) const MAIN_URL: &'static str = "https://h5-tournaments-api-5epg.shuttle.app/";
 
@@ -345,7 +349,22 @@ impl ApiConnectionService {
         }
     }
 
+<<<<<<< HEAD
     pub async fn get_tournament_data(&self, payload: GetTournament) -> Result<Option<queries::GetTournamentResult>, crate::Error> {
+=======
+    pub async fn get_tournament_data(
+        &self, 
+        id: Option<Uuid>, 
+        reports_channel_id: Option<String>,
+        register_channel_id: Option<String>
+    ) -> Result<Option<queries::GetTournamentResult>, crate::Error> {
+        let variables = queries::get_tournament_query::Variables {
+            reports_channel_id: reports_channel_id,
+            register_channel_id: register_channel_id,
+            id: id
+        };
+
+>>>>>>> f5c5226 (registration logic)
         let client = self.client.read().await;
         let query = GetTournamentQuery::build_query(get_tournament_query::Variables::from(payload));
         let response = client.post(MAIN_URL).json(&query).send().await;

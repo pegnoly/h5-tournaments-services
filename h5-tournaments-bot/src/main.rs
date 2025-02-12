@@ -14,8 +14,11 @@ pub mod graphql;
 pub mod builders;
 pub mod event_handler;
 pub mod operations;
+<<<<<<< HEAD
 pub mod types;
 
+=======
+>>>>>>> f5c5226 (registration logic)
 pub struct Data {
     pub api_connection_service: ApiConnectionService,
     pub parser_service: ParserService
