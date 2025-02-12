@@ -154,7 +154,13 @@ fn build_total_games_and_winrates(builder: &mut PairStatsBuilder, worksheet: &mu
         })
         .collect::<HashMap<i32, usize>>();
 
-        let least_played_race = races_total_games.iter()
+    let races_total_games_no_mirrors = races_data.iter()
+        .map(|r| {
+            (r.id, calc_games(builder.losses_by_race.get(&r.id).unwrap()) + calc_games(builder.wins_by_race.get(&r.id).unwrap()))
+        })
+        .collect::<HashMap<i32, usize>>();
+
+    let least_played_race = races_total_games.iter()
         .min_by_key(|r| r.1)
         .unwrap()
         .0;
@@ -166,7 +172,7 @@ fn build_total_games_and_winrates(builder: &mut PairStatsBuilder, worksheet: &mu
 
     let races_winrates = races_data.iter()
         .map(|r| {
-            (r.id, (calc_games(builder.wins_by_race.get(&r.id).unwrap()) as f32) / (*races_total_games.get(&r.id).unwrap() as f32) * 100.0)
+            (r.id, (calc_games(builder.wins_by_race.get(&r.id).unwrap()) as f32) / (*races_total_games_no_mirrors.get(&r.id).unwrap() as f32) * 100.0)
         })
         .collect::<HashMap<i32, f32>>();
 
