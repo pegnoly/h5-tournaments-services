@@ -1,0 +1,3 @@
+mutation DeleteParticipant($tournamentId: UUID!, $userId: UUID!) {
+    deleteParticipant(tournamentId: $tournamentId, userId: $userId)
+}

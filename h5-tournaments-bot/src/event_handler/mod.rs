@@ -5,7 +5,7 @@ use poise::serenity_prelude::*;
 use shuttle_runtime::async_trait;
 use uuid::Uuid;
 
-use crate::{api_connector::service::ApiConnectionService, builders, graphql::queries::{get_game_query, get_games_query::{self, GetGamesQueryGames}, int_to_game_result, update_game_mutation::{self, GameResult}}};
+use crate::{api_connector::service::ApiConnectionService, builders, graphql::queries::{get_game_query, get_games_query::{self, GetGamesQueryGames}, int_to_game_result, update_game_mutation::{self, GameResult}}, operations};
 
 pub struct MainEventHandler {
     api: ApiConnectionService
@@ -16,7 +16,7 @@ impl MainEventHandler {
         MainEventHandler { api: ApiConnectionService::new(client) }
     }
 
-    async fn dispatch_buttons(&self, context: &Context, interaction: &ComponentInteraction, id: &String, channel: u64, user: u64) {
+    async fn dispatch_buttons(&self, context: &Context, interaction: &ComponentInteraction, id: &String, channel: u64, user: u64) -> Result<(), crate::Error> {
         match id.as_str() {
             "create_report_button" => {
                 builders::report_message::initial_build(context, &self.api, &interaction, id, channel, user).await.unwrap();
@@ -125,7 +125,7 @@ impl MainEventHandler {
                 let message = interaction.message.id.get();
                 let current_match = self.api.get_match(None, None, Some(message.to_string())).await.unwrap();
                 if let Some(match_data) = current_match {
-                    let tournament_data = self.api.get_tournament_data(Some(match_data.tournament), None).await.unwrap().unwrap();
+                    let tournament_data = self.api.get_tournament_data(Some(match_data.tournament), None, None).await.unwrap().unwrap();
                     let operator_data = self.api.get_operator_data(tournament_data.operator).await.unwrap();
                     let output_channel = ChannelId::from(operator_data.generated as u64);
                     let first_user = self.api.get_user(Some(match_data.first_player), None).await.unwrap().unwrap();
@@ -191,9 +191,19 @@ impl MainEventHandler {
                     )).await.unwrap();
                     //context.http.delete_message(ChannelId::from(tournament_data.channel as u64), MessageId::from(interaction.message.id.get()), Some("Report cleanup")).await.unwrap();
                 }
+            },
+            "register_user_button" => {
+                operations::registration::try_register_in_tournament(interaction, context, &self.api).await?;
+            },
+            "unregister_user_button" => {
+                operations::registration::try_remove_registration(interaction, context, &self.api).await?;
+            },
+            "update_user_data_button" => {
+                operations::registration::try_update_user_data(interaction, context, &self.api).await?;
             }
             _=> {}
         }
+        Ok(())
     }
 
     async fn dispatch_selection(&self, context: &Context, interaction: &ComponentInteraction, message_id: u64, component_id: &String, selected: &String) -> Result<(), crate::Error> {
@@ -337,7 +347,7 @@ impl EventHandler for MainEventHandler {
             match component_interaction.data.kind {
                 ComponentInteractionDataKind::Button => {
                     let id = &component_interaction.data.custom_id;
-                    self.dispatch_buttons(&context, &component_interaction, id, channel.get(), user.id.get()).await;
+                    self.dispatch_buttons(&context, &component_interaction, id, channel.get(), user.id.get()).await.unwrap();
                 },
                 ComponentInteractionDataKind::StringSelect { ref values } => {
                     let id = &component_interaction.data.custom_id;
@@ -390,6 +400,12 @@ impl EventHandler for MainEventHandler {
                         modal_interaction.create_response(context, CreateInteractionResponse::UpdateMessage(rebuilt_message)).await.unwrap();
                     }
                 },
+                "user_lobby_nickname_modal" => {
+                    operations::registration::process_registration_modal(modal_interaction, &context, &self.api).await.unwrap();
+                },
+                "user_update_nickname_modal" => {
+                    operations::registration::process_user_update_modal(modal_interaction, &context, &self.api).await.unwrap();
+                }
                 _=> {}
             }
         }

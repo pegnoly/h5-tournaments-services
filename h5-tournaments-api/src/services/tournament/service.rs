@@ -1,5 +1,5 @@
 use rust_decimal::Decimal;
-use sea_orm::{sea_query::{expr, OnConflict, SimpleExpr}, ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, Related, Set};
+use sea_orm::{sea_query::{expr, OnConflict, SimpleExpr}, ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, ModelTrait, PaginatorTrait, QueryFilter, Related, Set};
 use sqlx::{PgPool, Pool, Postgres};
 use uuid::Uuid;
 
@@ -285,39 +285,60 @@ impl TournamentService {
         &self,
         db: &DatabaseConnection,
         name: String,
-        discord_id: String
-    ) -> Result<String, String> {
+        discord_id: String,
+        confirm_register: bool
+    ) -> Result<Uuid, String> {
         let id = Uuid::new_v4();
         let discord = i64::from_str_radix(&discord_id, 10).unwrap();
 
-        let on_conflict = OnConflict::column(Column::DiscordId).do_nothing().to_owned();
+        let on_conflict = OnConflict::column(Column::DiscordId)
+            .update_column(Column::Nickname)
+            .value(Column::RegisteredManually, true)
+            .to_owned();
 
         let user_to_insert = user::ActiveModel {
             id: Set(id),
             nickname: Set(name.clone()),
-            discord_id: Set(discord)
+            discord_id: Set(discord),
+            registered_manually: Set(true)
         };
 
         let res = Entity::insert(user_to_insert).on_conflict(on_conflict.clone()).exec(db).await;
 
         match res {
             Ok(_model) => {
-                Ok(format!("User {} created successfully", &name))
+                Ok(_model.last_insert_id)
             },
             Err(error) => {
-                match error {
-                    sea_orm::DbErr::RecordNotFound(_s) => {
-                        Ok(format!("User {} with discord id {} already exists", &name, &discord_id))
-                    },
-                    sea_orm::DbErr::RecordNotInserted => {
-                        Ok(format!("User {} with discord id {} already exists", &name, &discord_id))
-                    }
-                    _=> {
-                        Err(error.to_string())
-                    }
-                }
+                Err(error.to_string())
             }
         }
+    }
+
+    pub async fn update_user(
+        &self,
+        db: &DatabaseConnection,
+        id: Uuid,
+        nickname: Option<String>,
+        registered: Option<bool>
+    ) -> Result<(), String> {
+        let current_user = user::Entity::find_by_id(id).one(db).await.unwrap();
+        if let Some(current_user) = current_user {
+
+            let mut user_to_update: user::ActiveModel = current_user.into();
+
+            if let Some(nickname) = nickname {
+                user_to_update.nickname = Set(nickname);
+            }
+
+            if let Some(registered) = registered {
+                user_to_update.registered_manually = Set(registered);
+            }
+
+            user_to_update.update(db).await.unwrap();
+        }
+
+        Ok(())
     }
 
     pub async fn get_operator(
@@ -336,15 +357,29 @@ impl TournamentService {
         }
     }
 
-    pub async fn create_tournament(&self, db: &DatabaseConnection, name: String, operator_id: Uuid, reports_channel_id: String) -> Result<String, String> {
+    pub async fn create_tournament(
+        &self, db: &DatabaseConnection, 
+        name: String, operator_id: Uuid, 
+        reports_channel_id: String,
+        register_channel_id: String,
+        use_bargains: bool,
+        use_foreign_heroes: bool,
+        role_id: String
+    ) -> Result<String, String> {
         let id = Uuid::new_v4();
         let channel_id = i64::from_str_radix(&reports_channel_id, 10).unwrap();
+        let register_channel = i64::from_str_radix(&register_channel_id, 10).unwrap();
+        let role = i64::from_str_radix(&role_id, 10).unwrap();
         let tournament_to_insert = tournament::ActiveModel {
             id: Set(id),
             operator_id: Set(operator_id),
             channel_id: Set(channel_id),
             name: Set(name.clone()),
-            stage: Set(tournament::TournamentStage::Unknown)
+            stage: Set(tournament::TournamentStage::Unknown),
+            register_channel: Set(register_channel),
+            with_bargains: Set(use_bargains),
+            with_foreign_heroes: Set(use_foreign_heroes),
+            role_id: Set(role)
         };
 
         let res = tournament_to_insert.insert(db).await;
@@ -364,6 +399,7 @@ impl TournamentService {
         db: &DatabaseConnection,
         id: Option<Uuid>,
         reports_channel_id: Option<String>,
+        register_channel_id: Option<String>
     ) -> Result<Option<TournamentModel>, String> {
         let conditions = Condition::all()
             .add_option( if id.is_some() { 
@@ -373,6 +409,11 @@ impl TournamentService {
             })
             .add_option( if reports_channel_id.is_some() { 
                 Some(expr::Expr::col(tournament::Column::ChannelId).eq(i64::from_str_radix(&reports_channel_id.unwrap(), 10).unwrap()))
+            } else {
+                None::<SimpleExpr>
+            })
+            .add_option( if register_channel_id.is_some() {
+                Some(expr::Expr::col(tournament::Column::RegisterChannel).eq(i64::from_str_radix(&register_channel_id.unwrap(), 10).unwrap()))
             } else {
                 None::<SimpleExpr>
             }
@@ -778,7 +819,7 @@ impl TournamentService {
         tournament_id: Uuid,
         user_id: Uuid,
         group: i32
-    ) -> Result<String, String> {
+    ) -> Result<i64, String> {
         let participant_to_insert = participant::ActiveModel {
             id: Set(Uuid::new_v4()),
             tournament_id: Set(tournament_id),
@@ -789,12 +830,40 @@ impl TournamentService {
         let res = participant_to_insert.insert(db).await;
         match res {
             Ok(_model) => {
-                Ok("Participant created".to_string())
+                let participants = participant::Entity::find().filter(participant::Column::TournamentId.eq(tournament_id)).count(db).await;
+                tracing::info!("Total {:?} users are in this tournament", &participants);
+                Ok(participants.unwrap() as i64)
             },
             Err(error) => {
                 Err(error.to_string())
             }
         }
+    }
 
+    pub async fn delete_participant(
+        &self,
+        db: &DatabaseConnection,
+        tournament_id: Uuid,
+        user_id: Uuid
+    ) -> Result<String, String> {
+        let participant_to_delete = participant::Entity::find()
+            .filter(participant::Column::TournamentId.eq(tournament_id))
+            .filter(participant::Column::UserId.eq(user_id))
+            .one(db)
+            .await
+            .unwrap();
+        if let Some(model_to_delete) = participant_to_delete {
+            let _res = model_to_delete.delete(db).await;
+            match _res {
+                Ok(_success) => {
+                    Ok("Deleted successfully".to_string())
+                },
+                Err(error) => {
+                    Err(error.to_string())
+                }
+            }
+        } else {
+            Ok("Nothing to delete".to_string())
+        }
     }
 }

@@ -33,11 +33,13 @@ impl Query {
         #[graphql(desc = "Id of tournament")]
         id: Option<Uuid>,
         #[graphql(desc = "Unique reports channel of tournament")]
-        reports_channel_id: Option<String>
+        reports_channel_id: Option<String>,
+        #[graphql(desc = "Unique register channel of tournament")]
+        register_channel_id: Option<String>
     ) -> Result<Option<TournamentModel>, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.get_tournament(db, id, reports_channel_id).await;
+        let res = service.get_tournament(db, id, reports_channel_id, register_channel_id).await;
 
         match res {
             Ok(tournament) => {

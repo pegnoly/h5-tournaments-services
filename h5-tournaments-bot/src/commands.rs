@@ -2,7 +2,7 @@ use std::{str::FromStr, vec};
 
 use futures_executor::block_on_stream;
 use h5_tournaments_api::prelude::ModType;
-use poise::serenity_prelude::{futures::StreamExt, ChannelId, ChannelType, ComponentInteractionCollector, ComponentInteractionDataKind, CreateButton, CreateChannel, CreateMessage, GetMessages, Message, MessageId, PermissionOverwrite, PermissionOverwriteType, Permissions, UserId};
+use poise::serenity_prelude::*;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -101,7 +101,7 @@ pub async fn create_user(
     id: String
 ) -> Result<(), crate::Error> {
     let api_connection_service = &context.data().api_connection_service;
-    let res = api_connection_service.create_user(nickname, id).await;
+    let res = api_connection_service.create_user(nickname, id, false).await;
     match res {
         Ok(res) => {
             context.say(res).await.unwrap();
@@ -157,65 +157,53 @@ pub async fn init_services(
 #[poise::command(slash_command)]
 pub async fn setup_tournament(
     context: crate::Context<'_>,
+    #[description = "Name of tournament"]
     name: String,
+    #[description = "Tournament operator's id"]
     operator_id: Uuid,
-    reports_channel: String
+    #[description = "Id of reports channel of this tournament"]
+    reports_channel_id: String,
+    #[description = "Id of registration channel of this tournament"]
+    register_channel_id: String,
+    #[description = "Will this tournament use bargains"]
+    use_bargains: bool,
+    #[description = "Do players suppose to use foreign heroes in games"]
+    use_foreign_heroes: bool,
+    #[description = "Unique role for participants of this tournament"]
+    role: String,
+    create_objects: bool
 ) -> Result<(), crate::Error> {
-
-    // let api_connection_service = &context.data().api_connection_service;
-    // let section_id = api_connection_service.get_operator(operator_id).await?;
-    // let guild = context.guild_id().unwrap();
-    // let permissions = guild.roles(context).await?.iter()
-    //     .filter_map(|(id, role)| {
-    //         if role.has_permission(Permissions::ADMINISTRATOR) {
-    //             None
-    //         }
-    //         else {
-    //             match role.name.as_str() {
-    //                 "homm5-tournaments-bot" | "Статистика" => {
-    //                     // tracing::info!("Changing permissions for role {}", role.name);
-    //                     // Some(PermissionOverwrite { 
-    //                     //     allow: Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES | Permissions::USE_APPLICATION_COMMANDS | Permissions::USE_EXTERNAL_APPS, 
-    //                     //     deny: Permissions::MANAGE_GUILD | Permissions::MANAGE_CHANNELS, 
-    //                     //     kind: PermissionOverwriteType::Role(*id)
-    //                     // })
-    //                     None
-    //                 },
-    //                 _=> {
-    //                     Some(PermissionOverwrite { 
-    //                         allow: role.permissions, 
-    //                         deny: Permissions::empty(), 
-    //                         kind: PermissionOverwriteType::Role(*id) 
-    //                     })
-    //                 }
-    //             }
-    //         }
-    //     }).collect::<Vec<PermissionOverwrite>>();
-
-    // let channel = guild.create_channel(context, 
-    //     CreateChannel::new(format!("отчеты-{}", &name))
-    //         .kind(ChannelType::Text)
-    //         //.category(ChannelId::from(section_id as u64))
-    //         .permissions(permissions)
-    //     ).await?;
-    
-    // tracing::info!("Channel created: {}", &channel.id.get());
-    // let button = CreateButton::new("create_report_button").label("Написать отчет").disabled(false);
-    // let message = CreateMessage::new().button(button);
-    // channel.send_message(context, message).await?;
-
-    // let create_tournament_res = api_connection_service.create_tournament(name, operator_id, channel.id.get() as i64).await?;
-    // context.say(create_tournament_res).await?;
-
     let api_connection_service = &context.data().api_connection_service;
-    let section_id = api_connection_service.get_operator_section(operator_id).await?;
-    let channel = ChannelId::from(u64::from_str_radix(&reports_channel, 10)?);
+    //let section_id = api_connection_service.get_operator_section(operator_id).await?;
+    let reports_channel = ChannelId::from(u64::from_str_radix(&reports_channel_id, 10)?);
+    let register_channel = ChannelId::from(u64::from_str_radix(&register_channel_id, 10)?);
 
-    let button = CreateButton::new("create_report_button").label("Написать отчет").disabled(false);
-    let message = CreateMessage::new().button(button);
-    channel.send_message(context, message).await?;
+    if create_objects {
+        let reports_message = CreateMessage::new().button(CreateButton::new("create_report_button").label("Написать отчет").disabled(false));
+        reports_channel.send_message(context, reports_message).await?;
+    
+        let register_message = CreateMessage::new()
+            .components(vec![
+                CreateActionRow::Buttons(vec![
+                    CreateButton::new("register_user_button").label("Зарегистрироваться в турнире").style(ButtonStyle::Success),
+                    CreateButton::new("unregister_user_button").label("Отменить регистрацию").style(ButtonStyle::Danger),
+                    CreateButton::new("update_user_data_button").label("Редактировать данные").style(ButtonStyle::Secondary)
+                ])
+            ]);
+    
+        register_channel.send_message(context, register_message).await?;
+    }
 
-    let create_tournament_res = api_connection_service.create_tournament(name, operator_id, channel.get() as i64).await?;
+    let create_tournament_res = api_connection_service.create_tournament(
+        name, 
+        operator_id, 
+        reports_channel_id, 
+        register_channel_id, 
+        use_bargains,
+        use_foreign_heroes,
+        role
+    ).await?;
+
     context.say(create_tournament_res).await?;
 
     Ok(())
@@ -246,6 +234,6 @@ pub async fn register_in_tournament(
     let user_id = Uuid::from_str(&user).unwrap();
     let api = &context.data().api_connection_service;
     let res = api.create_participant(tournament_id, user_id, group).await?;
-    context.say(res).await?;
+    context.say(res.to_string()).await?;
     Ok(())
 }

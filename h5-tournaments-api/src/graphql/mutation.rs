@@ -14,15 +14,36 @@ impl Mutation {
         #[graphql(desc = "User's nickname")]
         name: String,
         #[graphql(desc = "User's discord id")]
-        discord: String
-    ) -> Result<String, String> {
+        discord: String,
+        #[graphql(desc = "Defines was user registered themselves or via bot command")]
+        confirm_register: bool
+    ) -> Result<Uuid, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.create_user(db, name, discord).await;
-        tracing::info!("Insert res: {:?}", &res);
+        let res = service.create_user(db, name, discord, confirm_register).await;
         match res {
             Ok(res) => {
                 Ok(res)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
+
+    async fn update_user<'a>(
+        &self,
+        context: &Context<'a>,
+        id: Uuid,
+        nickname: Option<String>,
+        registered: Option<bool>
+    ) -> Result<String, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.update_user(db, id, nickname, registered).await;
+        match res {
+            Ok(_res) => {
+                Ok("User updated successfully".to_string())
             },
             Err(error) => {
                 Err(error)
@@ -35,11 +56,15 @@ impl Mutation {
         context: &Context<'a>,
         name: String,
         operator_id: Uuid,
-        channel_id: String
+        channel_id: String,
+        register_channel: String,
+        bargains: bool,
+        foreign_heroes: bool,
+        role: String
     ) -> Result<String, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.create_tournament(db, name, operator_id, channel_id).await;
+        let res = service.create_tournament(db, name, operator_id, channel_id, register_channel, bargains, foreign_heroes, role).await;
         match res {
             Ok(res) => {
                 Ok(res)
@@ -154,10 +179,30 @@ impl Mutation {
         tournament_id: Uuid,
         user_id: Uuid,
         group: i32
-    ) -> Result<String, String> {
+    ) -> Result<i64, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
         let res = service.create_participant(db, tournament_id, user_id, group).await;
+
+        match res {
+            Ok(_res) => {
+                Ok(_res)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
+
+    async fn delete_participant<'a>(
+        &self,
+        context: &Context<'a>,
+        tournament_id: Uuid,
+        user_id: Uuid
+    ) -> Result<String, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.delete_participant(db, tournament_id, user_id).await;
 
         match res {
             Ok(_res) => {

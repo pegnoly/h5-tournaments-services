@@ -1,8 +1,12 @@
-query GetTournamentQuery($id: UUID, $reportsChannelId: String) {
-    tournament(id: $id, reportsChannelId: $reportsChannelId) {
+query GetTournamentQuery($id: UUID, $reportsChannelId: String, $registerChannelId: String) {
+    tournament(id: $id, reportsChannelId: $reportsChannelId, registerChannelId: $registerChannelId) {
         name,
         operator,
         id,
-        channel
+        channel,
+        registerChannel,
+        role,
+        withBargains,
+        withForeignHeroes
     }
 }

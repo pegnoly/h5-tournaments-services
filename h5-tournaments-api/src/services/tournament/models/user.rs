@@ -8,7 +8,8 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
     pub discord_id: i64,
-    pub nickname: String
+    pub nickname: String,
+    pub registered_manually: bool
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -44,5 +45,9 @@ impl UserModel {
 
     async fn nickname(&self) -> String {
         self.nickname.clone()
+    }
+
+    async fn registered(&self) -> bool {
+        self.registered_manually
     }
 }

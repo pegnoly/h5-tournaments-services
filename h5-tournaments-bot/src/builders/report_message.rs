@@ -13,7 +13,7 @@ pub async fn initial_build(
     user: u64
 ) -> Result<(), crate::Error> {
 
-    let tournament_data = api.get_tournament_data(None, Some(channel.to_string())).await?;
+    let tournament_data = api.get_tournament_data(None, Some(channel.to_string()), None).await?;
     let operator_data = api.get_operator_data(tournament_data.as_ref().unwrap().operator).await?;
     let user_data = api.get_user(None, Some(user.to_string())).await?.unwrap();
     let participant = api.get_participant(tournament_data.as_ref().unwrap().id, user_data.id).await?.unwrap();
@@ -59,7 +59,7 @@ pub async fn rebuild_initial(match_id: Uuid, api: &ApiConnectionService) -> Resu
     let match_data = api.get_match(Some(match_id), None, None).await?;
     if let Some(existing_match) = match_data {
         tracing::info!("Match data: {:?}", &existing_match);
-        let tournament_data = api.get_tournament_data(Some(existing_match.tournament), None).await?;
+        let tournament_data = api.get_tournament_data(Some(existing_match.tournament), None, None).await?;
         tracing::info!("Tournament data: {:?}", &tournament_data);
         let operator_data = api.get_operator_data(tournament_data.as_ref().unwrap().operator).await?;
         tracing::info!("Operator data: {:?}", &operator_data);

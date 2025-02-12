@@ -18,7 +18,11 @@ pub struct Model {
     pub operator_id: Uuid,
     pub channel_id: i64,
     pub name: String,
-    pub stage: TournamentStage
+    pub stage: TournamentStage,
+    pub register_channel: i64,
+    pub with_bargains: bool,
+    pub with_foreign_heroes: bool,
+    pub role_id: i64
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -46,5 +50,21 @@ impl TournamentModel {
 
     async fn stage(&self) -> TournamentStage {
         self.stage
+    }
+
+    async fn register_channel(&self) -> i64 {
+        self.register_channel
+    }
+
+    async fn with_bargains(&self) -> bool {
+        self.with_bargains
+    }
+
+    async fn with_foreign_heroes(&self) -> bool {
+        self.with_foreign_heroes
+    }
+
+    async fn role(&self) -> i64 {
+        self.role_id
     }
 }

@@ -111,6 +111,14 @@ pub type GetUsersResult = GetUsersQueryUsers;
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/update_user.graphql",
+    response_derives = "Debug"
+)]
+pub struct UpdateUser;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/queries/create_game.graphql",
     response_derives = "Debug, PartialEq, Eq"
 )]
@@ -179,6 +187,14 @@ pub struct GetParticipants;
     response_derives = "Debug"
 )]
 pub struct CreateParticipant;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/delete_participant.graphql",
+    response_derives = "Debug"
+)]
+pub struct DeleteParticipant;
 
 pub fn int_to_game_result(num: i32) -> update_game_mutation::GameResult {
     match num {

@@ -4,7 +4,7 @@ use graphql_client::{reqwest::post_graphql, GraphQLQuery, Response};
 use h5_tournaments_api::prelude::{Hero, ModType, Race, Tournament};
 use uuid::Uuid;
 
-use crate::{graphql::queries::{self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_participant, create_user_mutation::ResponseData, get_game_query::{self, GetGameQueryGame}, get_games_query::{self, GetGamesQueryGames}, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_match_query::GetMatchQueryTournamentMatch, get_operator_data_query::GetOperatorDataQueryOperator, get_participant::{self, GetParticipantParticipant}, get_participants::{self, GetParticipantsParticipants}, get_user_query::GetUserQueryUser, update_game_mutation, CreateGameMutation, CreateMatchMutation, CreateParticipant, CreateTournamentMutation, CreateUserMutation, GameEditState, GetGameQuery, GetGamesQuery, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetParticipant, GetParticipants, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation}, parser::service::ParsedData};
+use crate::{graphql::queries::{self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_participant, create_user_mutation::ResponseData, delete_participant, get_game_query::{self, GetGameQueryGame}, get_games_query::{self, GetGamesQueryGames}, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_match_query::GetMatchQueryTournamentMatch, get_operator_data_query::GetOperatorDataQueryOperator, get_participant::{self, GetParticipantParticipant}, get_participants::{self, GetParticipantsParticipants}, get_user_query::GetUserQueryUser, update_game_mutation, update_user, CreateGameMutation, CreateMatchMutation, CreateParticipant, CreateTournamentMutation, CreateUserMutation, DeleteParticipant, GameEditState, GetGameQuery, GetGamesQuery, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetParticipant, GetParticipants, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation, UpdateUser}, parser::service::ParsedData};
 
 pub(self) const MAIN_URL: &'static str = "https://h5-tournaments-api-5epg.shuttle.app/";
 
@@ -202,10 +202,11 @@ impl ApiConnectionService {
         Ok(())
     }    
 
-    pub async fn create_user(&self, nickname: String, id: String) -> Result<String, crate::Error> {
+    pub async fn create_user(&self, nickname: String, id: String, confirm: bool) -> Result<Uuid, crate::Error> {
         let variables = crate::graphql::queries::create_user_mutation::Variables {
             name: nickname,
-            discord: id
+            discord: id,
+            confirm_register: confirm
         };
         
         let client = self.client.read().await;
@@ -213,8 +214,6 @@ impl ApiConnectionService {
         let response = client.post(MAIN_URL).json(&query).send().await;
         match response {
             Ok(response) => {
-                // tracing::info!("Responce: {:?}", &response.text().await.unwrap());
-                // Ok("test".to_string())
                 let result = response.json::<Response<ResponseData>>().await;
                 match result {
                     Ok(result) => {
@@ -223,10 +222,10 @@ impl ApiConnectionService {
                         }
                         else {
                             if let Some(errors) = result.errors {
-                                Ok(errors.iter().map(|e| e.to_string()).collect::<Vec<String>>().concat().into())
+                                Err(errors.iter().map(|e| e.to_string()).collect::<Vec<String>>().concat().into())
                             }
                             else {
-                                Ok("Unknown interaction: no data and no errors returned".to_string())
+                                Err(crate::Error::from("Unknown interaction: no data and no errors returned".to_string()))
                             }
                         }
                     },
@@ -305,11 +304,23 @@ impl ApiConnectionService {
     }
 
 
-    pub async fn create_tournament(&self, name: String, operator_id: Uuid, channel_id: i64) -> Result<String, crate::Error>{
+    pub async fn create_tournament(
+        &self, name: String, 
+        operator_id: Uuid, 
+        channel_id: String,
+        register_channel: String,
+        use_bargains: bool,
+        use_foreign_heroes: bool,
+        role: String
+    ) -> Result<String, crate::Error>{
         let variables = crate::graphql::queries::create_tournament_mutation::Variables {
             name: name.clone(),
             operator_id: operator_id,
-            channel_id: channel_id.to_string()
+            channel_id: channel_id,
+            register_channel: register_channel,
+            use_bargains: use_bargains,
+            use_foreign_heroes: use_foreign_heroes,
+            role: role
         };
 
         let client = self.client.read().await;
@@ -338,9 +349,15 @@ impl ApiConnectionService {
         }
     }
 
-    pub async fn get_tournament_data(&self, id: Option<Uuid>, channel_id: Option<String>) -> Result<Option<queries::GetTournamentResult>, crate::Error> {
+    pub async fn get_tournament_data(
+        &self, 
+        id: Option<Uuid>, 
+        reports_channel_id: Option<String>,
+        register_channel_id: Option<String>
+    ) -> Result<Option<queries::GetTournamentResult>, crate::Error> {
         let variables = queries::get_tournament_query::Variables {
-            reports_channel_id: channel_id,
+            reports_channel_id: reports_channel_id,
+            register_channel_id: register_channel_id,
             id: id
         };
 
@@ -776,7 +793,7 @@ impl ApiConnectionService {
         tournament_id: Uuid,
         user_id: Uuid,
         group: i64
-    ) -> Result<String, crate::Error> {
+    ) -> Result<i64, crate::Error> {
         let variables = create_participant::Variables {
             tournament_id: tournament_id,
             user_id: user_id,
@@ -882,5 +899,81 @@ impl ApiConnectionService {
                 Err(crate::Error::from(response_error))
             }
         } 
+    }
+
+    pub async fn delete_participant(
+        &self,
+        tournament_id: Uuid,
+        user_id: Uuid
+    ) -> Result<String, crate::Error> {
+        let variables = delete_participant::Variables {
+            tournament_id: tournament_id,
+            user_id: user_id
+        };
+
+        let client = self.client.read().await;
+        let query = DeleteParticipant::build_query(variables);
+        let response = client.post(MAIN_URL).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::delete_participant::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        tracing::info!("Delete participant result: {:?}", &result);
+                        if let Some(data) = result.data {
+                            Ok(data.delete_participant)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }  
+    }
+
+    pub async fn update_user(
+        &self,
+        id: Uuid,
+        nickname: Option<String>,
+        registered: Option<bool>
+    ) -> Result<String, crate::Error> {
+        let variables = update_user::Variables {
+            id: id,
+            nickname: nickname,
+            registered: registered
+        };
+
+        let client = self.client.read().await;
+        let query = UpdateUser::build_query(variables);
+        let response = client.post(MAIN_URL).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::update_user::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        tracing::info!("Update user result: {:?}", &result);
+                        if let Some(data) = result.data {
+                            Ok(data.update_user)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }  
     }
 }
