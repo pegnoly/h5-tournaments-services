@@ -2,7 +2,7 @@ use std::fmt::format;
 
 use poise::serenity_prelude::*;
 use uuid::Uuid;
-use crate::{api_connector::service::ApiConnectionService, graphql::queries::{get_game_query::{self, GetGameQueryGame}, get_participants::GetParticipantsParticipants, get_users_query::GetUsersQueryUsers}};
+use crate::{api_connector::service::ApiConnectionService, graphql::queries::{get_game_query::{self, GetGameQueryGame}, get_participants::GetParticipantsParticipants, get_users_query::GetUsersQueryUsers}, types::payloads::{GetMatch, GetTournament, GetUser}};
 
 pub async fn initial_build(
     context: &Context,
@@ -13,20 +13,19 @@ pub async fn initial_build(
     user: u64
 ) -> Result<(), crate::Error> {
 
-    let tournament_data = api.get_tournament_data(None, Some(channel.to_string()), None).await?;
-    let operator_data = api.get_operator_data(tournament_data.as_ref().unwrap().operator).await?;
-    let user_data = api.get_user(None, Some(user.to_string())).await?.unwrap();
-    let participant = api.get_participant(tournament_data.as_ref().unwrap().id, user_data.id).await?.unwrap();
-    let participants = api.get_participants(tournament_data.as_ref().unwrap().id, participant.group).await?;
+    let tournament_data = api.get_tournament_data(GetTournament::default().with_reports_channel(channel.to_string())).await?.unwrap();
+    let operator_data = api.get_operator_data(tournament_data.operator).await?;
+    let user_data = api.get_user(GetUser::default().with_discord_id(user.to_string())).await?.unwrap();
+    let participant = api.get_participant(tournament_data.id, user_data.id).await?.unwrap();
+    let participants = api.get_participants(tournament_data.id, participant.group).await?;
     tracing::info!("Match build started by interaction {}", interaction.id.get());
-
-    let match_creation_response = api.create_match(tournament_data.as_ref().unwrap().id, user_data.id, interaction.id.get()).await?;
+    api.create_match(tournament_data.id, user_data.id, interaction.id.get()).await?;
 
     let message_builder = CreateInteractionResponseMessage::new()
         .add_embed(
             CreateEmbed::new()
                 .title("Отчет о турнирной игре")
-                .description(format!("Турнир **{}** by **{}**", tournament_data.as_ref().unwrap().name.to_uppercase(), operator_data.name))
+                .description(format!("Турнир **{}** by **{}**", tournament_data.name.to_uppercase(), operator_data.name))
                 .fields(
                 [
                     (
@@ -56,22 +55,21 @@ pub async fn initial_build(
 }
 
 pub async fn rebuild_initial(match_id: Uuid, api: &ApiConnectionService) -> Result<CreateInteractionResponseMessage, crate::Error> {
-    let match_data = api.get_match(Some(match_id), None, None).await?;
-    if let Some(existing_match) = match_data {
-        tracing::info!("Match data: {:?}", &existing_match);
-        let tournament_data = api.get_tournament_data(Some(existing_match.tournament), None, None).await?;
+    if let Some(match_data) = api.get_match(GetMatch::default().with_id(match_id)).await? {
+        tracing::info!("Match data: {:?}", &match_data);
+        let tournament_data = api.get_tournament_data(GetTournament::default().with_id(match_data.tournament)).await?.unwrap();
         tracing::info!("Tournament data: {:?}", &tournament_data);
-        let operator_data = api.get_operator_data(tournament_data.as_ref().unwrap().operator).await?;
+        let operator_data = api.get_operator_data(tournament_data.operator).await?;
         tracing::info!("Operator data: {:?}", &operator_data);
-        let user_data = api.get_user(Some(existing_match.first_player), None).await?.unwrap();
+        let user_data = api.get_user(GetUser::default().with_id(match_data.first_player)).await?.unwrap();
         tracing::info!("User data: {:?}", &user_data);
-        let participant = api.get_participant(tournament_data.as_ref().unwrap().id, user_data.id).await?.unwrap();
-        let participants = api.get_participants(tournament_data.as_ref().unwrap().id, participant.group).await?;
+        let participant = api.get_participant(tournament_data.id, user_data.id).await?.unwrap();
+        let participants = api.get_participants(tournament_data.id, participant.group).await?;
         let message_builder = CreateInteractionResponseMessage::new()
             .add_embed(
                 CreateEmbed::new()
                     .title("Отчет о турнирной игре")
-                    .description(format!("Турнир **{}** by **{}**", tournament_data.as_ref().unwrap().name.to_uppercase(), operator_data.name))
+                    .description(format!("Турнир **{}** by **{}**", tournament_data.name.to_uppercase(), operator_data.name))
                     .fields(
                     [
                         (
@@ -91,10 +89,10 @@ pub async fn rebuild_initial(match_id: Uuid, api: &ApiConnectionService) -> Resu
                         )
                     ])
             )            
-            .select_menu(create_opponent_selector(participants, existing_match.second_player, user_data.id))
-            .select_menu(create_games_count_selector(5, existing_match.games_count))
+            .select_menu(create_opponent_selector(participants, match_data.second_player, user_data.id))
+            .select_menu(create_games_count_selector(5, match_data.games_count))
             .button(CreateButton::new("start_report").label("Начать заполнение отчета").disabled(
-                if existing_match.games_count.is_some() && existing_match.second_player.is_some() {
+                if match_data.games_count.is_some() && match_data.second_player.is_some() {
                     false
                 } else {
                     true
@@ -156,21 +154,17 @@ pub async fn build_game_message(
     api: &ApiConnectionService,
     initial_message: u64
 ) -> Result<CreateInteractionResponseMessage, crate::Error> {
-    // first, get the match this message belongs to
-    let match_data = api.get_match(None, None, Some(initial_message.to_string())).await?;
-    tracing::info!("Match data: {:?}", &match_data);
-    if let Some(existing_match) = match_data {
-        let first_user = api.get_user(Some(existing_match.first_player), None).await?.unwrap().nickname;
-        let second_user = api.get_user(Some(existing_match.second_player.unwrap()), None).await?.unwrap().nickname;
-        let games_count = existing_match.games_count.unwrap();
-        let current_game = existing_match.current_game;
+    if let Some(match_data) = api.get_match(GetMatch::default().with_message_id(initial_message)).await? {
+        let first_user = api.get_user(GetUser::default().with_id(match_data.first_player)).await?.unwrap().nickname;
+        let second_user = api.get_user(GetUser::default().with_id(match_data.second_player.unwrap())).await?.unwrap().nickname;
+        let current_game = match_data.current_game;
         // get current game data of this match
-        let game_data = api.get_game(existing_match.id, current_game).await?;
+        let game_data = api.get_game(match_data.id, current_game).await?;
         let actual_game = if game_data.is_some() {
             game_data.unwrap()
         }
         else {
-            let created_game = api.create_game(existing_match.id, current_game).await?;
+            let created_game = api.create_game(match_data.id, current_game).await?;
             GetGameQueryGame {
                 first_player_race: created_game.first_player_race,
                 first_player_hero: created_game.first_player_hero,
@@ -222,19 +216,19 @@ pub async fn build_game_message(
         core_components.push(CreateActionRow::Buttons(vec![
             CreateButton::new("previous_game_button").label("Предыдущая игра")
                 .disabled(
-                if existing_match.current_game == 1 {
+                if match_data.current_game == 1 {
                     true
                 } else {
                     false
                 }),
             CreateButton::new("next_game_button").label("Следующая игра")
-                .disabled(if existing_match.current_game == existing_match.games_count.unwrap() || !check_game_is_full_built(&actual_game) {
+                .disabled(if match_data.current_game == match_data.games_count.unwrap() || !check_game_is_full_built(&actual_game) {
                     true
                 } else {
                     false
                 }),
             CreateButton::new("submit_report").label("Закончить отчет")
-                .disabled(if existing_match.current_game != existing_match.games_count.unwrap() || !check_game_is_full_built(&actual_game) {
+                .disabled(if match_data.current_game != match_data.games_count.unwrap() || !check_game_is_full_built(&actual_game) {
                     true
                 } else {
                     false
@@ -243,7 +237,7 @@ pub async fn build_game_message(
         Ok(
             CreateInteractionResponseMessage::new()
                 .add_embed(CreateEmbed::new()
-                    .title(format!("**{}** VS **{}**, **игра {}**\n", &first_user, &second_user, existing_match.current_game))
+                    .title(format!("**{}** VS **{}**, **игра {}**\n", &first_user, &second_user, match_data.current_game))
                     .description(description))
                 .components(core_components)
             )

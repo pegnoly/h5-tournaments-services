@@ -4,7 +4,7 @@ use graphql_client::{reqwest::post_graphql, GraphQLQuery, Response};
 use h5_tournaments_api::prelude::{Hero, ModType, Race, Tournament};
 use uuid::Uuid;
 
-use crate::{graphql::queries::{self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_participant, create_user_mutation::ResponseData, delete_participant, get_game_query::{self, GetGameQueryGame}, get_games_query::{self, GetGamesQueryGames}, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_match_query::GetMatchQueryTournamentMatch, get_operator_data_query::GetOperatorDataQueryOperator, get_participant::{self, GetParticipantParticipant}, get_participants::{self, GetParticipantsParticipants}, get_user_query::GetUserQueryUser, update_game_mutation, update_user, CreateGameMutation, CreateMatchMutation, CreateParticipant, CreateTournamentMutation, CreateUserMutation, DeleteParticipant, GameEditState, GetGameQuery, GetGamesQuery, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetParticipant, GetParticipants, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation, UpdateUser}, parser::service::ParsedData};
+use crate::{graphql::queries::{self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_participant, create_user_mutation::ResponseData, delete_participant, get_game_query::{self, GetGameQueryGame}, get_games_query::{self, GetGamesQueryGames}, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_match_query::GetMatchQueryTournamentMatch, get_operator_data_query::{self, GetOperatorDataQueryOperator}, get_participant::{self, GetParticipantParticipant}, get_participants::{self, GetParticipantsParticipants}, get_tournament_query, get_user_query::{self, GetUserQueryUser}, update_game_mutation, update_match_mutation, update_user, CreateGameMutation, CreateMatchMutation, CreateParticipant, CreateTournamentMutation, CreateUserMutation, DeleteParticipant, GameEditState, GetGameQuery, GetGamesQuery, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetParticipant, GetParticipants, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation, UpdateUser}, parser::service::ParsedData, types::payloads::{GetMatch, GetTournament, GetUser, UpdateGame, UpdateMatch}};
 
 pub(self) const MAIN_URL: &'static str = "https://h5-tournaments-api-5epg.shuttle.app/";
 
@@ -272,12 +272,8 @@ impl ApiConnectionService {
     }
 
     pub async fn get_operator_data(&self, id: Uuid) -> Result<GetOperatorDataQueryOperator, crate::Error> {
-        let variables = queries::get_operator_data_query::Variables {
-            id: id
-        };
-
         let client = self.client.read().await;
-        let query = GetOperatorDataQuery::build_query(variables);
+        let query = GetOperatorDataQuery::build_query(get_operator_data_query::Variables { id: id});
         let response = client.post(MAIN_URL).json(&query).send().await;
         match response {
             Ok(response) => {
@@ -349,20 +345,9 @@ impl ApiConnectionService {
         }
     }
 
-    pub async fn get_tournament_data(
-        &self, 
-        id: Option<Uuid>, 
-        reports_channel_id: Option<String>,
-        register_channel_id: Option<String>
-    ) -> Result<Option<queries::GetTournamentResult>, crate::Error> {
-        let variables = queries::get_tournament_query::Variables {
-            reports_channel_id: reports_channel_id,
-            register_channel_id: register_channel_id,
-            id: id
-        };
-
+    pub async fn get_tournament_data(&self, payload: GetTournament) -> Result<Option<queries::GetTournamentResult>, crate::Error> {
         let client = self.client.read().await;
-        let query = GetTournamentQuery::build_query(variables);
+        let query = GetTournamentQuery::build_query(get_tournament_query::Variables::from(payload));
         let response = client.post(MAIN_URL).json(&query).send().await;
         match response {
             Ok(response) => {
@@ -387,14 +372,9 @@ impl ApiConnectionService {
         }
     }
 
-    pub async fn get_user(&self, id: Option<Uuid>, discord_id: Option<String>) -> Result<Option<GetUserQueryUser>, crate::Error> {
-        let variables = queries::get_user_query::Variables {
-            discord_id: discord_id,
-            id: id
-        };
-
+    pub async fn get_user(&self, payload: GetUser) -> Result<Option<GetUserQueryUser>, crate::Error> {
         let client = self.client.read().await;
-        let query = GetUserQuery::build_query(variables);
+        let query = GetUserQuery::build_query(get_user_query::Variables::from(payload));
         let response = client.post(MAIN_URL).json(&query).send().await;
         match response {
             Ok(response) => {
@@ -457,15 +437,9 @@ impl ApiConnectionService {
         }
     }
 
-    pub async fn get_match(&self, id: Option<Uuid>, interaction_id: Option<String>, data_message: Option<String>) -> Result<Option<queries::GetMatchResult>, crate::Error> {
-        let variables = queries::get_match_query::Variables {
-            id: id,
-            interaction: interaction_id,
-            data_message: data_message
-        };
-
+    pub async fn get_match(&self, payload: GetMatch) -> Result<Option<queries::GetMatchResult>, crate::Error> {
         let client = self.client.read().await;
-        let query = GetMatchQuery::build_query(variables);
+        let query = GetMatchQuery::build_query(queries::get_match_query::Variables::from(payload));
         let response = client.post(MAIN_URL).json(&query).send().await;
         match response {
             Ok(response) => {
@@ -490,24 +464,9 @@ impl ApiConnectionService {
         }
     }
 
-    pub async fn update_match(
-        &self, 
-        id: Uuid, 
-        data_message: Option<String>, 
-        games_count: Option<i64>, 
-        second_player: Option<Uuid>,
-        current_game: Option<i64>
-    ) -> Result<String, crate::Error> {
-        let variables = queries::update_match_mutation::Variables {
-            id: id,
-            data_message: data_message,
-            games_count: games_count,
-            second_player: second_player,
-            current_game: current_game
-        };
-
+    pub async fn update_match(&self, payload: UpdateMatch) -> Result<String, crate::Error> {
         let client = self.client.read().await;
-        let query = UpdateMatchMutation::build_query(variables);
+        let query = UpdateMatchMutation::build_query(update_match_mutation::Variables::from(payload));
         let response = client.post(MAIN_URL).json(&query).send().await;
         match response {
             Ok(response) => {
@@ -632,32 +591,9 @@ impl ApiConnectionService {
         }
     }
 
-    pub async fn update_game(
-        &self,
-        match_id: Uuid,
-        number: i64,
-        edit_state: Option<update_game_mutation::GameEditState>,
-        first_player_race: Option<i64>,
-        first_player_hero: Option<i64>,
-        second_player_race: Option<i64>,
-        second_player_hero: Option<i64>,
-        bargains_amount: Option<i64>,
-        result: Option<update_game_mutation::GameResult>
-    ) -> Result<String, crate::Error> {
-        let variables = update_game_mutation::Variables {
-            match_id: match_id,
-            number: number,
-            edit_state: edit_state,
-            first_player_race: first_player_race,
-            first_player_hero: first_player_hero,
-            second_player_race: second_player_race,
-            second_player_hero: second_player_hero,
-            bargains_amount: bargains_amount,
-            result: result
-        };
-
+    pub async fn update_game(&self, payload: UpdateGame) -> Result<String, crate::Error> {
         let client = self.client.read().await;
-        let query = UpdateGameMutation::build_query(variables);
+        let query = UpdateGameMutation::build_query(update_game_mutation::Variables::from(payload));
         let response = client.post(MAIN_URL).json(&query).send().await;
         match response {
             Ok(response) => {

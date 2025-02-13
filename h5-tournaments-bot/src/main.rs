@@ -14,6 +14,8 @@ pub mod graphql;
 pub mod builders;
 pub mod event_handler;
 pub mod operations;
+pub mod types;
+
 pub struct Data {
     pub api_connection_service: ApiConnectionService,
     pub parser_service: ParserService
