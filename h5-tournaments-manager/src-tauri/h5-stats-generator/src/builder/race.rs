@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use h5_stats_types::{Game, GameResult, Hero, HeroType, Race, RaceType};
+use h5_tournaments_api::prelude::*;
 use itertools::Itertools;
 use rust_xlsxwriter::{Color, Format, Worksheet};
 use strum::IntoEnumIterator;
@@ -45,13 +45,14 @@ pub struct RaceBargainsStats {
 }
 
 pub struct RaceStatsBuilder {
-    pub bargains_data: HashMap<RaceType, RaceBargainsStats>
+    pub bargains_data: HashMap<i32, RaceBargainsStats>
 }
 
 impl RaceStatsBuilder {
     pub fn new() -> Self {
+        let races_range = std::ops::Range {start: 0, end: 9};
         RaceStatsBuilder {
-            bargains_data: HashMap::from_iter(RaceType::iter().filter(|r| *r != RaceType::NotDetected).map(|r| {
+            bargains_data: HashMap::from_iter(races_range.filter(|r| *r != 0).map(|r| {
                 (r, RaceBargainsStats::default())
             }))
         }
@@ -62,7 +63,7 @@ impl StatsBuilder for RaceStatsBuilder {
     fn build(&mut self, data: &crate::utils::StatsGeneratorDataModel, workbook: &mut rust_xlsxwriter::Workbook) {
         for race in &data.races_data {
             match race.id {
-                RaceType::NotDetected => {},
+                0 => {},
                 _=> {
                     let worksheet = workbook.add_worksheet().set_name(&race.actual_name).unwrap();
                     build_bargains_stats(self, race, &data.races_data, &data.games_data, worksheet);
@@ -106,7 +107,7 @@ fn build_bargains_stats(builder: &mut RaceStatsBuilder, race: &Race, races_data:
 
     // this one builds bargains info for all opponents races
     worksheet.set_column_width(0, 20).unwrap();
-    for opp_race in races_data.iter().filter(|r| r.id != race.id && r.id != RaceType::NotDetected) { 
+    for opp_race in races_data.iter().filter(|r| r.id != race.id && r.id != 0) { 
         data_row += 1;
         worksheet.write_with_format(data_row, 0, &opp_race.actual_name, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
         build_race_bargains_stats(builder, race, opp_race, &games_played_with_plus_gold, &games_played_with_minus_gold, worksheet, data_row);
@@ -124,6 +125,9 @@ fn build_bargains_stats(builder: &mut RaceStatsBuilder, race: &Race, races_data:
     
     // this one shows complete race bargains data
     let race_bargains_total_data = builder.bargains_data.get(&race.id).unwrap();
+
+    println!("Race: {}, average bargains: {:?}", &race.id, race_bargains_total_data.average_bargains);
+
     let total_average_bargain = race_bargains_total_data.average_bargains.iter().sum::<f64>() / 7.0;
     let total_plus_bargain_games = race_bargains_total_data.total_plus_bargain_games;
     let total_minus_bargain_games = race_bargains_total_data.total_minus_bargain_games;
@@ -168,9 +172,16 @@ fn build_race_bargains_stats(builder: &mut RaceStatsBuilder, race: &Race, opp_ra
         });
     
     let plus_games_count = plus_bargains_data.wins + plus_bargains_data.losses;
-
-    builder.bargains_data.get_mut(&race.id).unwrap().total_plus_bargain_games += plus_games_count;
-    builder.bargains_data.get_mut(&race.id).unwrap().total_plus_bargain_wins += plus_bargains_data.wins;
+    
+    if let Some(race_bargains_data) = builder.bargains_data.get_mut(&race.id) {
+        race_bargains_data.total_plus_bargain_games += plus_games_count;
+        race_bargains_data.total_plus_bargain_wins += plus_bargains_data.wins;
+    }
+    else {
+        println!("Problems with fetching bargains data for {}", &race.id);
+    }
+    //builder.bargains_data.get_mut(&race.id).unwrap().total_plus_bargain_games += plus_games_count;
+    //builder.bargains_data.get_mut(&race.id).unwrap().total_plus_bargain_wins += plus_bargains_data.wins;
 
     worksheet.write_with_format(data_row, 1, plus_games_count as u32, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
     worksheet.write_with_format(data_row, 3, plus_bargains_data.wins, &styles::THIN_BORDER_TEXP_WRAP).unwrap();
@@ -221,7 +232,14 @@ fn build_race_bargains_stats(builder: &mut RaceStatsBuilder, race: &Race, opp_ra
     let bargains_sum = plus_bargains_sum + minus_bargains_sum;
 
     // average in this pair
-    builder.bargains_data.get_mut(&race.id).unwrap().average_bargains.push(bargains_sum as f64 / (plus_games_count + minus_games_count) as f64);
+    let average_bargains_count = 
+        if plus_games_count + minus_games_count == 0 { 
+            0.0 
+        } 
+        else {
+            bargains_sum as f64 / (plus_games_count + minus_games_count) as f64
+        };
+    builder.bargains_data.get_mut(&race.id).unwrap().average_bargains.push(average_bargains_count);
 
     worksheet.write_with_format(
         data_row, 
@@ -289,7 +307,13 @@ fn build_heroes_stats(race: &Race, races_data: &Vec<Race>, heroes_data: &Vec<Her
                 heroes_used_by_race.push(heroes_data.iter().find(|hero| hero.id == game.first_player_hero).unwrap());
             }
             else if game.second_player_race == race.id {
-                heroes_used_by_race.push(heroes_data.iter().find(|hero| hero.id == game.second_player_hero).unwrap());
+                if let Some(hero) = heroes_data.iter().find(|hero| hero.id == game.second_player_hero) {
+                    heroes_used_by_race.push(hero);
+                }
+                else {
+                    println!("Game with problem: {:?}", game);
+                }
+                //heroes_used_by_race.push(heroes_data.iter().find(|hero| hero.id == game.second_player_hero).unwrap());
             }
         });
     
@@ -301,7 +325,7 @@ fn build_heroes_stats(race: &Race, races_data: &Vec<Race>, heroes_data: &Vec<Her
     worksheet.write_with_format(row_offset - 1, 4, "Процент выбора", &styles::THIN_BORDER_TEXP_WRAP).unwrap();
 
     let mut col_offset = 5;
-    for opp_race in races_data.iter().filter(|r| r.id != RaceType::NotDetected && r.id != race.id) {
+    for opp_race in races_data.iter().filter(|r| r.id != 0 && r.id != race.id) {
         worksheet.write_with_format(row_offset - 1, col_offset, format!("Игр vs {}", &opp_race.actual_name), &styles::THIN_BORDER_TEXP_WRAP).unwrap();
         worksheet.write_with_format(row_offset - 1, col_offset + 1, format!("Винрейт vs {}", &opp_race.actual_name), &styles::THIN_BORDER_TEXP_WRAP).unwrap();
         col_offset += 2;
@@ -330,7 +354,7 @@ fn build_heroes_stats(race: &Race, races_data: &Vec<Race>, heroes_data: &Vec<Her
         worksheet.write_with_format(row_offset + heroes_count, 4, format!("{:.3}%", total_hero_games as f64 / total_race_picks.len() as f64 * 100.0), &styles::THIN_BORDER_TEXP_WRAP).unwrap();
 
         let mut col_offset = 5;
-        for opp_race in races_data.iter().filter(|r| r.id != RaceType::NotDetected && r.id != race.id) {
+        for opp_race in races_data.iter().filter(|r| r.id != 0 && r.id != race.id) {
             let opp_race_wins = total_race_picks.iter()
                 .filter(|game| {
                     (game.first_player_hero == hero.id && game.first_player_race == race.id && game.second_player_race == opp_race.id && game.result == GameResult::FirstPlayerWon) || 
@@ -368,7 +392,7 @@ fn build_heroes_stats(race: &Race, races_data: &Vec<Race>, heroes_data: &Vec<Her
 
     row_offset += heroes_count + 1;
 
-    for opp_race in races_data.iter().filter(|r| r.id != RaceType::NotDetected && r.id != race.id) {
+    for opp_race in races_data.iter().filter(|r| r.id != 0 && r.id != race.id) {
         build_hero_stats_vs_race(race, &unique_picked_heroes, heroes_data, opp_race, games_data, worksheet, row_offset);
         row_offset += heroes_count + 4;
     }

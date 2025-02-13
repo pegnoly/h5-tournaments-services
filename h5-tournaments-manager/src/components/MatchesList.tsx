@@ -1,8 +1,8 @@
 import InfiniteScroll from "react-infinite-scroll-component";
 import { useGamesStore } from "../stores/GamesStore";
 import { useMatchesStore } from "../stores/MatchesStore";
-import { Button, Carousel, List, Select, Typography } from "antd";
-import { BargainsColor, Game, HeroType, Match, RaceType } from "../common/types";
+import { Button, List, Typography } from "antd";
+import { Game, Match } from "../common/types";
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Slider from "react-slick";

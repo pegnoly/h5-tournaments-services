@@ -262,7 +262,7 @@ impl TournamentService {
     pub async fn get_all_games_for_tournament(&self, tournament_id: Uuid) -> Result<Vec<Game>, super::error::Error> {
         let games = sqlx::query_as(r#"
                 SELECT * FROM games 
-                LEFT JOIN matches
+                INNER JOIN matches
                 ON (games.match_id = matches.id AND matches.tournament_id = $1);         
             "#)
             .bind(tournament_id)
