@@ -354,6 +354,7 @@ impl ApiConnectionService {
                 let result = response.json::<Response<queries::get_tournament_query::ResponseData>>().await;
                 match result {
                     Ok(result) => {
+                        tracing::info!("Got tournament response: {:?}", &result);
                         if let Some(data) = result.data {
                             Ok(data.tournament)
                         }
@@ -381,6 +382,7 @@ impl ApiConnectionService {
                 let result = response.json::<Response<queries::get_user_query::ResponseData>>().await;
                 match result {
                     Ok(result) => {
+                        tracing::info!("Got user response: {:?}", &result);
                         if let Some(data) = result.data {
                             Ok(data.user)
                         }
