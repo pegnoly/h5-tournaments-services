@@ -21,7 +21,7 @@ pub async fn try_register_in_tournament(
         }
         else {
             if existing_user.registered {
-                register_participant(channel, guild, user, &tournament, existing_user.id, context, api).await?;
+                //register_participant(channel, guild, user, &tournament, existing_user.id, context, api).await?;
                 interaction.create_response(context, CreateInteractionResponse::Acknowledge).await?;
             }
             else {
