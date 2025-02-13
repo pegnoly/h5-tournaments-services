@@ -1,11 +1,7 @@
 use poise::serenity_prelude::*;
 use shuttle_runtime::async_trait;
 
-<<<<<<< HEAD
 use crate::{api_connector::service::ApiConnectionService, builders, operations, graphql::queries::update_game_mutation::GameEditState};
-=======
-use crate::{api_connector::service::ApiConnectionService, builders, graphql::queries::{get_game_query, get_games_query::{self, GetGamesQueryGames}, int_to_game_result, update_game_mutation::{self, GameResult}}, operations};
->>>>>>> f5c5226 (registration logic)
 
 pub struct MainEventHandler {
     api: ApiConnectionService
@@ -16,13 +12,8 @@ impl MainEventHandler {
         MainEventHandler { api: ApiConnectionService::new(client) }
     }
 
-<<<<<<< HEAD
     async fn dispatch_buttons(&self, context: &Context, interaction: &ComponentInteraction, component_id: &String, channel: u64, user: u64) -> Result<(), crate::Error> {
         match component_id.as_str() {
-=======
-    async fn dispatch_buttons(&self, context: &Context, interaction: &ComponentInteraction, id: &String, channel: u64, user: u64) -> Result<(), crate::Error> {
-        match id.as_str() {
->>>>>>> f5c5226 (registration logic)
             "create_report_button" => {
                 builders::report_message::initial_build(context, &self.api, &interaction, component_id, channel, user).await?;
             },
@@ -50,79 +41,7 @@ impl MainEventHandler {
                 operations::report_creation::switch_games(interaction, context, &self.api, -1).await?;
             },
             "submit_report" => {
-<<<<<<< HEAD
                 operations::report_creation::generate_final_report_message(interaction, context, &self.api).await?;
-=======
-                let message = interaction.message.id.get();
-                let current_match = self.api.get_match(None, None, Some(message.to_string())).await.unwrap();
-                if let Some(match_data) = current_match {
-                    let tournament_data = self.api.get_tournament_data(Some(match_data.tournament), None, None).await.unwrap().unwrap();
-                    let operator_data = self.api.get_operator_data(tournament_data.operator).await.unwrap();
-                    let output_channel = ChannelId::from(operator_data.generated as u64);
-                    let first_user = self.api.get_user(Some(match_data.first_player), None).await.unwrap().unwrap();
-                    let participant = self.api.get_participant(tournament_data.id, first_user.id).await.unwrap().unwrap();
-                    let second_user = self.api.get_user(Some(match_data.second_player.unwrap()), None).await.unwrap().unwrap().nickname;
-                    let games = self.api.get_games(match_data.id).await.unwrap();
-                    let sorted_games = games.iter()
-                        .sorted_by_key(|g| g.number)
-                        .collect::<Vec<&GetGamesQueryGames>>();
-
-                    let first_player_wins = sorted_games.iter()
-                        .filter(|g| g.result == get_games_query::GameResult::FIRST_PLAYER_WON)
-                        .count();
-
-                    let second_player_wins = sorted_games.iter()
-                        .filter(|g| g.result == get_games_query::GameResult::SECOND_PLAYER_WON)
-                        .count();
-
-                    let mut fields = vec![];
-                    for game in &sorted_games {
-                        fields.push(
-                            (
-                                format!("_Игра {}_", game.number),
-                                format!("**{},** _{}_ **{}** **{},** _{}_ [**{}**]", 
-                                &self.api.races.iter().find(|r| r.id == game.first_player_race.unwrap()).unwrap().name,
-                                &self.api.get_hero(game.first_player_hero.unwrap()).await.unwrap().unwrap().name,
-                                match game.result {
-                                    get_games_query::GameResult::FIRST_PLAYER_WON => ">".to_string(),
-                                    get_games_query::GameResult::SECOND_PLAYER_WON => "<".to_string(),
-                                    _=> "?".to_string()
-                                },
-                                &self.api.races.iter().find(|r| r.id == game.second_player_race.unwrap()).unwrap().name,
-                                &self.api.get_hero(game.second_player_hero.unwrap()).await.unwrap().unwrap().name,
-                                game.bargains_amount.to_string()
-                                ),
-                                false
-                            ) 
-                        )
-                    }
-
-                    fields.push(
-                        (
-                            "_Счёт_".to_string(),
-                            format!("**{} - {}**", first_player_wins, second_player_wins),
-                            false
-                        )
-                    );
-
-                    let message_builder = CreateMessage::new()
-                        .add_embed(
-                            CreateEmbed::new()
-                                .title(format!("**Турнир {}**, _групповой этап, группа_ **{}**", &tournament_data.name.to_uppercase(), participant.group))
-                                .description(format!("**{}** _VS_ **{}**", &first_user.nickname, &second_user))
-                                .fields(fields)
-                        );
-                    
-                    output_channel.send_message(context, message_builder).await.unwrap();
-                    interaction.create_response(context, CreateInteractionResponse::UpdateMessage(
-                        CreateInteractionResponseMessage::new()
-                            //.content("Отчет успешно создан, можете закрыть это сообщение.")
-                            .add_embed(CreateEmbed::new().title("Отчет успешно создан, можете закрыть это сообщение."))
-                            .components(vec![])
-                    )).await.unwrap();
-                    //context.http.delete_message(ChannelId::from(tournament_data.channel as u64), MessageId::from(interaction.message.id.get()), Some("Report cleanup")).await.unwrap();
-                }
->>>>>>> f5c5226 (registration logic)
             },
             "register_user_button" => {
                 operations::registration::try_register_in_tournament(interaction, context, &self.api).await?;
@@ -211,59 +130,7 @@ impl EventHandler for MainEventHandler {
             }
         }
         else if let Some(modal_interaction) = interaction.as_modal_submit() {
-<<<<<<< HEAD
             self.dispatch_modals(&context, modal_interaction).await.unwrap();
-=======
-            match modal_interaction.data.custom_id.as_str() {
-                "player_data_modal" => {
-                    let message = &modal_interaction.message.as_ref().unwrap().content;
-                    let mut bargains_value = 0;
-                    tracing::info!("Modal was created from message: {}", message);
-                    tracing::info!("Modal data: {:?}", &modal_interaction.data);
-                    for row in &modal_interaction.data.components {
-                        for component in &row.components {
-                            match component {
-                                ActionRowComponent::InputText(text) => {
-                                    if text.custom_id.as_str() == "bargains_amount_input" {
-                                        let value = i32::from_str_radix(&text.value.as_ref().unwrap(), 10).unwrap();
-                                        bargains_value = value;
-                                        tracing::info!("Bargains amount: {}", value);
-                                    }
-                                },
-                                _=> {}
-                            }
-                        }
-                    }
-                    let match_data = self.api.get_match(
-                        None, 
-                        None, 
-                        Some(modal_interaction.message.as_ref().unwrap().id.get().to_string())
-                    ).await.unwrap();
-                    if let Some(existing_match) = match_data {
-                        self.api.update_game(
-                            existing_match.id, 
-                            existing_match.current_game, 
-                            None, 
-                            None,
-                            None, 
-                            None,
-                            None,
-                            Some(bargains_value as i64),
-                            None
-                        ).await.unwrap();
-                        let rebuilt_message=  builders::report_message::build_game_message(&context, &self.api, modal_interaction.message.as_ref().unwrap().id.get()).await.unwrap();
-                        modal_interaction.create_response(context, CreateInteractionResponse::UpdateMessage(rebuilt_message)).await.unwrap();
-                    }
-                },
-                "user_lobby_nickname_modal" => {
-                    operations::registration::process_registration_modal(modal_interaction, &context, &self.api).await.unwrap();
-                },
-                "user_update_nickname_modal" => {
-                    operations::registration::process_user_update_modal(modal_interaction, &context, &self.api).await.unwrap();
-                }
-                _=> {}
-            }
->>>>>>> f5c5226 (registration logic)
         }
     }
 

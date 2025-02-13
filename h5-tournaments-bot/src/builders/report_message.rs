@@ -13,19 +13,11 @@ pub async fn initial_build(
     user: u64
 ) -> Result<(), crate::Error> {
 
-<<<<<<< HEAD
     let tournament_data = api.get_tournament_data(GetTournament::default().with_reports_channel(channel.to_string())).await?.unwrap();
     let operator_data = api.get_operator_data(tournament_data.operator).await?;
     let user_data = api.get_user(GetUser::default().with_discord_id(user.to_string())).await?.unwrap();
     let participant = api.get_participant(tournament_data.id, user_data.id).await?.unwrap();
     let participants = api.get_participants(tournament_data.id, participant.group).await?;
-=======
-    let tournament_data = api.get_tournament_data(None, Some(channel.to_string()), None).await?;
-    let operator_data = api.get_operator_data(tournament_data.as_ref().unwrap().operator).await?;
-    let user_data = api.get_user(None, Some(user.to_string())).await?.unwrap();
-    let participant = api.get_participant(tournament_data.as_ref().unwrap().id, user_data.id).await?.unwrap();
-    let participants = api.get_participants(tournament_data.as_ref().unwrap().id, participant.group).await?;
->>>>>>> f5c5226 (registration logic)
     tracing::info!("Match build started by interaction {}", interaction.id.get());
     api.create_match(tournament_data.id, user_data.id, interaction.id.get()).await?;
 
@@ -63,16 +55,9 @@ pub async fn initial_build(
 }
 
 pub async fn rebuild_initial(match_id: Uuid, api: &ApiConnectionService) -> Result<CreateInteractionResponseMessage, crate::Error> {
-<<<<<<< HEAD
     if let Some(match_data) = api.get_match(GetMatch::default().with_id(match_id)).await? {
         tracing::info!("Match data: {:?}", &match_data);
         let tournament_data = api.get_tournament_data(GetTournament::default().with_id(match_data.tournament)).await?.unwrap();
-=======
-    let match_data = api.get_match(Some(match_id), None, None).await?;
-    if let Some(existing_match) = match_data {
-        tracing::info!("Match data: {:?}", &existing_match);
-        let tournament_data = api.get_tournament_data(Some(existing_match.tournament), None, None).await?;
->>>>>>> f5c5226 (registration logic)
         tracing::info!("Tournament data: {:?}", &tournament_data);
         let operator_data = api.get_operator_data(tournament_data.operator).await?;
         tracing::info!("Operator data: {:?}", &operator_data);
