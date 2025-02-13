@@ -1,0 +1,3 @@
+mutation UpdateUser($id: UUID!, $nickname: String, $registered: Boolean) {
+    updateUser(id: $id, nickname: $nickname, registered: $registered)
+}

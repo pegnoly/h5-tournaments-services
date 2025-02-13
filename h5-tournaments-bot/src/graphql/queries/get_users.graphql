@@ -1,0 +1,6 @@
+query GetUsersQuery {
+    users {
+        id, 
+        nickname
+    }
+}

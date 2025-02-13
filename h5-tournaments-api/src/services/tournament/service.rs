@@ -1,18 +1,22 @@
+use rust_decimal::Decimal;
+use sea_orm::{sea_query::{expr, OnConflict, SimpleExpr}, ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, ModelTrait, PaginatorTrait, QueryFilter, Related, Set};
 use sqlx::{PgPool, Pool, Postgres};
 use uuid::Uuid;
 
 use crate::routes::models::MatchRegistrationForm;
 
-use super::types::{Game, Hero, Match, ModType, Race, Tournament};
+use self::{game_builder::GameResult, match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
+
+use super::{models::{game_builder::{self, GameBuilderModel, GameEditState}, hero::{self, HeroModel}, match_structure, operator::{self, TournamentOperatorModel}, participant, tournament, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
 
 #[derive(Clone)]
-pub struct TournamentService {
+pub struct LegacyTournamentService {
     pub pool: PgPool
 }
 
-impl TournamentService {
+impl LegacyTournamentService {
     pub fn new(pool: PgPool) -> Self {
-        TournamentService { pool: pool }
+        LegacyTournamentService { pool: pool }
     }
 
     pub async fn create_tournament(
@@ -270,5 +274,596 @@ impl TournamentService {
             .await?;
 
         Ok(games)
+    }
+}
+
+#[derive(Clone)]
+pub struct TournamentService;
+
+impl TournamentService {
+    pub async fn create_user(
+        &self,
+        db: &DatabaseConnection,
+        name: String,
+        discord_id: String,
+        confirm_register: bool
+    ) -> Result<Uuid, String> {
+        let id = Uuid::new_v4();
+        let discord = i64::from_str_radix(&discord_id, 10).unwrap();
+
+        let on_conflict = OnConflict::column(Column::DiscordId)
+            .update_column(Column::Nickname)
+            .value(Column::RegisteredManually, true)
+            .to_owned();
+
+        let user_to_insert = user::ActiveModel {
+            id: Set(id),
+            nickname: Set(name.clone()),
+            discord_id: Set(discord),
+            registered_manually: Set(true)
+        };
+
+        let res = Entity::insert(user_to_insert).on_conflict(on_conflict.clone()).exec(db).await;
+
+        match res {
+            Ok(_model) => {
+                Ok(_model.last_insert_id)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn update_user(
+        &self,
+        db: &DatabaseConnection,
+        id: Uuid,
+        nickname: Option<String>,
+        registered: Option<bool>
+    ) -> Result<(), String> {
+        let current_user = user::Entity::find_by_id(id).one(db).await.unwrap();
+        if let Some(current_user) = current_user {
+
+            let mut user_to_update: user::ActiveModel = current_user.into();
+
+            if let Some(nickname) = nickname {
+                user_to_update.nickname = Set(nickname);
+            }
+
+            if let Some(registered) = registered {
+                user_to_update.registered_manually = Set(registered);
+            }
+
+            user_to_update.update(db).await.unwrap();
+        }
+
+        Ok(())
+    }
+
+    pub async fn get_operator(
+        &self,
+        db: &DatabaseConnection,
+        id: Uuid
+    ) -> Result<Option<TournamentOperatorModel>, String> {
+        let res = operator::Entity::find().filter(operator::Column::Id.eq(id)).one(db).await;
+        match res {
+            Ok(operator) => {
+                Ok(operator)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn create_tournament(
+        &self, db: &DatabaseConnection, 
+        name: String, operator_id: Uuid, 
+        reports_channel_id: String,
+        register_channel_id: String,
+        use_bargains: bool,
+        use_foreign_heroes: bool,
+        role_id: String
+    ) -> Result<String, String> {
+        let id = Uuid::new_v4();
+        let channel_id = i64::from_str_radix(&reports_channel_id, 10).unwrap();
+        let register_channel = i64::from_str_radix(&register_channel_id, 10).unwrap();
+        let role = i64::from_str_radix(&role_id, 10).unwrap();
+        let tournament_to_insert = tournament::ActiveModel {
+            id: Set(id),
+            operator_id: Set(operator_id),
+            channel_id: Set(channel_id),
+            name: Set(name.clone()),
+            stage: Set(tournament::TournamentStage::Unknown),
+            register_channel: Set(register_channel),
+            with_bargains: Set(use_bargains),
+            with_foreign_heroes: Set(use_foreign_heroes),
+            role_id: Set(role)
+        };
+
+        let res = tournament_to_insert.insert(db).await;
+
+        match res {
+            Ok(_model) => {
+                Ok(format!("Tournament {} created with id {}", &name, &id))
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_tournament(
+        &self,
+        db: &DatabaseConnection,
+        id: Option<Uuid>,
+        reports_channel_id: Option<String>,
+        register_channel_id: Option<String>
+    ) -> Result<Option<TournamentModel>, String> {
+        let conditions = Condition::all()
+            .add_option( if id.is_some() { 
+                Some(expr::Expr::col(tournament::Column::Id).eq(id.unwrap())) 
+            } else { 
+                None::<SimpleExpr> 
+            })
+            .add_option( if reports_channel_id.is_some() { 
+                Some(expr::Expr::col(tournament::Column::ChannelId).eq(i64::from_str_radix(&reports_channel_id.unwrap(), 10).unwrap()))
+            } else {
+                None::<SimpleExpr>
+            })
+            .add_option( if register_channel_id.is_some() {
+                Some(expr::Expr::col(tournament::Column::RegisterChannel).eq(i64::from_str_radix(&register_channel_id.unwrap(), 10).unwrap()))
+            } else {
+                None::<SimpleExpr>
+            }
+        );
+
+        let res = tournament::Entity::find()
+            .filter(conditions)
+            .one(db)
+            .await;
+
+        match res {
+            Ok(tournament) => {
+                Ok(tournament)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_user(
+        &self,
+        db: &DatabaseConnection,
+        id: Option<Uuid>,
+        discord_id: Option<String>
+    ) -> Result<Option<UserModel>, String> {
+
+        let conditions = Condition::all()
+            .add_option(if id.is_some() { 
+                Some(expr::Expr::col(user::Column::Id).eq(id.unwrap()))
+            } else {
+                None::<SimpleExpr>
+            })
+            .add_option(if discord_id.is_some() {
+                Some(expr::Expr::col(user::Column::DiscordId).eq(i64::from_str_radix(&discord_id.unwrap(), 10).unwrap()))
+            } else {
+                None::<SimpleExpr>
+            });
+
+        let res = user::Entity::find()
+            .filter(conditions)
+            .one(db)
+            .await;
+
+        match res {
+            Ok(user) => {
+                Ok(user)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn create_match(
+        &self,
+        db: &DatabaseConnection,
+        tournament_id: Uuid,
+        interaction: String,
+        first_player: Uuid
+    ) -> Result<(), String> {
+        let id = Uuid::new_v4();
+        let interaction_id = i64::from_str_radix(&interaction, 10).unwrap();
+
+        let match_to_create = match_structure::ActiveModel {
+            id: Set(id),
+            first_player: Set(first_player),
+            interaction_id: Set(interaction_id),
+            tournament_id: Set(tournament_id),
+            current_game: Set(1),
+            ..Default::default()
+        };
+
+        let res = match_to_create.insert(db).await;
+        match res {
+            Ok(_success) => {
+                Ok(())
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn update_match(
+        &self,
+        db: &DatabaseConnection,
+        id: Uuid,
+        games_count: Option<i32>,
+        second_player: Option<Uuid>,
+        data_message: Option<String>,
+        current_game: Option<i32>
+    ) -> Result<(), String> {
+
+        let current_match = match_structure::Entity::find_by_id(id).one(db).await.unwrap();
+        if let Some(current_match) = current_match {
+
+            let mut match_to_update: match_structure::ActiveModel = current_match.into();
+
+            if let Some(games) = games_count {
+                match_to_update.games_count = Set(Some(games));
+            }
+
+            if let Some(second_player) = second_player {
+                match_to_update.second_player = Set(Some(second_player));
+            }
+
+            if let Some(data_message) = data_message {
+                match_to_update.data_message = Set(Some(i64::from_str_radix(&data_message, 10).unwrap()));
+            }
+
+            if let Some(current_game) = current_game {
+                match_to_update.current_game = Set(current_game);
+            }
+
+            match_to_update.update(db).await.unwrap();
+        }
+
+        Ok(())
+    }
+
+    pub async fn get_match(
+        &self,
+        db: &DatabaseConnection,
+        id: Option<Uuid>,
+        data_message: Option<String>,
+        interaction: Option<String>
+    ) -> Result<Option<MatchModel>, String> {
+        let conditions = Condition::all()
+            .add_option(if id.is_some() {
+                Some(expr::Expr::col(match_structure::Column::Id).eq(id.unwrap()))
+            } else {
+                None::<SimpleExpr>
+            })
+            .add_option(if data_message.is_some() {
+                Some(expr::Expr::col(match_structure::Column::DataMessage).eq(i64::from_str_radix(&data_message.unwrap(), 10).unwrap()))
+            } else {
+                None::<SimpleExpr>
+            })
+            .add_option(if interaction.is_some() {
+                Some(expr::Expr::col(match_structure::Column::InteractionId).eq(i64::from_str_radix(&interaction.unwrap(), 10).unwrap()))
+            } else {
+                None::<SimpleExpr>
+            });
+        
+        let res = match_structure::Entity::find()
+            .filter(conditions)
+            .one(db)
+            .await;
+
+        match res {
+            Ok(match_model) => {
+                Ok(match_model)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_users(
+        &self, 
+        db: &DatabaseConnection
+    ) -> Result<Vec<UserModel>, String> {
+        let res = user::Entity::find().all(db).await;
+        match res {
+            Ok(users) => {
+                Ok(users)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn create_game(
+        &self,
+        db: &DatabaseConnection,
+        match_id: Uuid,
+        number: i16
+    ) -> Result<GameBuilderModel, String> {
+        let id = Uuid::new_v4();
+        let game_to_insert = game_builder::ActiveModel {
+            id: Set(id),
+            match_id: Set(match_id),
+            number: Set(number),
+            edit_state: Set(Some(GameEditState::PlayerData)),
+            result: Set(GameResult::NotSelected),
+            bargains_amount: Set(0),
+            ..Default::default()
+        };
+
+        let res = game_to_insert.insert(db).await;
+        match res {
+            Ok(model) => {
+                Ok(model)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn update_game(
+        &self,
+        db: &DatabaseConnection,
+        match_id: Uuid,
+        number: i32,
+        edit_state: Option<GameEditState>,
+        first_player_race: Option<i32>,
+        first_player_hero: Option<i32>,
+        second_player_race: Option<i32>,
+        second_player_hero: Option<i32>,
+        bargains_amount: Option<i32>,
+        result: Option<GameResult>
+    ) -> Result<String, String> {
+        let current_game = game_builder::Entity::find()
+            .filter(
+                Condition::all()
+                    .add(game_builder::Column::MatchId.eq(match_id))
+                    .add(game_builder::Column::Number.eq(number))
+            )
+            .one(db)
+            .await.unwrap();
+
+        if let Some(game) = current_game {
+            let mut game_to_update: game_builder::ActiveModel = game.into();
+            if let Some(edit_state) = edit_state {
+                game_to_update.edit_state = Set(Some(edit_state));
+            }
+            if let Some(first_player_race) = first_player_race {
+                game_to_update.first_player_race = Set(Some(first_player_race));
+            }
+            if let Some(first_player_hero) = first_player_hero {
+                game_to_update.first_player_hero = Set(Some(first_player_hero));
+            }
+            if let Some(second_player_race) = second_player_race {
+                game_to_update.second_player_race = Set(Some(second_player_race));
+            }
+            if let Some(second_player_hero) = second_player_hero {
+                game_to_update.second_player_hero = Set(Some(second_player_hero));
+            }
+            if let Some(bargains_amount) = bargains_amount {
+                game_to_update.bargains_amount = Set(bargains_amount);
+            }
+            if let Some(result) = result {
+                game_to_update.result = Set(result);
+            }
+
+            let res = game_to_update.update(db).await;
+            match res {
+                Ok(_success) => {
+                    Ok("Game updated successfully".to_string())
+                },
+                Err(error) => {
+                    Err(error.to_string())
+                }
+            }
+        }
+        else {
+            Err("Failed to find game".to_string())
+        }
+    }
+
+    pub async fn get_game(
+        &self,
+        db: &DatabaseConnection,
+        match_id: Uuid,
+        number: i32
+    ) -> Result<Option<GameBuilderModel>, String> {
+        let res = game_builder::Entity::find()
+            .filter(
+                Condition::all()
+                .add(game_builder::Column::MatchId.eq(match_id))
+                .add(game_builder::Column::Number.eq(number))
+            )
+            .one(db)
+            .await;
+
+        match res {
+            Ok(game) => { 
+                Ok(game)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_heroes(
+        &self,
+        db: &DatabaseConnection,
+        race: i32
+    ) -> Result<Vec<HeroModel>, String> {
+        let res = hero::Entity::find()
+            .filter(hero::Column::Race.eq(race))
+            .all(db)
+            .await;
+
+        match res {
+            Ok(heroes) => {
+                Ok(heroes)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_hero(
+        &self,
+        db: &DatabaseConnection,
+        id: i32
+    ) -> Result<Option<HeroModel>, String> {
+        let res = hero::Entity::find()
+            .filter(hero::Column::Id.eq(id))
+            .one(db)
+            .await;
+
+        match res {
+            Ok(hero) => {
+                Ok(hero)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_games(
+        &self,
+        db: &DatabaseConnection,
+        match_id: Uuid
+    ) -> Result<Vec<GameBuilderModel>, String> {
+        let res = game_builder::Entity::find()
+            .filter(game_builder::Column::MatchId.eq(match_id))
+            .all(db)
+            .await;
+
+        match res {
+            Ok(games) => {
+                Ok(games)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_participants(
+        &self,
+        db: &DatabaseConnection,
+        tournament_id: Uuid,
+        group: i32 
+    ) -> Result<Vec<UserModel>, String> {
+        let res = participant::Entity::find_related()
+            .filter(
+                Condition::all()
+                    .add(participant::Column::TournamentId.eq(tournament_id))
+                    .add(participant::Column::GroupNumber.eq(group))
+            )
+            .all(db)
+            .await;
+            
+        match res {
+            Ok(users) => {
+                Ok(users)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_participant(
+        &self,
+        db: &DatabaseConnection,
+        user_id: Uuid,
+        tournament_id: Uuid
+    ) -> Result<Option<participant::Model>, String> {
+        let res = participant::Entity::find()
+            .filter(
+                Condition::all()
+                    .add(participant::Column::TournamentId.eq(tournament_id))
+                    .add(participant::Column::UserId.eq(user_id))
+            )
+            .one(db)
+            .await;
+
+        match res {
+            Ok(participant) => {
+                Ok(participant)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn create_participant(
+        &self,
+        db: &DatabaseConnection,
+        tournament_id: Uuid,
+        user_id: Uuid,
+        group: i32
+    ) -> Result<i64, String> {
+        let participant_to_insert = participant::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            tournament_id: Set(tournament_id),
+            user_id: Set(user_id),
+            group_number: Set(group)
+        };
+
+        let res = participant_to_insert.insert(db).await;
+        match res {
+            Ok(_model) => {
+                let participants = participant::Entity::find().filter(participant::Column::TournamentId.eq(tournament_id)).count(db).await;
+                tracing::info!("Total {:?} users are in this tournament", &participants);
+                Ok(participants.unwrap() as i64)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn delete_participant(
+        &self,
+        db: &DatabaseConnection,
+        tournament_id: Uuid,
+        user_id: Uuid
+    ) -> Result<String, String> {
+        let participant_to_delete = participant::Entity::find()
+            .filter(participant::Column::TournamentId.eq(tournament_id))
+            .filter(participant::Column::UserId.eq(user_id))
+            .one(db)
+            .await
+            .unwrap();
+        if let Some(model_to_delete) = participant_to_delete {
+            let _res = model_to_delete.delete(db).await;
+            match _res {
+                Ok(_success) => {
+                    Ok("Deleted successfully".to_string())
+                },
+                Err(error) => {
+                    Err(error.to_string())
+                }
+            }
+        } else {
+            Ok("Nothing to delete".to_string())
+        }
     }
 }

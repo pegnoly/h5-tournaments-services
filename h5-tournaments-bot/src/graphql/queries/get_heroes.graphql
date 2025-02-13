@@ -1,0 +1,6 @@
+query GetHeroesQuery($race: Int!) {
+    heroes(race: $race) {
+        id,
+        name
+    }
+}

@@ -1,0 +1,6 @@
+query GetParticipants($tournamentId: UUID!, $group: Int!) {
+    participants(tournamentId: $tournamentId, group: $group) {
+        id,
+        nickname
+    }
+}
