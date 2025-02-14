@@ -2,7 +2,7 @@ use async_graphql::Context;
 use sea_orm::DatabaseConnection;
 use uuid::Uuid;
 
-use crate::{prelude::TournamentService, services::tournament::models::game_builder::{GameBuilderModel, GameEditState, GameResult}};
+use crate::{prelude::TournamentService, services::tournament::models::{game_builder::{GameBuilderModel, GameEditState, GameResult}, tournament}};
 
 pub struct Mutation;
 
@@ -68,6 +68,26 @@ impl Mutation {
         match res {
             Ok(res) => {
                 Ok(res)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
+
+    async fn update_tournament<'a>(
+        &self,
+        context: &Context<'a>,
+        id: Uuid,
+        stage: Option<tournament::TournamentStage>,
+        challonge_id: Option<String>
+    ) -> Result<String, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.update_tournament(db, id, stage, challonge_id).await;
+        match res {
+            Ok(_res) => {
+                Ok("Tournament was updated.".to_string())
             },
             Err(error) => {
                 Err(error)
@@ -178,15 +198,37 @@ impl Mutation {
         context: &Context<'a>,
         tournament_id: Uuid,
         user_id: Uuid,
-        group: i32
+        group: i32,
+        challonge_id: Option<String>
     ) -> Result<i64, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.create_participant(db, tournament_id, user_id, group).await;
+        let res = service.create_participant(db, tournament_id, user_id, group, challonge_id).await;
 
         match res {
             Ok(_res) => {
                 Ok(_res)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
+
+    async fn update_participant<'a>(
+        &self,
+        context: &Context<'a>,
+        id: Uuid,
+        group: Option<i32>,
+        challonge_id: Option<String>
+    ) -> Result<String, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.update_participant(db, id, group, challonge_id).await;
+
+        match res {
+            Ok(_res) => {
+                Ok("Participant updated".to_string())
             },
             Err(error) => {
                 Err(error)

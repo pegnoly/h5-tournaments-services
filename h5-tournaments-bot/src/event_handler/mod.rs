@@ -1,15 +1,17 @@
+use std::sync::Arc;
+
 use poise::serenity_prelude::*;
 use shuttle_runtime::async_trait;
 
-use crate::{api_connector::service::ApiConnectionService, builders, operations, graphql::queries::update_game_mutation::GameEditState};
+use crate::{services::h5_tournaments::service::H5TournamentsService, builders, operations, graphql::queries::update_game_mutation::GameEditState};
 
 pub struct MainEventHandler {
-    api: ApiConnectionService
+    api: Arc<H5TournamentsService>
 }
 
 impl MainEventHandler {
-    pub fn new(client: reqwest::Client) -> Self {
-        MainEventHandler { api: ApiConnectionService::new(client) }
+    pub fn new(api: Arc<H5TournamentsService>) -> Self {
+        MainEventHandler { api: api }
     }
 
     async fn dispatch_buttons(&self, context: &Context, interaction: &ComponentInteraction, component_id: &String, channel: u64, user: u64) -> Result<(), crate::Error> {

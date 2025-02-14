@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use graphql_client::{reqwest::post_graphql, GraphQLQuery, Response};
 use h5_tournaments_api::prelude::{Hero, ModType, Race, Tournament};
+use reqwest::header::{HeaderMap, HeaderValue};
 use uuid::Uuid;
 
 use crate::{graphql::queries::{self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_participant, create_user_mutation::ResponseData, delete_participant, get_game_query::{self, GetGameQueryGame}, get_games_query::{self, GetGamesQueryGames}, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_match_query::GetMatchQueryTournamentMatch, get_operator_data_query::{self, GetOperatorDataQueryOperator}, get_participant::{self, GetParticipantParticipant}, get_participants::{self, GetParticipantsParticipants}, get_tournament_query, get_user_query::{self, GetUserQueryUser}, update_game_mutation, update_match_mutation, update_user, CreateGameMutation, CreateMatchMutation, CreateParticipant, CreateTournamentMutation, CreateUserMutation, DeleteParticipant, GameEditState, GetGameQuery, GetGamesQuery, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetParticipant, GetParticipants, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation, UpdateUser}, parser::service::ParsedData, types::payloads::{GetMatch, GetTournament, GetUser, UpdateGame, UpdateMatch}};
@@ -913,5 +914,28 @@ impl ApiConnectionService {
                 Err(crate::Error::from(response_error))
             }
         }  
+    }
+
+    pub async fn get_challonge_tournaments(&self) -> Result<(), crate::Error> {
+        let client = self.client.read().await;
+        let response = client.get("https://api.challonge.com/v2.1/tournaments.json?page=1&per_page=25")
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/vnd.api+json")
+            .header("Authorization-Type", "v1")
+            .header("Authorization", "zXnPSjsSTtUtBzsmPkrXR1UAyILb1IhPwOmRGy6B")
+            .send()
+            .await;
+
+        match response {
+            Ok(response_success) => {
+                tracing::info!("Got response from challonge: {:?}", &response_success);
+                let text = response_success.text().await?;
+                tracing::info!("Response text: {}", &text);
+            },
+            Err(response_error) => {
+                tracing::error!("Challonge response error: {}", response_error.to_string());
+            }
+        }
+        Ok(())
     }
 }

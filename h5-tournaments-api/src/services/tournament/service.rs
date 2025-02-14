@@ -379,7 +379,8 @@ impl TournamentService {
             register_channel: Set(register_channel),
             with_bargains: Set(use_bargains),
             with_foreign_heroes: Set(use_foreign_heroes),
-            role_id: Set(role)
+            role_id: Set(role),
+            challonge_id: Set(None)
         };
 
         let res = tournament_to_insert.insert(db).await;
@@ -392,6 +393,32 @@ impl TournamentService {
                 Err(error.to_string())
             }
         }
+    }
+
+    pub async fn update_tournament(
+        &self,
+        db: &DatabaseConnection,
+        id: Uuid,
+        stage: Option<tournament::TournamentStage>,
+        challonge_id: Option<String>
+    ) -> Result<(), String> {
+        let current_tournament = tournament::Entity::find_by_id(id).one(db).await.unwrap();
+        if let Some(current_tournament) = current_tournament {
+
+            let mut tournament_to_update: tournament::ActiveModel = current_tournament.into();
+
+            if let Some(stage) = stage {
+                tournament_to_update.stage = Set(stage);
+            }
+
+            if let Some(challonge_id) = challonge_id {
+                tournament_to_update.challonge_id = Set(Some(challonge_id));
+            }
+
+            tournament_to_update.update(db).await.unwrap();
+        }
+
+        Ok(())
     }
 
     pub async fn get_tournament(
@@ -818,13 +845,15 @@ impl TournamentService {
         db: &DatabaseConnection,
         tournament_id: Uuid,
         user_id: Uuid,
-        group: i32
+        group: i32,
+        challonge_id: Option<String>
     ) -> Result<i64, String> {
         let participant_to_insert = participant::ActiveModel {
             id: Set(Uuid::new_v4()),
             tournament_id: Set(tournament_id),
             user_id: Set(user_id),
-            group_number: Set(group)
+            group_number: Set(group),
+            challonge_id: Set(challonge_id)
         };
 
         let res = participant_to_insert.insert(db).await;
@@ -838,6 +867,32 @@ impl TournamentService {
                 Err(error.to_string())
             }
         }
+    }
+
+    pub async fn update_participant(
+        &self,
+        db: &DatabaseConnection,
+        id: Uuid,
+        group: Option<i32>,
+        challonge_id: Option<String>
+    ) -> Result<(), String> {
+        let current_participant = participant::Entity::find_by_id(id).one(db).await.unwrap();
+        if let Some(current_participant) = current_participant {
+
+            let mut participant_to_update: participant::ActiveModel = current_participant.into();
+
+            if let Some(group) = group {
+                participant_to_update.group_number = Set(group);
+            }
+
+            if let Some(challonge_id) = challonge_id {
+                participant_to_update.challonge_id = Set(Some(challonge_id));
+            }
+
+            participant_to_update.update(db).await.unwrap();
+        }
+
+        Ok(())
     }
 
     pub async fn delete_participant(

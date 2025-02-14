@@ -22,7 +22,8 @@ pub struct Model {
     pub register_channel: i64,
     pub with_bargains: bool,
     pub with_foreign_heroes: bool,
-    pub role_id: i64
+    pub role_id: i64,
+    pub challonge_id: Option<String>
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -66,5 +67,9 @@ impl TournamentModel {
 
     async fn role(&self) -> i64 {
         self.role_id
+    }
+
+    async fn challonge_id(&self) -> Option<String> {
+        self.challonge_id.clone()
     }
 }

@@ -1,14 +1,19 @@
-use std::fmt::format;
-
 use poise::serenity_prelude::*;
 use uuid::Uuid;
-use crate::{api_connector::service::ApiConnectionService, graphql::queries::{get_game_query::{self, GetGameQueryGame}, get_participants::GetParticipantsParticipants, get_users_query::GetUsersQueryUsers}, types::payloads::{GetMatch, GetTournament, GetUser}};
+use crate::{
+    services::h5_tournaments::service::H5TournamentsService, 
+    graphql::queries::{
+        get_game_query::{self, GetGameQueryGame}, 
+        get_participants::GetParticipantsParticipants
+    }, 
+    types::payloads::{GetMatch, GetTournament, GetUser}
+};
 
 pub async fn initial_build(
     context: &Context,
-    api: &ApiConnectionService,
+    api: &H5TournamentsService,
     interaction: &ComponentInteraction,
-    id: &String,
+    _id: &String,
     channel: u64,
     user: u64
 ) -> Result<(), crate::Error> {
@@ -54,7 +59,7 @@ pub async fn initial_build(
     Ok(())
 }
 
-pub async fn rebuild_initial(match_id: Uuid, api: &ApiConnectionService) -> Result<CreateInteractionResponseMessage, crate::Error> {
+pub async fn rebuild_initial(match_id: Uuid, api: &H5TournamentsService) -> Result<CreateInteractionResponseMessage, crate::Error> {
     if let Some(match_data) = api.get_match(GetMatch::default().with_id(match_id)).await? {
         tracing::info!("Match data: {:?}", &match_data);
         let tournament_data = api.get_tournament_data(GetTournament::default().with_id(match_data.tournament)).await?.unwrap();
@@ -150,8 +155,8 @@ fn create_games_count_selector(games_count: i32, selected_value: Option<i64>) ->
 }
 
 pub async fn build_game_message(
-    context: &Context,
-    api: &ApiConnectionService,
+    _context: &Context,
+    api: &H5TournamentsService,
     initial_message: u64
 ) -> Result<CreateInteractionResponseMessage, crate::Error> {
     if let Some(match_data) = api.get_match(GetMatch::default().with_message_id(initial_message)).await? {
@@ -256,7 +261,7 @@ fn check_game_is_full_built(game: &GetGameQueryGame) -> bool {
     game.result != get_game_query::GameResult::NOT_SELECTED
 }
 
-async fn generate_second_row(api: &ApiConnectionService, game_data: &GetGameQueryGame) -> Vec<CreateActionRow> {
+async fn generate_second_row(api: &H5TournamentsService, game_data: &GetGameQueryGame) -> Vec<CreateActionRow> {
     match game_data.edit_state.as_ref().unwrap() {
         get_game_query::GameEditState::PLAYER_DATA => {
             build_player_selector(api, game_data.first_player_race, game_data.first_player_hero).await
@@ -274,7 +279,7 @@ async fn generate_second_row(api: &ApiConnectionService, game_data: &GetGameQuer
 }
 
 // Main buttons, must be always rendered, style depends on current edit state
-fn build_core_components(api: &ApiConnectionService, edit_state: &get_game_query::GameEditState) -> Vec<CreateActionRow> {
+fn build_core_components(_api: &H5TournamentsService, edit_state: &get_game_query::GameEditState) -> Vec<CreateActionRow> {
     vec![
         CreateActionRow::Buttons(vec![
             CreateButton::new("player_data_button").label("Указать данные игрока")
@@ -315,7 +320,7 @@ fn build_core_components(api: &ApiConnectionService, edit_state: &get_game_query
     ]
 }
 
-async fn build_player_selector(api: &ApiConnectionService, race: Option<i64>, hero: Option<i64>) -> Vec<CreateActionRow> {
+async fn build_player_selector(api: &H5TournamentsService, race: Option<i64>, hero: Option<i64>) -> Vec<CreateActionRow> {
     vec![
         CreateActionRow::SelectMenu(
             CreateSelectMenu::new("player_race_selector", poise::serenity_prelude::CreateSelectMenuKind::String { 
@@ -332,7 +337,7 @@ async fn build_player_selector(api: &ApiConnectionService, race: Option<i64>, he
     ]
 }
 
-async fn build_opponent_selector(api: &ApiConnectionService, race: Option<i64>, hero: Option<i64>) -> Vec<CreateActionRow> {
+async fn build_opponent_selector(api: &H5TournamentsService, race: Option<i64>, hero: Option<i64>) -> Vec<CreateActionRow> {
     vec![
         CreateActionRow::SelectMenu(
             CreateSelectMenu::new("opponent_race_selector", poise::serenity_prelude::CreateSelectMenuKind::String {                 
@@ -373,7 +378,7 @@ fn build_result_selector(current_result: &get_game_query::GameResult) -> Vec<Cre
 }
 
 
-async fn build_heroes_list(api: &ApiConnectionService, race: Option<i64>, current_hero: Option<i64>) -> Vec<CreateSelectMenuOption> {
+async fn build_heroes_list(api: &H5TournamentsService, race: Option<i64>, current_hero: Option<i64>) -> Vec<CreateSelectMenuOption> {
     if race.is_none() {
         vec![
             CreateSelectMenuOption::new("Нет героя", "-1")

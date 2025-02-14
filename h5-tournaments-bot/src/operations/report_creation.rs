@@ -4,7 +4,16 @@ use itertools::Itertools;
 use poise::serenity_prelude::*;
 use uuid::Uuid;
 
-use crate::{api_connector::service::ApiConnectionService, builders, graphql::queries::{get_games_query::{self, GetGamesQueryGames}, int_to_game_result, update_game_mutation}, types::payloads::{GetMatch, GetTournament, GetUser, UpdateGame, UpdateMatch}};
+use crate::{
+    services::h5_tournaments::service::H5TournamentsService, 
+    builders, 
+    graphql::queries::{
+        get_games_query::{self, GetGamesQueryGames}, 
+        int_to_game_result, 
+        update_game_mutation
+    }, 
+    types::payloads::{GetMatch, GetTournament, GetUser, UpdateGame, UpdateMatch}
+};
 
 pub async fn show_bargains_modal(
     interaction: &ComponentInteraction,
@@ -22,7 +31,7 @@ pub async fn show_bargains_modal(
 pub async fn switch_to_edition_state(
     interaction: &ComponentInteraction,
     context: &Context,
-    api: &ApiConnectionService,
+    api: &H5TournamentsService,
     new_state: update_game_mutation::GameEditState
 ) -> Result<(), crate::Error> {
     let message = interaction.message.id.get();
@@ -40,7 +49,7 @@ pub async fn switch_to_edition_state(
 pub async fn switch_games(
     interaction: &ComponentInteraction,
     context: &Context,
-    api: &ApiConnectionService,
+    api: &H5TournamentsService,
     game_change: i64
 ) -> Result<(), crate::Error> {
     let message = interaction.message.id.get();
@@ -56,7 +65,7 @@ pub async fn switch_games(
 pub async fn generate_final_report_message(
     interaction: &ComponentInteraction,
     context: &Context,
-    api: &ApiConnectionService
+    api: &H5TournamentsService
 ) -> Result<(), crate::Error> {
     let message = interaction.message.id.get();
     if let Some(match_data) = api.get_match(GetMatch::default().with_message_id(message)).await? {
@@ -130,7 +139,7 @@ pub async fn generate_final_report_message(
 pub async fn select_games_count(
     interaction: &ComponentInteraction,
     context: &Context,
-    api: &ApiConnectionService,
+    api: &H5TournamentsService,
     message_id: u64,
     selected_value: &String
 ) -> Result<(), crate::Error> {
@@ -147,7 +156,7 @@ pub async fn select_games_count(
 pub async fn select_opponent(
     interaction: &ComponentInteraction,
     context: &Context,
-    api: &ApiConnectionService,
+    api: &H5TournamentsService,
     message_id: u64,
     selected_value: &String
 ) -> Result<(), crate::Error> {
@@ -163,7 +172,7 @@ pub async fn select_opponent(
 pub async fn select_player_race(
     interaction: &ComponentInteraction,
     context: &Context,
-    api: &ApiConnectionService,
+    api: &H5TournamentsService,
     message_id: u64,
     selected_value: &String
 ) -> Result<(), crate::Error> {
@@ -179,7 +188,7 @@ pub async fn select_player_race(
 pub async fn select_opponent_race(
     interaction: &ComponentInteraction,
     context: &Context,
-    api: &ApiConnectionService,
+    api: &H5TournamentsService,
     message_id: u64,
     selected_value: &String
 ) -> Result<(), crate::Error> {
@@ -195,7 +204,7 @@ pub async fn select_opponent_race(
 pub async fn select_player_hero(
     interaction: &ComponentInteraction,
     context: &Context,
-    api: &ApiConnectionService,
+    api: &H5TournamentsService,
     message_id: u64,
     selected_value: &String
 ) -> Result<(), crate::Error> {
@@ -211,7 +220,7 @@ pub async fn select_player_hero(
 pub async fn select_opponent_hero(
     interaction: &ComponentInteraction,
     context: &Context,
-    api: &ApiConnectionService,
+    api: &H5TournamentsService,
     message_id: u64,
     selected_value: &String
 ) -> Result<(), crate::Error> {
@@ -227,7 +236,7 @@ pub async fn select_opponent_hero(
 pub async fn select_game_result(
     interaction: &ComponentInteraction,
     context: &Context,
-    api: &ApiConnectionService,
+    api: &H5TournamentsService,
     message_id: u64,
     selected_value: &String
 ) -> Result<(), crate::Error> {
@@ -242,8 +251,8 @@ pub async fn select_game_result(
 }
 
 pub async fn save_report_user_message(
-    context: &Context, 
-    api: &ApiConnectionService,
+    _context: &Context, 
+    api: &H5TournamentsService,
     message_id: u64, 
     interaction_id: u64
 ) -> Result<(), crate::Error> {
@@ -257,7 +266,7 @@ pub async fn save_report_user_message(
 pub async fn process_bargains_modal(
     interaction: &ModalInteraction,
     context: &Context,
-    api: &ApiConnectionService
+    api: &H5TournamentsService
 ) -> Result<(), crate::Error> {
     let message = &interaction.message.as_ref().unwrap().content;
     let mut bargains_value = 0;

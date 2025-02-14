@@ -9,7 +9,8 @@ pub struct Model {
     pub id: Uuid,
     pub tournament_id: Uuid,
     pub user_id: Uuid,
-    pub group_number: i32
+    pub group_number: i32,
+    pub challonge_id: Option<String>
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]

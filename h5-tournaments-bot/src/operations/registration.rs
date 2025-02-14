@@ -1,15 +1,16 @@
 use poise::serenity_prelude::*;
 use uuid::Uuid;
 
-use crate::{api_connector::service::ApiConnectionService, graphql::queries::get_tournament_query::GetTournamentQueryTournament, types::payloads::{GetTournament, GetUser}};
+use crate::{services::h5_tournaments::service::H5TournamentsService, 
+    graphql::queries::get_tournament_query::GetTournamentQueryTournament, types::payloads::{GetTournament, GetUser}};
 
 pub async fn try_register_in_tournament(
     interaction: &ComponentInteraction,
     context: &Context,
-    api: &ApiConnectionService
+    api: &H5TournamentsService
 ) -> Result<(), crate::Error> {
     let channel = interaction.channel_id;
-    let guild = interaction.guild_id.unwrap();
+    //let guild = interaction.guild_id.unwrap();
     let user = &interaction.user;
     let tournament = api.get_tournament_data(GetTournament::default().with_register_channel(channel.get().to_string())).await?.unwrap();
                 
@@ -38,7 +39,7 @@ pub async fn try_register_in_tournament(
 pub async fn process_registration_modal(
     interaction: &ModalInteraction,
     context: &Context,
-    api: &ApiConnectionService
+    api: &H5TournamentsService
 ) -> Result<(), crate::Error> {
     let user = interaction.user.id.get();
     let channel = interaction.channel.as_ref().unwrap().id.get();
@@ -74,7 +75,7 @@ pub async fn process_registration_modal(
 pub async fn try_remove_registration(
     interaction: &ComponentInteraction,
     context: &Context,
-    api: &ApiConnectionService
+    api: &H5TournamentsService
 ) -> Result<(), crate::Error> {
     let channel = interaction.channel_id;
     let user = &interaction.user;
@@ -112,7 +113,7 @@ pub async fn try_remove_registration(
 pub async fn try_update_user_data(
     interaction: &ComponentInteraction,
     context: &Context,
-    api: &ApiConnectionService
+    api: &H5TournamentsService
 ) -> Result<(), crate::Error> {
     let user = &interaction.user;
     if let Some(_existing_user) = api.get_user(GetUser::default().with_discord_id(user.id.get().to_string())).await? {
@@ -129,7 +130,7 @@ pub async fn try_update_user_data(
 pub async fn process_user_update_modal(
     interaction: &ModalInteraction,
     context: &Context,
-    api: &ApiConnectionService
+    api: &H5TournamentsService
 ) -> Result<(), crate::Error> {
     let user = interaction.user.id.get();
     let user_data = api.get_user(GetUser::default().with_discord_id(user.to_string())).await?.unwrap();
@@ -188,7 +189,7 @@ async fn register_participant(
     tournament: &GetTournamentQueryTournament,
     tournament_user_id: Uuid,
     context: &Context,
-    api: &ApiConnectionService
+    api: &H5TournamentsService
 ) -> Result<(), crate::Error> {
     let mut existing_roles = vec![];
     for role in guild.roles(context).await? {
