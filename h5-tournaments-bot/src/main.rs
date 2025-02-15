@@ -43,7 +43,8 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
                 commands::delete_unused(),
                 commands::register_in_tournament(),
                 commands::get_tournaments(),
-                commands::test_challonge_participant_add()
+                commands::test_challonge_participant_add(),
+                commands::build_administration_panel()
             ],
             ..Default::default()
         })

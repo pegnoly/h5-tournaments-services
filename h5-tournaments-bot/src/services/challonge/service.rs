@@ -85,10 +85,10 @@ impl ChallongeService {
             _type: super::payloads::ChallongePayloadType::Participants,
             attributes: Some(ChallongeParticipantAttributes {
                 name: participant_name,
-                seed: None,
+                seed: Some(1),
                 misc: Some(participant_id),
-                email: None,
-                username: None
+                email: Some(String::new()),
+                username: Some(String::new())
             }),
         };
 
@@ -108,4 +108,6 @@ impl ChallongeService {
 
         Ok(())
     }
+
+    //pub async fn get_participants()
 }

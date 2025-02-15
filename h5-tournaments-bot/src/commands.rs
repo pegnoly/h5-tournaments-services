@@ -1,12 +1,11 @@
 use std::{str::FromStr, vec};
 
-use futures_executor::block_on_stream;
 use h5_tournaments_api::prelude::ModType;
 use poise::serenity_prelude::*;
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::{builders, graphql::queries::create_user_mutation::Variables, parser::{types::HrtaParser, utils::ParsingDataModel}};
+use crate::parser::{types::HrtaParser, utils::ParsingDataModel};
 
 /// This command collects user input and if everything is correct sends tournament creating request
 // Correctness check isn't implemented yet and i think won't be cause in new project this won't be used.
@@ -256,5 +255,26 @@ pub async fn test_challonge_participant_add(
 ) -> Result<(), crate::Error> {
     let service = &context.data().challonge_service;
     service.add_participant(tournament_id, participant_id, participant_name).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn build_administration_panel(
+    context: crate::Context<'_>,
+    channel_id: String
+) -> Result<(), crate::Error> {
+    let message_builder = CreateMessage::new()
+        .components(vec![
+            CreateActionRow::Buttons(vec![
+                CreateButton::new("admin_registration_button").label("Привязать свой Challonge.com ключ API").style(ButtonStyle::Primary),
+                CreateButton::new("tournament_creation_button").label("Зарегистрировать турнир в базе бота").style(ButtonStyle::Secondary),
+                CreateButton::new("tournament_sync_button").label("Синхронизировать турниры с Challonge.com").style(ButtonStyle::Secondary),
+                CreateButton::new("administrate_tournament_button").label("Настроить турнир").style(ButtonStyle::Secondary)
+            ])
+        ]);
+
+    let channel = ChannelId::from(u64::from_str_radix(&channel_id, 10)?);
+    channel.send_message(context, message_builder).await?;
+    context.say(format!("Administration interface built successfully in channel {}", &channel)).await?;
     Ok(())
 }

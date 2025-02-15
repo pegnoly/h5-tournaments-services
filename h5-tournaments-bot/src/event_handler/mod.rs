@@ -53,6 +53,15 @@ impl MainEventHandler {
             },
             "update_user_data_button" => {
                 operations::registration::try_update_user_data(interaction, context, &self.api).await?;
+            },
+            "tournament_creation_button" => {
+                builders::tournament_creation::build_base_interface(context, interaction).await?;
+            },
+            "setup_tournament_channels_button" => {
+                builders::tournament_creation::build_channels_selection_interface(context, interaction).await?;
+            },
+            "setup_tournament_reports_button" => {
+                builders::tournament_creation::build_reports_data_selection_interface(context, interaction).await?;
             }
             _=> {}
         }
