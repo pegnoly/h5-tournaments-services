@@ -2,7 +2,7 @@ use async_graphql::Context;
 use sea_orm::{error, DatabaseConnection};
 use uuid::Uuid;
 
-use crate::{prelude::TournamentService, services::tournament::models::{game_builder::GameBuilderModel, hero::HeroModel, match_structure::MatchModel, operator::TournamentOperatorModel, participant, tournament::TournamentModel, user::UserModel}};
+use crate::{prelude::TournamentService, services::tournament::models::{game_builder::GameBuilderModel, hero::HeroModel, match_structure::MatchModel, operator::TournamentOperatorModel, organizer::OrganizerModel, participant, tournament::TournamentModel, tournament_builder::TournamentBuilderModel, user::UserModel}};
 
 pub struct Query;
 
@@ -222,6 +222,47 @@ impl Query {
         match res {
             Ok(user) => {
                 Ok(user)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        } 
+    }
+
+    async fn organizer<'a>(
+        &self,
+        context: &Context<'a>,
+        id: Option<Uuid>,
+        discord_id: Option<i64>,
+        challonge_key: Option<String> 
+    ) -> Result<Option<OrganizerModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_organizer(db, id, discord_id, challonge_key).await;
+
+        match res {
+            Ok(model) => {
+                Ok(model)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        } 
+    }
+
+    async fn tournament_builder<'a>(
+        &self,
+        context: &Context<'a>,
+        id: Option<Uuid>,
+        message: Option<i64>
+    ) -> Result<Option<TournamentBuilderModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_tournament_builder(db, id, message).await;
+
+        match res {
+            Ok(model) => {
+                Ok(model)
             },
             Err(error) => {
                 Err(error)

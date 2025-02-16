@@ -21,6 +21,7 @@ pub struct Model {
     pub stage: TournamentStage,
     pub register_channel: i64,
     pub with_bargains: bool,
+    pub with_bargains_color: bool,
     pub with_foreign_heroes: bool,
     pub role_id: i64,
     pub challonge_id: Option<String>
@@ -59,6 +60,10 @@ impl TournamentModel {
 
     async fn with_bargains(&self) -> bool {
         self.with_bargains
+    }
+
+    async fn with_bargains_color(&self) -> bool {
+        self.with_bargains_color
     }
 
     async fn with_foreign_heroes(&self) -> bool {

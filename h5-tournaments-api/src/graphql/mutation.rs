@@ -2,7 +2,7 @@ use async_graphql::Context;
 use sea_orm::DatabaseConnection;
 use uuid::Uuid;
 
-use crate::{prelude::TournamentService, services::tournament::models::{game_builder::{GameBuilderModel, GameEditState, GameResult}, tournament}};
+use crate::{prelude::TournamentService, services::tournament::models::{game_builder::{GameBuilderModel, GameEditState, GameResult}, organizer::OrganizerModel, tournament, tournament_builder::{TournamentBuilderModel, TournamentEditState}}};
 
 pub struct Mutation;
 
@@ -59,12 +59,23 @@ impl Mutation {
         channel_id: String,
         register_channel: String,
         bargains: bool,
+        bargains_color: bool,
         foreign_heroes: bool,
         role: String
     ) -> Result<String, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.create_tournament(db, name, operator_id, channel_id, register_channel, bargains, foreign_heroes, role).await;
+        let res = service.create_tournament(
+            db, 
+            name, 
+            operator_id, 
+            channel_id, 
+            register_channel, 
+            bargains, 
+            bargains_color, 
+            foreign_heroes, 
+            role
+        ).await;
         match res {
             Ok(res) => {
                 Ok(res)
@@ -245,6 +256,81 @@ impl Mutation {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
         let res = service.delete_participant(db, tournament_id, user_id).await;
+
+        match res {
+            Ok(_res) => {
+                Ok(_res)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
+
+    async fn create_tournament_builder<'a>(
+        &self,
+        context: &Context<'a>,
+        message_id: String
+    ) -> Result<TournamentBuilderModel, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.create_tournament_builder(db, message_id).await;
+
+        match res {
+            Ok(_res) => {
+                Ok(_res)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
+
+    async fn create_organizer<'a>(
+        &self,
+        context: &Context<'a>,
+        discord_id: String,
+        challonge_key: String
+    ) -> Result<Uuid, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.create_organizer(db, discord_id, challonge_key).await;
+
+        match res {
+            Ok(_res) => {
+                Ok(_res)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
+
+    async fn update_tournament_builder<'a>(
+        &self,
+        context: &Context<'a>,
+        id: Uuid,
+        state: Option<TournamentEditState>,
+        register_channel: Option<String>,
+        reports_channel: Option<String>,
+        role: Option<String>,
+        use_bargains: Option<bool>,
+        use_bargains_color: Option<bool>,
+        use_foreign_heroes: Option<bool>
+    ) -> Result<TournamentBuilderModel, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.update_tournament_builder(
+            db,
+            id,
+            state,
+            register_channel,
+            reports_channel,
+            role,
+            use_bargains,
+            use_bargains_color,
+            use_foreign_heroes
+        ).await;
 
         match res {
             Ok(_res) => {

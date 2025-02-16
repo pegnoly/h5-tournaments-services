@@ -7,7 +7,7 @@ use crate::routes::models::MatchRegistrationForm;
 
 use self::{game_builder::GameResult, match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
 
-use super::{models::{game_builder::{self, GameBuilderModel, GameEditState}, hero::{self, HeroModel}, match_structure, operator::{self, TournamentOperatorModel}, participant, tournament, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
+use super::{models::{game_builder::{self, GameBuilderModel, GameEditState}, hero::{self, HeroModel}, match_structure, operator::{self, TournamentOperatorModel}, organizer::{self, OrganizerModel}, participant, tournament, tournament_builder::{self, TournamentBuilderModel, TournamentEditState}, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
 
 #[derive(Clone)]
 pub struct LegacyTournamentService {
@@ -363,6 +363,7 @@ impl TournamentService {
         reports_channel_id: String,
         register_channel_id: String,
         use_bargains: bool,
+        use_bargains_color: bool,
         use_foreign_heroes: bool,
         role_id: String
     ) -> Result<String, String> {
@@ -378,6 +379,7 @@ impl TournamentService {
             stage: Set(tournament::TournamentStage::Unknown),
             register_channel: Set(register_channel),
             with_bargains: Set(use_bargains),
+            with_bargains_color: Set(use_bargains_color),
             with_foreign_heroes: Set(use_foreign_heroes),
             role_id: Set(role),
             challonge_id: Set(None)
@@ -919,6 +921,192 @@ impl TournamentService {
             }
         } else {
             Ok("Nothing to delete".to_string())
+        }
+    }
+
+    pub async fn create_organizer(
+        &self,
+        db: &DatabaseConnection,
+        discord_id: String,
+        challonge_key: String
+    ) -> Result<Uuid, String> {
+        let id = Uuid::new_v4();
+
+        let model = organizer::ActiveModel {
+            id: Set(id),
+            discord_id: Set(i64::from_str_radix(&discord_id, 10).unwrap()),
+            challonge_api_key: Set(challonge_key)
+        };
+
+        let res = model.insert(db).await;
+        match res {
+            Ok( _res) => {
+                Ok(id)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_organizer(
+        &self,
+        db: &DatabaseConnection,
+        id: Option<Uuid>,
+        discord_id: Option<i64>,
+        challonge_key: Option<String>
+    ) -> Result<Option<OrganizerModel>, String> {
+        let condition = Condition::all()
+            .add_option(if id.is_some() {
+                Some(expr::Expr::col(organizer::Column::Id).eq(id.unwrap()))
+            } else {
+                None::<SimpleExpr>
+            })
+            .add_option(if discord_id.is_some() {
+                Some(expr::Expr::col(organizer::Column::DiscordId).eq(discord_id.unwrap()))
+            } else {
+                None::<SimpleExpr>
+            })
+            .add_option(if challonge_key.is_some() {
+                Some(expr::Expr::col(organizer::Column::ChallongeApiKey).eq(challonge_key.unwrap()))
+            } else {
+                None::<SimpleExpr>
+            });
+
+        let res = organizer::Entity::find()
+            .filter(condition)
+            .one(db)
+            .await;
+
+        match res {
+            Ok(model) => {
+                Ok(model)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn create_tournament_builder(
+        &self,
+        db: &DatabaseConnection,
+        message_id: String
+    ) -> Result<TournamentBuilderModel, String> {
+        let id = Uuid::new_v4();
+
+        let model = tournament_builder::ActiveModel {
+            id: Set(id),
+            message_id: Set(i64::from_str_radix(&message_id, 10).unwrap()),
+            edit_state: Set(Some(TournamentEditState::NotSelected)),
+            register_channel: Set(None),
+            reports_channel: Set(None),
+            role: Set(None),
+            use_bargains: Set(None),
+            use_bargains_color: Set(None),
+            use_foreign_heroes: Set(None)
+        };
+
+        let res = model.insert(db).await;
+        match res {
+            Ok(res) => {
+                Ok(res)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn get_tournament_builder(
+        &self,
+        db: &DatabaseConnection,
+        id: Option<Uuid>,
+        message_id: Option<i64>
+    ) -> Result<Option<TournamentBuilderModel>, String> {
+        let condition = Condition::all()
+            .add_option(if id.is_some() {
+                Some(expr::Expr::col(tournament_builder::Column::Id).eq(id.unwrap()))
+            } else {
+                None::<SimpleExpr>
+            })
+            .add_option(if message_id.is_some() {
+                Some(expr::Expr::col(tournament_builder::Column::MessageId).eq(message_id.unwrap()))
+            } else {
+                None::<SimpleExpr>
+            });
+
+        let res = tournament_builder::Entity::find()
+            .filter(condition)
+            .one(db)
+            .await;
+
+        match res {
+            Ok(model) => {
+                Ok(model)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn update_tournament_builder(
+        &self,
+        db: &DatabaseConnection,
+        id: Uuid,
+        state: Option<TournamentEditState>,
+        register_channel: Option<String>,
+        reports_channel: Option<String>,
+        role: Option<String>,
+        use_bargains: Option<bool>,
+        use_bargains_color: Option<bool>,
+        use_foreign_heroes: Option<bool>
+    ) -> Result<TournamentBuilderModel, String> {
+        let current_model = tournament_builder::Entity::find_by_id(id).one(db).await.unwrap();
+        if let Some(model) = current_model {
+
+            let mut model_to_update: tournament_builder::ActiveModel = model.into();
+
+            if let Some(state) = state {
+                model_to_update.edit_state = Set(Some(state))
+            }
+
+            if let Some(register_channel) = register_channel {
+                model_to_update.register_channel = Set(Some(i64::from_str_radix(&register_channel, 10).unwrap()));
+            }
+
+            if let Some(reports_channel) = reports_channel {
+                model_to_update.reports_channel = Set(Some(i64::from_str_radix(&reports_channel, 10).unwrap()));
+            }
+
+            if let Some(role) = role {
+                model_to_update.role = Set(Some(i64::from_str_radix(&role, 10).unwrap()));
+            }
+
+            if let Some(use_bargains) = use_bargains {
+                model_to_update.use_bargains = Set(Some(use_bargains));
+            }
+
+            if let Some(use_bargains_color) = use_bargains_color {
+                model_to_update.use_bargains_color = Set(Some(use_bargains_color));
+            }
+
+            if let Some(use_foreign_heroes) = use_foreign_heroes {
+                model_to_update.use_foreign_heroes = Set(Some(use_foreign_heroes));
+            }
+
+            let res = model_to_update.update(db).await;
+            match res {
+                Ok(updated_model) => {
+                    Ok(updated_model)
+                },
+                Err(error) => {
+                    Err(error.to_string())
+                }
+            }
+        } else {
+            Err(format!("No tournament_builder model found with id {}", id))
         }
     }
 }
