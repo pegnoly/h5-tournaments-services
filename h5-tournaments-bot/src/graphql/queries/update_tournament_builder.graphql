@@ -1,0 +1,3 @@
+mutation UpdateTournamentBuilder($id: UUID!, $state: TournamentEditState, $registerChannel: String, $reportsChannel: String, $role: String, $useBargains: Boolean, $useBargainsColor: Boolean, $useForeignHeroes: Boolean) {
+    updateTournamentBuilder(id: $id, state: $state, registerChannel: $registerChannel, reportsChannel: $reportsChannel, role: $role, useBargains: $useBargains, useBargainsColor: $useBargainsColor, useForeignHeroes: $useForeignHeroes)
+}

@@ -62,6 +62,9 @@ impl MainEventHandler {
             },
             "setup_tournament_reports_button" => {
                 builders::tournament_creation::build_reports_data_selection_interface(context, interaction).await?;
+            },
+            "admin_registration_button" => {
+                operations::administration::start_admin_registration(context, interaction, &self.api).await?;
             }
             _=> {}
         }
@@ -106,6 +109,9 @@ impl MainEventHandler {
             },
             "user_update_nickname_modal" => {
                 operations::registration::process_user_update_modal(interaction, &context, &self.api).await?;
+            },
+            "tournament_admin_challonge_key_modal" => {
+                operations::administration::process_admin_registration_modal(context, interaction, &self.api).await?;
             }
             _=> {}
         }

@@ -6,48 +6,13 @@ use uuid::Uuid;
 
 use crate::{
     graphql::queries::{
-        self, create_game_mutation::{self, CreateGameMutationCreateGame}, 
-        create_participant, 
-        create_user_mutation::ResponseData, 
-        delete_participant, 
-        get_game_query::{self, GetGameQueryGame}, 
-        get_games_query::{self, GetGamesQueryGames}, 
-        get_hero_query::{self, GetHeroQueryHero}, 
-        get_heroes_query::{self, GetHeroesQueryHeroes}, 
-        get_operator_data_query::{self, GetOperatorDataQueryOperator}, 
-        get_participant::{self, GetParticipantParticipant}, 
-        get_participants::{self, GetParticipantsParticipants}, 
-        get_tournament_query, 
-        get_user_query::{self, GetUserQueryUser}, 
-        update_game_mutation, 
-        update_match_mutation, 
-        update_user, 
-        CreateGameMutation, 
-        CreateMatchMutation, 
-        CreateParticipant, 
-        CreateTournamentMutation, 
-        CreateUserMutation, 
-        DeleteParticipant, 
-        GetGameQuery, 
-        GetGamesQuery, 
-        GetHeroQuery, 
-        GetHeroesQuery, 
-        GetMatchQuery, 
-        GetOperatorDataQuery, 
-        GetOperatorSectionQuery, 
-        GetParticipant, 
-        GetParticipants, 
-        GetTournamentQuery, 
-        GetUserQuery, 
-        GetUsersQuery, 
-        GetUsersResult, 
-        UpdateGameMutation, 
-        UpdateMatchMutation, 
-        UpdateUser
+        self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_organizer, create_participant, create_user_mutation::ResponseData, delete_participant, get_game_query::{self, GetGameQueryGame}, get_games_query::{self, GetGamesQueryGames}, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_operator_data_query::{self, GetOperatorDataQueryOperator}, get_organizer::{self, GetOrganizerOrganizer}, get_participant::{self, GetParticipantParticipant}, get_participants::{self, GetParticipantsParticipants}, get_tournament_query, get_user_query::{self, GetUserQueryUser}, update_game_mutation, update_match_mutation, update_user, CreateGameMutation, CreateMatchMutation, CreateOrganizer, CreateParticipant, CreateTournamentMutation, CreateUserMutation, DeleteParticipant, GetGameQuery, GetGamesQuery, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetOrganizer, GetParticipant, GetParticipants, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation, UpdateUser
     }, 
     parser::service::ParsedData, 
     types::payloads::{GetMatch, GetTournament, GetUser, UpdateGame, UpdateMatch}
 };
+
+use super::payloads::{CreateOrganizerPayload, GetOrganizerPayload};
 
 pub struct RaceNew {
     pub id: i64,
@@ -955,5 +920,67 @@ impl H5TournamentsService {
                 Err(crate::Error::from(response_error))
             }
         }  
+    }
+
+    pub async fn create_organizer(
+        &self,
+        payload: CreateOrganizerPayload
+    ) -> Result<Uuid, crate::Error> {
+        let client = self.client.read().await;
+        let query = CreateOrganizer::build_query(create_organizer::Variables::from(payload));
+        let response = client.post(&self.url).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::create_organizer::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        tracing::info!("Create organizer result: {:?}", &result);
+                        if let Some(data) = result.data {
+                            Ok(data.create_organizer)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
+
+    pub async fn get_organizer(
+        &self,
+        payload: GetOrganizerPayload
+    ) -> Result<Option<GetOrganizerOrganizer>, crate::Error> {
+        let client = self.client.read().await;
+        let query = GetOrganizer::build_query(get_organizer::Variables::from(payload));
+        let response = client.post(&self.url).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::get_organizer::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        tracing::info!("Get organizer result: {:?}", &result);
+                        if let Some(data) = result.data {
+                            Ok(data.organizer)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
     }
 }

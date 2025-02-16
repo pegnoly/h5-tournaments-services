@@ -1,0 +1,3 @@
+mutation CreateOrganizer($discordId: String!, $challongeKey: String!) {
+    createOrganizer(discordId: $discordId, challongeKey: $challongeKey) 
+}
