@@ -7,6 +7,8 @@ query GetTournamentQuery($id: UUID, $reportsChannelId: String, $registerChannelI
         registerChannel,
         role,
         withBargains,
-        withForeignHeroes
+        withBargainsColor,
+        withForeignHeroes,
+        organizer
     }
 }

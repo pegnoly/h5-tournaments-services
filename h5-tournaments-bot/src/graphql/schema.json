@@ -690,13 +690,9 @@
                   "description": null,
                   "name": "operatorId",
                   "type": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "SCALAR",
-                      "name": "UUID",
-                      "ofType": null
-                    }
+                    "kind": "SCALAR",
+                    "name": "UUID",
+                    "ofType": null
                   }
                 },
                 {
@@ -779,6 +775,20 @@
                     "ofType": {
                       "kind": "SCALAR",
                       "name": "String",
+                      "ofType": null
+                    }
+                  }
+                },
+                {
+                  "defaultValue": null,
+                  "description": null,
+                  "name": "organizer",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "UUID",
                       "ofType": null
                     }
                   }
@@ -1394,6 +1404,16 @@
                       "name": "UUID",
                       "ofType": null
                     }
+                  }
+                },
+                {
+                  "defaultValue": null,
+                  "description": null,
+                  "name": "name",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
                   }
                 },
                 {
@@ -2091,6 +2111,18 @@
               "deprecationReason": null,
               "description": null,
               "isDeprecated": false,
+              "name": "name",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            {
+              "args": [],
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
               "name": "editState",
               "type": {
                 "kind": "ENUM",
@@ -2233,13 +2265,9 @@
               "isDeprecated": false,
               "name": "operator",
               "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "UUID",
-                  "ofType": null
-                }
+                "kind": "SCALAR",
+                "name": "UUID",
+                "ofType": null
               }
             },
             {
@@ -2281,13 +2309,9 @@
               "isDeprecated": false,
               "name": "stage",
               "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "ENUM",
-                  "name": "TournamentStage",
-                  "ofType": null
-                }
+                "kind": "ENUM",
+                "name": "TournamentStage",
+                "ofType": null
               }
             },
             {
@@ -2379,6 +2403,18 @@
               "type": {
                 "kind": "SCALAR",
                 "name": "String",
+                "ofType": null
+              }
+            },
+            {
+              "args": [],
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "organizer",
+              "type": {
+                "kind": "SCALAR",
+                "name": "UUID",
                 "ofType": null
               }
             }

@@ -359,13 +359,15 @@ impl TournamentService {
 
     pub async fn create_tournament(
         &self, db: &DatabaseConnection, 
-        name: String, operator_id: Uuid, 
+        name: String, 
+        operator_id: Option<Uuid>, 
         reports_channel_id: String,
         register_channel_id: String,
         use_bargains: bool,
         use_bargains_color: bool,
         use_foreign_heroes: bool,
-        role_id: String
+        role_id: String,
+        organizer: Uuid
     ) -> Result<String, String> {
         let id = Uuid::new_v4();
         let channel_id = i64::from_str_radix(&reports_channel_id, 10).unwrap();
@@ -376,13 +378,14 @@ impl TournamentService {
             operator_id: Set(operator_id),
             channel_id: Set(channel_id),
             name: Set(name.clone()),
-            stage: Set(tournament::TournamentStage::Unknown),
+            stage: Set(Some(tournament::TournamentStage::Unknown)),
             register_channel: Set(register_channel),
             with_bargains: Set(use_bargains),
             with_bargains_color: Set(use_bargains_color),
             with_foreign_heroes: Set(use_foreign_heroes),
             role_id: Set(role),
-            challonge_id: Set(None)
+            challonge_id: Set(None),
+            organizer: Set(Some(organizer))
         };
 
         let res = tournament_to_insert.insert(db).await;
@@ -410,7 +413,7 @@ impl TournamentService {
             let mut tournament_to_update: tournament::ActiveModel = current_tournament.into();
 
             if let Some(stage) = stage {
-                tournament_to_update.stage = Set(stage);
+                tournament_to_update.stage = Set(Some(stage));
             }
 
             if let Some(challonge_id) = challonge_id {
@@ -998,6 +1001,7 @@ impl TournamentService {
         let model = tournament_builder::ActiveModel {
             id: Set(id),
             message_id: Set(i64::from_str_radix(&message_id, 10).unwrap()),
+            name: Set(None),
             edit_state: Set(Some(TournamentEditState::NotSelected)),
             register_channel: Set(None),
             reports_channel: Set(None),
@@ -1055,6 +1059,7 @@ impl TournamentService {
         &self,
         db: &DatabaseConnection,
         id: Uuid,
+        name: Option<String>,
         state: Option<TournamentEditState>,
         register_channel: Option<String>,
         reports_channel: Option<String>,
@@ -1067,6 +1072,10 @@ impl TournamentService {
         if let Some(model) = current_model {
 
             let mut model_to_update: tournament_builder::ActiveModel = model.into();
+
+            if let Some(name) = name {
+                model_to_update.name = Set(Some(name))
+            }
 
             if let Some(state) = state {
                 model_to_update.edit_state = Set(Some(state))

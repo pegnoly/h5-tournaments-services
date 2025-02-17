@@ -1,3 +1,6 @@
 mutation CreateTournamentBuilder($messageId: String!) {
-    createTournamentBuilder(messageId: $messageId)
+    createTournamentBuilder(messageId: $messageId) {
+        id,
+        message
+    }
 }

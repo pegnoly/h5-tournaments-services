@@ -1,7 +1,8 @@
-query GetTournamentBuilder($id: UUID, $message: String) {
+query GetTournamentBuilder($id: UUID, $message: Int) {
     tournamentBuilder(id: $id, message: $message) {
         id,
         message,
+        name,
         editState,
         registerChannel,
         reportsChannel,

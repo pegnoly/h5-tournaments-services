@@ -6,13 +6,13 @@ use uuid::Uuid;
 
 use crate::{
     graphql::queries::{
-        self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_organizer, create_participant, create_user_mutation::ResponseData, delete_participant, get_game_query::{self, GetGameQueryGame}, get_games_query::{self, GetGamesQueryGames}, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_operator_data_query::{self, GetOperatorDataQueryOperator}, get_organizer::{self, GetOrganizerOrganizer}, get_participant::{self, GetParticipantParticipant}, get_participants::{self, GetParticipantsParticipants}, get_tournament_query, get_user_query::{self, GetUserQueryUser}, update_game_mutation, update_match_mutation, update_user, CreateGameMutation, CreateMatchMutation, CreateOrganizer, CreateParticipant, CreateTournamentMutation, CreateUserMutation, DeleteParticipant, GetGameQuery, GetGamesQuery, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetOrganizer, GetParticipant, GetParticipants, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation, UpdateUser
+        self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_organizer, create_participant, create_tournament_builder::{self, CreateTournamentBuilderCreateTournamentBuilder}, create_tournament_mutation, create_user_mutation::ResponseData, delete_participant, get_game_query::{self, GetGameQueryGame}, get_games_query::{self, GetGamesQueryGames}, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_operator_data_query::{self, GetOperatorDataQueryOperator}, get_organizer::{self, GetOrganizerOrganizer}, get_participant::{self, GetParticipantParticipant}, get_participants::{self, GetParticipantsParticipants}, get_tournament_builder::{self, GetTournamentBuilderTournamentBuilder}, get_tournament_query, get_user_query::{self, GetUserQueryUser}, update_game_mutation, update_match_mutation, update_tournament_builder::{self, UpdateTournamentBuilderUpdateTournamentBuilder}, update_user, CreateGameMutation, CreateMatchMutation, CreateOrganizer, CreateParticipant, CreateTournamentBuilder, CreateTournamentMutation, CreateUserMutation, DeleteParticipant, GetGameQuery, GetGamesQuery, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetOrganizer, GetParticipant, GetParticipants, GetTournamentBuilder, GetTournamentQuery, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation, UpdateTournamentBuilder, UpdateUser
     }, 
     parser::service::ParsedData, 
     types::payloads::{GetMatch, GetTournament, GetUser, UpdateGame, UpdateMatch}
 };
 
-use super::payloads::{CreateOrganizerPayload, GetOrganizerPayload};
+use super::payloads::{CreateOrganizerPayload, CreateTournamentPayload, GetOrganizerPayload, GetTournamentBuilderPayload, UpdateTournamentBuilderPayload};
 
 pub struct RaceNew {
     pub id: i64,
@@ -307,27 +307,9 @@ impl H5TournamentsService {
     }
 
 
-    pub async fn create_tournament(
-        &self, name: String, 
-        operator_id: Uuid, 
-        channel_id: String,
-        register_channel: String,
-        use_bargains: bool,
-        use_foreign_heroes: bool,
-        role: String
-    ) -> Result<String, crate::Error>{
-        let variables = crate::graphql::queries::create_tournament_mutation::Variables {
-            name: name.clone(),
-            operator_id: operator_id,
-            channel_id: channel_id,
-            register_channel: register_channel,
-            use_bargains: use_bargains,
-            use_foreign_heroes: use_foreign_heroes,
-            role: role
-        };
-
+    pub async fn create_tournament(&self, payload: CreateTournamentPayload) -> Result<String, crate::Error>{
         let client = self.client.read().await;
-        let query = CreateTournamentMutation::build_query(variables);
+        let query = CreateTournamentMutation::build_query(create_tournament_mutation::Variables::from(payload));
         let response = client.post(&self.url).json(&query).send().await;
         match response {
             Ok(response) => {
@@ -982,5 +964,92 @@ impl H5TournamentsService {
                 Err(crate::Error::from(response_error))
             }
         }
+    }
+
+    pub async fn get_tournament_builder(
+        &self, 
+        payload: GetTournamentBuilderPayload
+    ) -> Result<Option<GetTournamentBuilderTournamentBuilder>, crate::Error> {
+        let client = self.client.read().await;
+        let query = GetTournamentBuilder::build_query(get_tournament_builder::Variables::from(payload));
+        let response = client.post(&self.url).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::get_tournament_builder::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        tracing::info!("Get tournament builder result: {:?}", &result);
+                        if let Some(data) = result.data {
+                            Ok(data.tournament_builder)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
+
+    pub async fn create_tournament_builder(&self, message: u64) -> Result<CreateTournamentBuilderCreateTournamentBuilder, crate::Error> {
+        let client = self.client.read().await;
+        let query = CreateTournamentBuilder::build_query(create_tournament_builder::Variables { message_id: message.to_string() });
+        let response = client.post(&self.url).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::create_tournament_builder::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        tracing::info!("Get tournament builder result: {:?}", &result);
+                        if let Some(data) = result.data {
+                            Ok(data.create_tournament_builder)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }
+    }
+
+    pub async fn update_tournament_builder(&self, payload: UpdateTournamentBuilderPayload) -> Result<UpdateTournamentBuilderUpdateTournamentBuilder, crate::Error> {
+        let client = self.client.read().await;
+        let query = UpdateTournamentBuilder::build_query(update_tournament_builder::Variables::from(payload));
+        let response = client.post(&self.url).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<queries::update_tournament_builder::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        tracing::info!("Get tournament builder update result: {:?}", &result);
+                        if let Some(data) = result.data {
+                            Ok(data.update_tournament_builder)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        }  
     }
 }

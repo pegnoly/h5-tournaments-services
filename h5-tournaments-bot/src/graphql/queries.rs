@@ -22,6 +22,14 @@ pub enum GameResult {
     SecondPlayerWon = 2
 }
 
+#[derive(Debug, PartialEq, Eq)]
+#[repr(i32)]
+pub enum TournamentEditState {
+    NotSelected = 0,
+    ChannelsData = 1,
+    ReportsData = 2
+}
+
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
@@ -224,7 +232,7 @@ pub struct GetOrganizer;
 #[graphql(
     schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/queries/get_tournament_builder.graphql",
-    response_derives = "Debug"
+    response_derives = "Debug, PartialEq, Eq"
 )]
 pub struct GetTournamentBuilder;
 
@@ -232,7 +240,7 @@ pub struct GetTournamentBuilder;
 #[graphql(
     schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/queries/update_tournament_builder.graphql",
-    response_derives = "Debug"
+    response_derives = "Debug, PartialEq, Eq"
 )]
 pub struct UpdateTournamentBuilder;
 
@@ -241,5 +249,16 @@ pub fn int_to_game_result(num: i32) -> update_game_mutation::GameResult {
         1 => update_game_mutation::GameResult::FIRST_PLAYER_WON,
         2 => update_game_mutation::GameResult::SECOND_PLAYER_WON,
         _=> update_game_mutation::GameResult::NOT_SELECTED
+    }
+}
+
+impl Into<update_tournament_builder::TournamentEditState> for get_tournament_builder::TournamentEditState {
+    fn into(self) -> update_tournament_builder::TournamentEditState {
+        match self {
+            get_tournament_builder::TournamentEditState::CHANNELS_DATA => update_tournament_builder::TournamentEditState::CHANNELS_DATA,
+            get_tournament_builder::TournamentEditState::NOT_SELECTED => update_tournament_builder::TournamentEditState::NOT_SELECTED,
+            get_tournament_builder::TournamentEditState::REPORTS_DATA => update_tournament_builder::TournamentEditState::REPORTS_DATA,
+            _=> update_tournament_builder::TournamentEditState::NOT_SELECTED
+        }
     }
 }

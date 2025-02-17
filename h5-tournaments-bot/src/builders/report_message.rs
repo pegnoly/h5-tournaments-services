@@ -19,7 +19,7 @@ pub async fn initial_build(
 ) -> Result<(), crate::Error> {
 
     let tournament_data = api.get_tournament_data(GetTournament::default().with_reports_channel(channel.to_string())).await?.unwrap();
-    let operator_data = api.get_operator_data(tournament_data.operator).await?;
+    let operator_data = api.get_operator_data(tournament_data.operator.unwrap()).await?;
     let user_data = api.get_user(GetUser::default().with_discord_id(user.to_string())).await?.unwrap();
     let participant = api.get_participant(tournament_data.id, user_data.id).await?.unwrap();
     let participants = api.get_participants(tournament_data.id, participant.group).await?;
@@ -64,7 +64,7 @@ pub async fn rebuild_initial(match_id: Uuid, api: &H5TournamentsService) -> Resu
         tracing::info!("Match data: {:?}", &match_data);
         let tournament_data = api.get_tournament_data(GetTournament::default().with_id(match_data.tournament)).await?.unwrap();
         tracing::info!("Tournament data: {:?}", &tournament_data);
-        let operator_data = api.get_operator_data(tournament_data.operator).await?;
+        let operator_data = api.get_operator_data(tournament_data.operator.unwrap()).await?;
         tracing::info!("Operator data: {:?}", &operator_data);
         let user_data = api.get_user(GetUser::default().with_id(match_data.first_player)).await?.unwrap();
         tracing::info!("User data: {:?}", &user_data);

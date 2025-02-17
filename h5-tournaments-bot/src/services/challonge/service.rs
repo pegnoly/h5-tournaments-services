@@ -1,8 +1,6 @@
-use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Serialize;
-use uuid::Uuid;
 
-use super::payloads::{ChallongeData, ChallongeParticipantAttributes, ChallongeParticipantPayload};
+use super::{payloads::{ChallongeData, ChallongeParticipantAttributes, ChallongeParticipantPayload}, types::{ChallongeTournamentSimpleData, ChallongeTournamentsSimple}};
 
 pub struct ChallongeService {
     client: ChallongeClient
@@ -10,77 +8,73 @@ pub struct ChallongeService {
 
 pub (self) struct ChallongeClient {
     client: tokio::sync::RwLock<reqwest::Client>,
-    url: String,
-    api_key: String
+    url: String
 }
 
 impl ChallongeClient {
-    pub fn new(url: String, api_key: String) -> Self {
+    pub fn new(url: String) -> Self {
         ChallongeClient {
             client: tokio::sync::RwLock::new(reqwest::Client::new()),
-            url: url,
-            api_key: api_key
+            url: url
         }
     }
 
-    pub async fn get(&self, params: &str) -> Result<reqwest::Response, reqwest::Error> {
+    pub async fn get(&self, api_key: String, params: &str) -> Result<reqwest::Response, reqwest::Error> {
         let client_locked = self.client.read().await;
         let response = client_locked.get(format!("{}{}", self.url, &params))
-            //.headers(self.default_headers())
             .header("Accept", "application/json")
             .header("Content-Type", "application/vnd.api+json")
             .header("Authorization-Type", "v1")
-            .header("Authorization", &self.api_key)
+            .header("Authorization", api_key)
             .send()
             .await;
         response
     }
 
-    pub async fn post<T: Serialize>(&self, params: &str, payload: ChallongeData<T>) -> Result<reqwest::Response, reqwest::Error> {
+    pub async fn post<T: Serialize>(&self, api_key: String, params: &str, payload: ChallongeData<T>) -> Result<reqwest::Response, reqwest::Error> {
         let client_locked = self.client.read().await;
         let response = client_locked.post(format!("{}{}", self.url, &params))
             .header("Accept", "application/json")
             .header("Content-Type", "application/vnd.api+json")
             .header("Authorization-Type", "v1")
-            .header("Authorization", &self.api_key)
+            .header("Authorization", api_key)
             .json(&payload)
             .send()
             .await;
 
         response
     }
-
-    fn default_headers(&self) -> HeaderMap<HeaderValue> {
-        let mut headers = HeaderMap::new();
-        headers.insert("Accept", HeaderValue::from_static("application/json")).unwrap();
-        headers.insert("Content-Type", HeaderValue::from_static("application/vnd.api+json")).unwrap();
-        headers.insert("Authorization-Type", HeaderValue::from_static("v1")).unwrap();
-        headers.insert("Authorization", HeaderValue::from_str(&self.api_key).unwrap()).unwrap();
-        headers
-    }
 }
 
 impl ChallongeService {
     pub fn new(secret_store: &shuttle_runtime::SecretStore) -> Self {
         ChallongeService {
-            client: ChallongeClient::new(secret_store.get("CHALLONGE_URL").unwrap(), secret_store.get("CHALLONGE_API_KEY").unwrap())
+            client: ChallongeClient::new(secret_store.get("CHALLONGE_URL").unwrap())
         }
     }
 
-    pub async fn get_tournaments(&self) -> Result<(), crate::Error> {
-        let response = self.client.get("tournaments.json?page=1&per_page=25").await;
+    pub async fn get_tournaments(&self, api_key: String) -> Result<Vec<ChallongeTournamentSimpleData>, crate::Error> {
+        let response = self.client.get(api_key, "tournaments.json?page=1&per_page=25").await;
         match response {
             Ok(success) => {
-                tracing::info!("User's tournaments data: {:?}", &success.text().await);
+                match success.json::<ChallongeTournamentsSimple>().await {
+                    Ok(tournaments) => {
+                        Ok(tournaments.data)
+                    },
+                    Err(error) => {
+                        tracing::error!("Error deserializing tournaments data: {}", error.to_string());
+                        Err(crate::Error::from("Error deserializing tournaments data"))
+                    }
+                }
             },
             Err(failure) => {
                 tracing::error!("Failed to fetch all user's tournaments: {}", failure.to_string());
+                Err(crate::Error::from("Failed to fetch all user's tournaments"))
             }
         }
-        Ok(())
     }
 
-    pub async fn add_participant(&self, tournament_id: String, participant_id: String, participant_name: String) -> Result<(), crate::Error> {
+    pub async fn add_participant(&self, api_key: String, tournament_id: String, participant_id: String, participant_name: String) -> Result<(), crate::Error> {
         let payload = ChallongeParticipantPayload {
             _type: super::payloads::ChallongePayloadType::Participants,
             attributes: Some(ChallongeParticipantAttributes {
@@ -93,6 +87,7 @@ impl ChallongeService {
         };
 
         let response = self.client.post(
+            api_key,
             &format!("tournaments/{}/participants.json", tournament_id), 
             ChallongeData { data: payload }
         ).await;
@@ -108,6 +103,4 @@ impl ChallongeService {
 
         Ok(())
     }
-
-    //pub async fn get_participants()
 }

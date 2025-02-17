@@ -193,17 +193,17 @@ pub async fn setup_tournament(
         register_channel.send_message(context, register_message).await?;
     }
 
-    let create_tournament_res = h5_tournament_service.create_tournament(
-        name, 
-        operator_id, 
-        reports_channel_id, 
-        register_channel_id, 
-        use_bargains,
-        use_foreign_heroes,
-        role
-    ).await?;
+    // let create_tournament_res = h5_tournament_service.create_tournament(
+    //     name, 
+    //     operator_id, 
+    //     reports_channel_id, 
+    //     register_channel_id, 
+    //     use_bargains,
+    //     use_foreign_heroes,
+    //     role
+    // ).await?;
 
-    context.say(create_tournament_res).await?;
+    // context.say(create_tournament_res).await?;
 
     Ok(())
 }
@@ -242,7 +242,7 @@ pub async fn get_tournaments(
     context: crate::Context<'_>
 ) -> Result<(), crate::Error> {
     let service = &context.data().challonge_service;
-    service.get_tournaments().await?;
+    //service.get_tournaments().await?;
     Ok(())
 }
 
@@ -254,7 +254,7 @@ pub async fn test_challonge_participant_add(
     participant_name: String
 ) -> Result<(), crate::Error> {
     let service = &context.data().challonge_service;
-    service.add_participant(tournament_id, participant_id, participant_name).await?;
+    //service.add_participant(tournament_id, participant_id, participant_name).await?;
     Ok(())
 }
 

@@ -55,13 +55,14 @@ impl Mutation {
         &self,
         context: &Context<'a>,
         name: String,
-        operator_id: Uuid,
+        operator_id: Option<Uuid>,
         channel_id: String,
         register_channel: String,
         bargains: bool,
         bargains_color: bool,
         foreign_heroes: bool,
-        role: String
+        role: String,
+        organizer: Uuid
     ) -> Result<String, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
@@ -74,7 +75,8 @@ impl Mutation {
             bargains, 
             bargains_color, 
             foreign_heroes, 
-            role
+            role,
+            organizer
         ).await;
         match res {
             Ok(res) => {
@@ -310,6 +312,7 @@ impl Mutation {
         &self,
         context: &Context<'a>,
         id: Uuid,
+        name: Option<String>,
         state: Option<TournamentEditState>,
         register_channel: Option<String>,
         reports_channel: Option<String>,
@@ -323,6 +326,7 @@ impl Mutation {
         let res = service.update_tournament_builder(
             db,
             id,
+            name,
             state,
             register_channel,
             reports_channel,

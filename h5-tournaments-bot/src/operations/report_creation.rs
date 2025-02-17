@@ -70,7 +70,7 @@ pub async fn generate_final_report_message(
     let message = interaction.message.id.get();
     if let Some(match_data) = api.get_match(GetMatch::default().with_message_id(message)).await? {
         let tournament_data = api.get_tournament_data(GetTournament::default().with_id(match_data.tournament)).await?.unwrap();
-        let operator_data = api.get_operator_data(tournament_data.operator).await?;
+        let operator_data = api.get_operator_data(tournament_data.operator.unwrap()).await?;
         let output_channel = ChannelId::from(operator_data.generated as u64);
         let first_user = api.get_user(GetUser::default().with_id(match_data.first_player)).await?.unwrap();
         let participant = api.get_participant(tournament_data.id, first_user.id).await.unwrap().unwrap();

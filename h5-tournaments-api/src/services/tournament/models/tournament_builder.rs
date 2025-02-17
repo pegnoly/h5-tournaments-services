@@ -16,6 +16,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
     pub message_id: i64,
+    pub name: Option<String>,
     pub edit_state: Option<TournamentEditState>,
     pub register_channel: Option<i64>,
     pub reports_channel: Option<i64>,
@@ -38,6 +39,10 @@ impl TournamentBuilderModel {
 
     async fn message(&self) -> i64 {
         self.message_id
+    }
+
+    async fn name(&self) -> Option<String> {
+        self.name.clone()
     }
 
     async fn edit_state(&self) -> Option<TournamentEditState> {
