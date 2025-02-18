@@ -244,6 +244,22 @@ pub struct GetTournamentBuilder;
 )]
 pub struct UpdateTournamentBuilder;
 
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/get_tournaments.graphql",
+    response_derives = "Debug"
+)]
+pub struct GetTournaments;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/update_tournament.graphql",
+    response_derives = "Debug"
+)]
+pub struct UpdateTournament;
+
 pub fn int_to_game_result(num: i32) -> update_game_mutation::GameResult {
     match num {
         1 => update_game_mutation::GameResult::FIRST_PLAYER_WON,

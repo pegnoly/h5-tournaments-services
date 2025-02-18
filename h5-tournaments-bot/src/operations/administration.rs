@@ -1,8 +1,9 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 use poise::serenity_prelude::*;
 use strum::{Display, EnumString};
-use crate::{builders, graphql::queries::update_tournament_builder, services::h5_tournaments::{payloads::{CreateOrganizerPayload, CreateTournamentPayload, GetOrganizerPayload, GetTournamentBuilderPayload, UpdateTournamentBuilderPayload}, service::H5TournamentsService}};
+use uuid::Uuid;
+use crate::{builders, event_handler::LocalSyncBuilder, graphql::queries::update_tournament_builder, services::{challonge::service::ChallongeService, h5_tournaments::{payloads::{CreateOrganizerPayload, CreateTournamentPayload, GetOrganizerPayload, GetTournamentBuilderPayload, UpdateTournamentBuilderPayload, UpdateTournamentPayload}, service::H5TournamentsService}}};
 
 pub async fn start_admin_registration(
     context: &Context,
@@ -316,5 +317,78 @@ pub async fn finalize_tournament_creation(
                 .content("Турнир успешно создан.")
         )).await?;
     }
+    Ok(())
+}
+
+pub async fn select_sync_challonge_id(
+    context: &Context,
+    interaction: &ComponentInteraction,
+    tournaments_service: &H5TournamentsService,
+    challonge_service: &ChallongeService,
+    sync_builders: &tokio::sync::RwLock<HashMap<u64, LocalSyncBuilder>>,
+    selected_value: &String
+) -> Result<(), crate::Error> {
+    let mut sync_builder_locked = sync_builders.write().await;
+    if let Some(sync_builder) = sync_builder_locked.get_mut(&interaction.message.id.get()) {
+        sync_builder.challonge_id = Some(selected_value.clone());
+    } else {
+        sync_builder_locked.insert(interaction.message.id.get(), LocalSyncBuilder { challonge_id: Some(selected_value.clone()), discord_id: None });
+    }
+    drop(sync_builder_locked); // heh
+    let response_message = builders::tournament_creation::build_sync_interface(
+        context, interaction, tournaments_service, challonge_service, sync_builders).await?;
+    interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+    Ok(())
+}
+
+pub async fn select_sync_discord_id(
+    context: &Context,
+    interaction: &ComponentInteraction,
+    tournaments_service: &H5TournamentsService,
+    challonge_service: &ChallongeService,
+    sync_builders: &tokio::sync::RwLock<HashMap<u64, LocalSyncBuilder>>,
+    selected_value: &String
+) -> Result<(), crate::Error> {
+    let mut sync_builder_locked = sync_builders.write().await;
+    if let Some(sync_builder) = sync_builder_locked.get_mut(&interaction.message.id.get()) {
+        sync_builder.discord_id = Some(selected_value.clone());
+    } else {
+        sync_builder_locked.insert(interaction.message.id.get(), LocalSyncBuilder { challonge_id: None, discord_id: Some(selected_value.clone()) });
+    }
+    drop(sync_builder_locked);
+    let response_message = builders::tournament_creation::build_sync_interface(
+        context, interaction, tournaments_service, challonge_service, sync_builders).await?;
+    interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+    Ok(())
+}
+
+pub async fn start_synchronization(
+    context: &Context,
+    interaction: &ComponentInteraction,
+    service: &H5TournamentsService,
+    sync_builders: &tokio::sync::RwLock<HashMap<u64, LocalSyncBuilder>>
+) -> Result<(), crate::Error> {
+    let message = &interaction.message.id.get();
+    let sync_builders_locked = sync_builders.read().await;
+    if let Some(sync_builder) = sync_builders_locked.get(message) {
+        if sync_builder.challonge_id.is_none() || sync_builder.discord_id.is_none() {
+            interaction.create_response(context, CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::new()
+                    .content("Один из параметров не указан, укажите оба турнира, чтобы совершить синхронизацию")
+                    .ephemeral(true)
+            )).await?;
+        }
+        else {
+            let challonge_id = sync_builder.challonge_id.as_ref().unwrap();
+            let discord_id = sync_builder.discord_id.as_ref().unwrap();
+            service.update_tournament(UpdateTournamentPayload::new(Uuid::from_str(discord_id)?).with_challonge_id(challonge_id.clone())).await?;
+            interaction.create_response(context, CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::new()
+                    .content("Турниры успешно синхронизированы")
+                    .ephemeral(true)
+            )).await?;
+        }
+    }
+
     Ok(())
 }

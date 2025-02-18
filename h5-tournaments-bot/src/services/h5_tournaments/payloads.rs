@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::graphql::queries::{create_organizer, create_tournament_mutation, get_organizer, get_tournament_builder, update_tournament_builder, CreateOrganizer};
+use crate::graphql::queries::{create_organizer, create_tournament_mutation, get_organizer, get_tournament_builder, update_tournament, update_tournament_builder, CreateOrganizer};
 
 #[derive(Debug)]
 pub struct CreateOrganizerPayload {
@@ -196,5 +196,38 @@ impl From<CreateTournamentPayload> for create_tournament_mutation::Variables {
             role: value.role, 
             organizer: value.organizer 
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct UpdateTournamentPayload {
+    pub id: Uuid,
+    pub stage: Option<update_tournament::TournamentStage>,
+    pub challonge_id: Option<String>
+}
+
+impl UpdateTournamentPayload {
+    pub fn new(id: Uuid) -> Self {
+        UpdateTournamentPayload {
+            id: id,
+            stage: None,
+            challonge_id: None
+        }
+    }
+
+    pub fn with_stage(mut self, stage: update_tournament::TournamentStage) -> Self {
+        self.stage = Some(stage);
+        self
+    }
+
+    pub fn with_challonge_id(mut self, challonge: String) -> Self {
+        self.challonge_id = Some(challonge);
+        self
+    }
+}
+
+impl From<UpdateTournamentPayload> for update_tournament::Variables {
+    fn from(value: UpdateTournamentPayload) -> Self {
+        update_tournament::Variables { id: value.id, stage: value.stage, challonge_id: value.challonge_id }
     }
 }

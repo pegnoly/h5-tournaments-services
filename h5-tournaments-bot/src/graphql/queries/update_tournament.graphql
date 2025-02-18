@@ -1,0 +1,3 @@
+mutation UpdateTournament($id: UUID!, $stage: TournamentStage, $challongeId: String) {
+    updateTournament(id: $id, stage: $stage, challongeId: $challongeId)
+}

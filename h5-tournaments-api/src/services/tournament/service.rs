@@ -1118,4 +1118,20 @@ impl TournamentService {
             Err(format!("No tournament_builder model found with id {}", id))
         }
     }
+
+    pub async fn get_tournaments_by_organizer(&self, db: &DatabaseConnection, organizer: Uuid) -> Result<Vec<TournamentModel>, String> {
+        let res = tournament::Entity::find()
+            .filter(tournament::Column::Organizer.eq(organizer))
+            .all(db)
+            .await;
+
+        match res {
+            Ok(models) => {
+                Ok(models)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
 }

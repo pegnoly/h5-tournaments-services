@@ -1,18 +1,24 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use poise::serenity_prelude::*;
 use shuttle_runtime::async_trait;
 
 use crate::{builders, graphql::queries::{update_game_mutation::GameEditState, update_tournament_builder}, operations, services::{challonge::service::ChallongeService, h5_tournaments::service::H5TournamentsService}};
 
+pub struct LocalSyncBuilder {
+    pub challonge_id: Option<String>,
+    pub discord_id: Option<String>
+}
+
 pub struct MainEventHandler {
     tournaments_service: Arc<H5TournamentsService>,
-    challonge_service: Arc<ChallongeService>
+    challonge_service: Arc<ChallongeService>,
+    sync_builders: tokio::sync::RwLock<HashMap<u64, LocalSyncBuilder>>
 }
 
 impl MainEventHandler {
     pub fn new(tournaments_service: Arc<H5TournamentsService>, challonge_service: Arc<ChallongeService>) -> Self {
-        MainEventHandler { tournaments_service: tournaments_service, challonge_service: challonge_service }
+        MainEventHandler { tournaments_service: tournaments_service, challonge_service: challonge_service, sync_builders: tokio::sync::RwLock::new(HashMap::new()) }
     }
 
     async fn dispatch_buttons(&self, context: &Context, interaction: &ComponentInteraction, component_id: &String, channel: u64, user: u64) -> Result<(), crate::Error> {
@@ -78,13 +84,18 @@ impl MainEventHandler {
                 operations::administration::start_admin_registration(context, interaction, &self.tournaments_service).await?;
             },
             "tournament_sync_button" => {
-                builders::tournament_creation::build_sync_interface(context, interaction, &self.tournaments_service, &self.challonge_service).await?;
+                let message = builders::tournament_creation::build_sync_interface(
+                    context, interaction, &self.tournaments_service, &self.challonge_service, &self.sync_builders).await?;
+                interaction.create_response(context, CreateInteractionResponse::Message(message)).await?;
             },
             "setup_tournament_name_button" => {
                 operations::administration::start_tournament_name_creation(context, interaction, &self.tournaments_service).await?;
             },
             "submit_tournament_creation_button" => {
                 operations::administration::finalize_tournament_creation(context, interaction, &self.tournaments_service).await?;
+            },
+            "sync_tournaments_button" => {
+                operations::administration::start_synchronization(context, interaction, &self.tournaments_service, &self.sync_builders).await?;
             }
             _=> {}
         }
@@ -123,6 +134,26 @@ impl MainEventHandler {
             "tournament_foreign_heroes_usage_selector" => {
                 operations::administration::select_tournament_builder_foreign_heroes_usage(context, interaction, &self.tournaments_service, selected).await?
             },
+            "challonge_tournaments_selector" => {
+                operations::administration::select_sync_challonge_id(
+                    context, 
+                    interaction, 
+                    &self.tournaments_service, 
+                    &self.challonge_service, 
+                    &self.sync_builders,
+                    selected
+                ).await?;
+            },
+            "discord_tournaments_selector" => {
+                operations::administration::select_sync_discord_id(
+                    context, 
+                    interaction, 
+                    &self.tournaments_service, 
+                    &self.challonge_service, 
+                    &self.sync_builders,
+                    selected
+                ).await?;
+            }
             _=> {}
         }
         Ok(())

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Context as _;
 use services::h5_tournaments::service::H5TournamentsService;
 use services::challonge::service::ChallongeService;
@@ -56,7 +58,7 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
                 Ok(Data {
                     h5_tournament_service: h5_service_cloned,
                     challonge_service: challonge_service_cloned,
-                    parser_service: ParserService {}
+                    parser_service: ParserService {},
                 })
             })
         })

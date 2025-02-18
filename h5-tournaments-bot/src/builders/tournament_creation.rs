@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 /// Contains all methods to build discord elements for tournaments creation and administration.
 
 use poise::serenity_prelude::*;
-use crate::{graphql::queries::{get_tournament_builder::{self, GetTournamentBuilderTournamentBuilder}, update_tournament_builder::{self, UpdateTournamentBuilderUpdateTournamentBuilder}}, operations::administration::{BargainsColorUsageType, BargainsUsageType, ForeignHeroesUsageType}, services::{challonge::service::ChallongeService, h5_tournaments::{payloads::{GetOrganizerPayload, GetTournamentBuilderPayload}, service::H5TournamentsService}}};
+use crate::{event_handler::LocalSyncBuilder, graphql::queries::{get_tournament_builder::{self, GetTournamentBuilderTournamentBuilder}, update_tournament_builder::{self, UpdateTournamentBuilderUpdateTournamentBuilder}}, operations::administration::{BargainsColorUsageType, BargainsUsageType, ForeignHeroesUsageType}, services::{challonge::service::ChallongeService, h5_tournaments::{payloads::{GetOrganizerPayload, GetTournamentBuilderPayload}, service::H5TournamentsService}}};
 
 /// Called when user with organizer permissions requests new tournament creation.
 pub async fn build_tournament_creation_interface(
@@ -181,32 +183,48 @@ async fn build_reports_data_selection_interface(
 }
 
 pub async fn build_sync_interface(
-    context: &Context,
+    _context: &Context,
     interaction: &ComponentInteraction,
     tournaments_service: &H5TournamentsService,
-    challonge_service: &ChallongeService
-) -> Result<(), crate::Error> {
+    challonge_service: &ChallongeService,
+    sync_builders: &tokio::sync::RwLock<HashMap<u64, LocalSyncBuilder>>
+) -> Result<CreateInteractionResponseMessage, crate::Error> {
     let payload = GetOrganizerPayload::default().with_discord_id(interaction.user.id.get() as i64);
     if let Some(existing_organizer) = tournaments_service.get_organizer(payload).await? {
         let api_key = existing_organizer.challonge;
-        let tournaments = challonge_service.get_tournaments(api_key).await?;
-        tracing::info!("Got tournaments: {:?}", &tournaments);
-        interaction.create_response(context, CreateInteractionResponse::Message(
-            CreateInteractionResponseMessage::new()
-                .select_menu(CreateSelectMenu::new("challonge_tournaments_selector", CreateSelectMenuKind::String { options: Vec::from_iter(
-                    tournaments.iter().map(|t| {
-                        CreateSelectMenuOption::new(t.attributes.name.clone(), t.id.clone())
-                    })
-                ) }))
-                .ephemeral(true)
-        )).await?;
+        let challonge_tournaments = challonge_service.get_tournaments(api_key).await?;
+        let discord_tournaments = tournaments_service.get_all_tournaments(existing_organizer.id).await?;
+        let sync_builders_locked = sync_builders.read().await;
+        let sync_builder = sync_builders_locked.get(&interaction.message.id.get());
+        Ok(CreateInteractionResponseMessage::new()
+            .embed(
+                CreateEmbed::new()
+                    .title("Синхронизация турниров")
+                    .description("Позволяет установить связь между турнирами, созданными ботом и Challonge.com турнирами, что разрешит боту делать запросы к турниру на Challonge.")
+            )
+            .select_menu(CreateSelectMenu::new("challonge_tournaments_selector", CreateSelectMenuKind::String { options: Vec::from_iter(
+                challonge_tournaments.iter().map(|t| {
+                    CreateSelectMenuOption::new(t.attributes.name.clone(), t.id.clone())
+                        .default_selection(
+                            sync_builder.is_some() &&  
+                            sync_builder.unwrap().challonge_id.is_some() && 
+                            *sync_builder.unwrap().challonge_id.as_ref().unwrap() == t.id)
+                })
+            ) }).placeholder("Укажите имя турнира на Challonge.com"))
+            .select_menu(CreateSelectMenu::new("discord_tournaments_selector", CreateSelectMenuKind::String { options: Vec::from_iter(
+                discord_tournaments.iter().map(|t| {
+                    CreateSelectMenuOption::new(t.name.clone(), t.id)
+                        .default_selection(
+                            sync_builder.is_some() &&  
+                            sync_builder.unwrap().discord_id.is_some() && 
+                            *sync_builder.unwrap().discord_id.as_ref().unwrap() == t.id.to_string())
+                })
+            ) }).placeholder("Укажите имя турнира, созданного через бота"))
+            .button(CreateButton::new("sync_tournaments_button").label("Синхронизировать выбранные турниры").style(ButtonStyle::Success))
+            .ephemeral(true))
     } else {
-        interaction.create_response(context, CreateInteractionResponse::Message(
-            CreateInteractionResponseMessage::new()
-                .ephemeral(true)
-                .content("Вы не являетесь организатором турниров и не можете использовать данную систему.")
-        )).await?;
+        Ok(CreateInteractionResponseMessage::new()
+            .ephemeral(true)
+            .content("Вы не являетесь организатором турниров и не можете использовать данную систему."))
     }
-    
-    Ok(())
 }

@@ -269,4 +269,23 @@ impl Query {
             }
         } 
     }
+
+    async fn tournaments<'a>(
+        &self,
+        context: &Context<'a>,
+        organizer_id: Uuid
+    ) -> Result<Vec<TournamentModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_tournaments_by_organizer(db, organizer_id).await;
+
+        match res {
+            Ok(models) => {
+                Ok(models)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        } 
+    }
 }
