@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 use poise::serenity_prelude::*;
 use strum::{Display, EnumString};
 use uuid::Uuid;
-use crate::{builders, event_handler::LocalSyncBuilder, graphql::queries::update_tournament_builder, services::{challonge::service::ChallongeService, h5_tournaments::{payloads::{CreateOrganizerPayload, CreateTournamentPayload, GetOrganizerPayload, GetTournamentBuilderPayload, UpdateTournamentBuilderPayload, UpdateTournamentPayload}, service::H5TournamentsService}}};
+use crate::{builders, event_handler::LocalSyncBuilder, graphql::queries::update_tournament_builder, services::{challonge::{payloads::{ChallongeParticipantAttributes, ChallongeParticipantPayload}, service::ChallongeService}, h5_tournaments::{payloads::{CreateOrganizerPayload, CreateTournamentPayload, GetOrganizerPayload, GetTournamentBuilderPayload, UpdateTournamentBuilderPayload, UpdateTournamentPayload}, service::H5TournamentsService}}, types::payloads::GetTournament};
 
 pub async fn start_admin_registration(
     context: &Context,
@@ -362,6 +362,31 @@ pub async fn select_sync_discord_id(
     Ok(())
 }
 
+pub async fn select_tournament_to_manage(
+    context: &Context,
+    interaction: &ComponentInteraction,
+    tournaments_service: &H5TournamentsService,
+    challonge_service: &ChallongeService,
+    managed_tournaments: &tokio::sync::RwLock<HashMap<u64, Uuid>>,
+    selected_value: &String
+) -> Result<(), crate::Error> {
+    let message = interaction.message.id.get();
+    let mut managed_tournaments_locked = managed_tournaments.write().await;
+    if let Some(managed_tournament) = managed_tournaments_locked.get_mut(&message) {
+        *managed_tournament = Uuid::from_str(&selected_value)?;
+    } else {
+        let id = Uuid::from_str(&selected_value)?;
+        tracing::info!("Inserting managed tournament: {} = {}", message, id);
+        managed_tournaments_locked.insert(message, id);
+    }
+    drop(managed_tournaments_locked); // heh x2 
+    let response_message = builders::tournament_creation::build_manage_interface(
+        context, interaction, tournaments_service, challonge_service, managed_tournaments).await?;
+    interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+    Ok(())        
+}
+
+
 pub async fn start_synchronization(
     context: &Context,
     interaction: &ComponentInteraction,
@@ -390,5 +415,53 @@ pub async fn start_synchronization(
         }
     }
 
+    Ok(())
+}
+
+pub async fn start_participants_syncronization(
+    context: &Context,
+    interaction: &ComponentInteraction,
+    tournaments_service: &H5TournamentsService,
+    challonge_service: &ChallongeService,
+    managed_tournaments: &tokio::sync::RwLock<HashMap<u64, Uuid>>
+) -> Result<(), crate::Error> {
+    let message = interaction.message.id.get();
+    let user = interaction.user.id.get();
+    if let Some(organizer) = tournaments_service.get_organizer(GetOrganizerPayload::default().with_discord_id(user as i64)).await? {
+        tracing::info!("Trying to get managed_tournament for message {}", message);
+        let managed_tournaments_locked = managed_tournaments.read().await;
+        if let Some(current_managed_tournament) = managed_tournaments_locked.get(&message) {
+            let tournament_data = tournaments_service.get_tournament_data(GetTournament::default().with_id(*current_managed_tournament)).await?.unwrap();
+            let users_data = tournaments_service.get_tournament_users(*current_managed_tournament).await?;
+            let challonge_participants_data = challonge_service.get_participants(
+                organizer.challonge.clone(), 
+                tournament_data.challonge_id.as_ref().unwrap().clone()).await?;
+            let payload = users_data.iter()
+                .filter_map(|u| {
+                    if !challonge_participants_data.iter().any(|p| p.attributes.misc.is_some() && *p.attributes.misc.as_ref().unwrap() == u.id.to_string()) {
+                        Some(ChallongeParticipantAttributes {
+                            name: u.nickname.clone(),
+                            seed: Some(1),
+                            misc: Some(u.id.to_string()),
+                            email: Some(String::new()),
+                            username: Some(String::new())
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<ChallongeParticipantAttributes>>();
+    
+            challonge_service.participants_bulk_add(organizer.challonge, tournament_data.challonge_id.as_ref().unwrap().clone(), payload).await?;
+            interaction.create_response(context, CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::new()
+                    .ephemeral(true)
+                    .content("Зарегистрированные участники турнира успешно загружены на Challonge.com")
+            )).await?;
+        } else {
+            tracing::info!("No tournament found here: {:?}", &managed_tournaments_locked);
+            interaction.create_response(context, CreateInteractionResponse::Acknowledge).await?;
+        }
+    }
     Ok(())
 }

@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr, sync::RwLock};
 
 /// Contains all methods to build discord elements for tournaments creation and administration.
 
 use poise::serenity_prelude::*;
-use crate::{event_handler::LocalSyncBuilder, graphql::queries::{get_tournament_builder::{self, GetTournamentBuilderTournamentBuilder}, update_tournament_builder::{self, UpdateTournamentBuilderUpdateTournamentBuilder}}, operations::administration::{BargainsColorUsageType, BargainsUsageType, ForeignHeroesUsageType}, services::{challonge::service::ChallongeService, h5_tournaments::{payloads::{GetOrganizerPayload, GetTournamentBuilderPayload}, service::H5TournamentsService}}};
+use uuid::Uuid;
+use crate::{event_handler::LocalSyncBuilder, graphql::queries::{get_organizer::GetOrganizerOrganizer, get_tournament_builder::{self, GetTournamentBuilderTournamentBuilder}, get_tournaments::GetTournamentsTournaments, update_tournament_builder::{self, UpdateTournamentBuilderUpdateTournamentBuilder}}, operations::administration::{BargainsColorUsageType, BargainsUsageType, ForeignHeroesUsageType}, services::{challonge::service::ChallongeService, h5_tournaments::{payloads::{GetOrganizerPayload, GetTournamentBuilderPayload}, service::H5TournamentsService}}, types::payloads::GetTournament};
 
 /// Called when user with organizer permissions requests new tournament creation.
 pub async fn build_tournament_creation_interface(
@@ -227,4 +228,90 @@ pub async fn build_sync_interface(
             .ephemeral(true)
             .content("Вы не являетесь организатором турниров и не можете использовать данную систему."))
     }
+}
+
+pub async fn build_manage_interface(
+    _context: &Context,
+    interaction: &ComponentInteraction,
+    tournaments_service: &H5TournamentsService,
+    challonge_service: &ChallongeService,
+    managed_tournaments: &tokio::sync::RwLock<HashMap<u64, Uuid>>
+) -> Result<CreateInteractionResponseMessage, crate::Error> {
+    if let Some(organizer) = tournaments_service.get_organizer(GetOrganizerPayload::default().with_discord_id(interaction.user.id.get() as i64)).await? {
+        let managed_tournaments_locked = managed_tournaments.read().await;
+        let current_managed_tournament = managed_tournaments_locked.get(&interaction.message.id.get());
+        let tournaments = tournaments_service.get_all_tournaments(organizer.id).await?;
+        let sync_tournaments = tournaments.iter()
+            .filter(|t| t.challonge_id.is_some())
+            .collect::<Vec<&GetTournamentsTournaments>>();
+        if sync_tournaments.len() == 0 {
+            Ok(CreateInteractionResponseMessage::new()
+                .ephemeral(true)
+                .content("Нет синхронизированных турниров")   
+            )
+        } else {
+            Ok(CreateInteractionResponseMessage::new()
+                .ephemeral(true)
+                .embed(
+                    CreateEmbed::new()
+                        .title("Настройка параметров синхронизированного турнира")
+                        .description("Здесь можно настроить некоторые параметры уже существующих турниров(временная мера, пока все не автоматизировано)")
+                        .fields(build_managed_tournament_fields(
+                            current_managed_tournament, organizer, tournaments_service, challonge_service
+                        ).await?)
+                )
+                .components(build_managed_tournament_components(current_managed_tournament, sync_tournaments).await?)
+            )
+        }
+    } else {
+        Ok(CreateInteractionResponseMessage::new()
+            .ephemeral(true)
+            .content("Вы не зарегистрированы, как организатор турниров")
+        )
+    }
+}
+
+async fn build_managed_tournament_fields(
+    id: Option<&Uuid>, 
+    organizer: GetOrganizerOrganizer, 
+    tournaments_service: &H5TournamentsService,
+    challonge_service: &ChallongeService
+) -> Result<Vec<(String, String, bool)>, crate::Error> {
+    if id.is_none() {
+        Ok(vec![])
+    } else {
+        let tournament_data = tournaments_service.get_tournament_data(GetTournament::default().with_id(*id.unwrap())).await?.unwrap();
+        let users_data = tournaments_service.get_tournament_users(*id.unwrap()).await?;
+        let challonge_participants = challonge_service.get_participants(organizer.challonge, tournament_data.challonge_id.unwrap()).await?;
+        let participants_count = users_data.len();
+        let challonge_participants_count = challonge_participants.len();
+        Ok(vec![
+            ("Число участников: дискорд - ".to_string(), participants_count.to_string(), false), 
+            ("Число участников: Challonge - ".to_string(), challonge_participants_count.to_string(), false)
+            ])
+    }
+}
+
+async fn build_managed_tournament_components(
+    id: Option<&Uuid>,
+    sync_tournaments: Vec<&GetTournamentsTournaments>
+) -> Result<Vec<CreateActionRow>, crate::Error> {
+    let mut components = vec![];
+    components.push(
+        CreateActionRow::SelectMenu(CreateSelectMenu::new("tournament_to_manage_selector", CreateSelectMenuKind::String { options: Vec::from_iter(
+            sync_tournaments.iter().map(|t| {
+                CreateSelectMenuOption::new(t.name.clone(), t.id)
+                    .default_selection(id.is_some() && *id.unwrap() == t.id)
+            })
+        ) }))
+    );
+    if id.is_some() {
+        components.push(
+            CreateActionRow::Buttons(vec![
+                CreateButton::new("sync_participants_button")
+                    .label("Синхронизировать участников турнира").style(ButtonStyle::Primary)
+            ])
+        );
+    }
+    Ok(components)
 }

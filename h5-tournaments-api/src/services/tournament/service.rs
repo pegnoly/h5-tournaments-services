@@ -1134,4 +1134,21 @@ impl TournamentService {
             }
         }
     }
+
+    pub async fn get_users_by_tournament(&self, db: &DatabaseConnection, tournament_id: Uuid) -> Result<Vec<UserModel>, String> {
+        let res = user::Entity::find()
+            .inner_join(participant::Entity)
+            .filter(participant::Column::TournamentId.eq(tournament_id))
+            .all(db)
+            .await;
+
+        match res {
+            Ok(models) => {
+                Ok(models)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
 }

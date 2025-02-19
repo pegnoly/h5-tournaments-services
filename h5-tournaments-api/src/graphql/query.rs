@@ -288,4 +288,23 @@ impl Query {
             }
         } 
     }
+
+    async fn tournament_users<'a>(
+        &self,
+        context: &Context<'a>,
+        tournament_id: Uuid
+    ) -> Result<Vec<UserModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_users_by_tournament(db, tournament_id).await;
+
+        match res {
+            Ok(models) => {
+                Ok(models)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        } 
+    }
 }

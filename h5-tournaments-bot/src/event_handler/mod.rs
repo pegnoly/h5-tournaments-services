@@ -2,6 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use poise::serenity_prelude::*;
 use shuttle_runtime::async_trait;
+use uuid::Uuid;
 
 use crate::{builders, graphql::queries::{update_game_mutation::GameEditState, update_tournament_builder}, operations, services::{challonge::service::ChallongeService, h5_tournaments::service::H5TournamentsService}};
 
@@ -13,12 +14,18 @@ pub struct LocalSyncBuilder {
 pub struct MainEventHandler {
     tournaments_service: Arc<H5TournamentsService>,
     challonge_service: Arc<ChallongeService>,
-    sync_builders: tokio::sync::RwLock<HashMap<u64, LocalSyncBuilder>>
+    sync_builders: tokio::sync::RwLock<HashMap<u64, LocalSyncBuilder>>,
+    managed_tournaments: tokio::sync::RwLock<HashMap<u64, Uuid>>
 }
 
 impl MainEventHandler {
     pub fn new(tournaments_service: Arc<H5TournamentsService>, challonge_service: Arc<ChallongeService>) -> Self {
-        MainEventHandler { tournaments_service: tournaments_service, challonge_service: challonge_service, sync_builders: tokio::sync::RwLock::new(HashMap::new()) }
+        MainEventHandler { 
+            tournaments_service: tournaments_service, 
+            challonge_service: challonge_service, 
+            sync_builders: tokio::sync::RwLock::new(HashMap::new()),
+            managed_tournaments: tokio::sync::RwLock::new(HashMap::new())
+        }
     }
 
     async fn dispatch_buttons(&self, context: &Context, interaction: &ComponentInteraction, component_id: &String, channel: u64, user: u64) -> Result<(), crate::Error> {
@@ -96,6 +103,25 @@ impl MainEventHandler {
             },
             "sync_tournaments_button" => {
                 operations::administration::start_synchronization(context, interaction, &self.tournaments_service, &self.sync_builders).await?;
+            },
+            "administrate_tournament_button" => {
+                let message = builders::tournament_creation::build_manage_interface(
+                    context, 
+                    interaction, 
+                    &self.tournaments_service, 
+                    &self.challonge_service, 
+                    &self.managed_tournaments
+                ).await?;
+                interaction.create_response(context, CreateInteractionResponse::Message(message)).await?;
+            },
+            "sync_participants_button" => {
+                operations::administration::start_participants_syncronization(
+                    context, 
+                    interaction, 
+                    &self.tournaments_service, 
+                    &self.challonge_service, 
+                    &self.managed_tournaments
+                ).await?;
             }
             _=> {}
         }
@@ -151,6 +177,16 @@ impl MainEventHandler {
                     &self.tournaments_service, 
                     &self.challonge_service, 
                     &self.sync_builders,
+                    selected
+                ).await?;
+            },
+            "tournament_to_manage_selector" => {
+                operations::administration::select_tournament_to_manage(
+                    context, 
+                    interaction, 
+                    &self.tournaments_service, 
+                    &self.challonge_service, 
+                    &self.managed_tournaments,
                     selected
                 ).await?;
             }

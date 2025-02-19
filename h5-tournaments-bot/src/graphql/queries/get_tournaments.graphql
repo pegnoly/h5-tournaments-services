@@ -2,6 +2,7 @@ query GetTournaments($organizerId: UUID!) {
     tournaments(organizerId: $organizerId) {
         id,
         name,
-        organizer
+        organizer,
+        challongeId
     }
 }

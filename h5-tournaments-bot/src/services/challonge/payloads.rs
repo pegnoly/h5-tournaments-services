@@ -28,3 +28,15 @@ pub struct ChallongeParticipantAttributes {
     pub email: Option<String>,
     pub username: Option<String>
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChallongeParticipantsBulkAttributes {
+    pub participants: Vec<ChallongeParticipantAttributes>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChallongeParticipantsBulkAddPayload {
+    #[serde(rename = "type")]
+    pub _type: ChallongePayloadType,
+    pub attributes: Option<ChallongeParticipantsBulkAttributes>
+}

@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use super::{payloads::{ChallongeData, ChallongeParticipantAttributes, ChallongeParticipantPayload}, types::{ChallongeTournamentSimpleData, ChallongeTournamentsSimple}};
+use super::{payloads::{ChallongeData, ChallongeParticipantAttributes, ChallongeParticipantPayload, ChallongeParticipantsBulkAddPayload, ChallongeParticipantsBulkAttributes}, types::{ChallongeParticipantSimpleData, ChallongeParticipantsSimple, ChallongeTournamentSimpleData, ChallongeTournamentsSimple}};
 
 pub struct ChallongeService {
     client: ChallongeClient
@@ -102,5 +102,52 @@ impl ChallongeService {
         }
 
         Ok(())
+    }
+
+    pub async fn get_participants(&self, api_key: String, tournament_id: String) -> Result<Vec<ChallongeParticipantSimpleData>, crate::Error> {
+        let response = self.client.get(api_key, &format!("tournaments/{}/participants.json?page=1&per_page=1000", tournament_id)).await;
+        match response {
+            Ok(success) => {
+                match success.json::<ChallongeParticipantsSimple>().await {
+                    Ok(data) => {
+                        Ok(data.data)
+                    },
+                    Err(json_error) => {
+                        tracing::error!("Failed to fetch participants for tournament {}: {}", tournament_id, json_error.to_string());
+                        Err(crate::Error::from("Failed to fetch all user's tournaments"))
+                    }
+                }
+            },
+            Err(failure) => {
+                tracing::error!("Failed to send get_participants request: {}", failure.to_string());
+                Err(crate::Error::from("Failed to send get_participants request"))
+            }
+        }
+    }
+
+    pub async fn participants_bulk_add(&self, api_key: String, tournament_id: String, data: Vec<ChallongeParticipantAttributes>) -> Result<(), crate::Error> {
+        let payload = ChallongeParticipantsBulkAddPayload {
+            _type: super::payloads::ChallongePayloadType::Participants,
+            attributes: Some(ChallongeParticipantsBulkAttributes {
+                participants: data
+            })
+        };
+        let response = self.client.post(
+            api_key, 
+            &format!("tournaments/{}/participants/bulk_add.json", tournament_id), 
+            ChallongeData { data: payload }
+        ).await;
+
+        match response {
+            Ok(success) => {
+                let text = success.text().await?;
+                tracing::info!("Bulk add result: {}", &text);
+                Ok(())
+            },
+            Err(failure) => {
+                tracing::error!("Failed to send bulk add request: {}", failure.to_string());
+                Err(crate::Error::from("Failed to send bulk add request"))
+            }
+        }
     }
 }
