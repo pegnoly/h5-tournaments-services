@@ -121,7 +121,7 @@ pub async fn generate_final_report_message(
         let message_builder = CreateMessage::new()
             .add_embed(
                 CreateEmbed::new()
-                    .title(format!("**Турнир {}**, _групповой этап, группа_ **{}**", &tournament_data.name.to_uppercase(), participant.group))
+                    .title(format!("**Турнир {}**, _групповой этап, группа_ **{}**", &tournament_data.name.to_uppercase(), 0))
                     .description(format!("**{}** _VS_ **{}**", &first_user.nickname, &second_user))
                     .fields(fields)
             );

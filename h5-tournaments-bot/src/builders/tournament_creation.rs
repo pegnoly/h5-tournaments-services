@@ -193,7 +193,7 @@ pub async fn build_sync_interface(
     let payload = GetOrganizerPayload::default().with_discord_id(interaction.user.id.get() as i64);
     if let Some(existing_organizer) = tournaments_service.get_organizer(payload).await? {
         let api_key = existing_organizer.challonge;
-        let challonge_tournaments = challonge_service.get_tournaments(api_key).await?;
+        let challonge_tournaments = challonge_service.get_tournaments(&api_key).await?;
         let discord_tournaments = tournaments_service.get_all_tournaments(existing_organizer.id).await?;
         let sync_builders_locked = sync_builders.read().await;
         let sync_builder = sync_builders_locked.get(&interaction.message.id.get());
@@ -282,7 +282,8 @@ async fn build_managed_tournament_fields(
     } else {
         let tournament_data = tournaments_service.get_tournament_data(GetTournament::default().with_id(*id.unwrap())).await?.unwrap();
         let users_data = tournaments_service.get_tournament_users(*id.unwrap()).await?;
-        let challonge_participants = challonge_service.get_participants(organizer.challonge, tournament_data.challonge_id.unwrap()).await?;
+        let challonge_participants = challonge_service
+            .get_participants(&organizer.challonge, tournament_data.challonge_id.as_ref().unwrap()).await?;
         let participants_count = users_data.len();
         let challonge_participants_count = challonge_participants.len();
         Ok(vec![

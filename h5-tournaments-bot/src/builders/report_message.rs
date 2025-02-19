@@ -1,62 +1,63 @@
 use poise::serenity_prelude::*;
 use uuid::Uuid;
 use crate::{
-    services::h5_tournaments::service::H5TournamentsService, 
     graphql::queries::{
         get_game_query::{self, GetGameQueryGame}, 
         get_participants::GetParticipantsParticipants
-    }, 
-    types::payloads::{GetMatch, GetTournament, GetUser}
+    }, services::{challonge::{service::ChallongeService, types::ChallongeMatchData}, h5_tournaments::{payloads::GetOrganizerPayload, service::H5TournamentsService}}, types::payloads::{GetMatch, GetTournament, GetUser}
 };
 
-pub async fn initial_build(
-    context: &Context,
-    api: &H5TournamentsService,
+pub async fn build_match_creation_interface(
+    _context: &Context,
     interaction: &ComponentInteraction,
-    _id: &String,
-    channel: u64,
-    user: u64
-) -> Result<(), crate::Error> {
+    tournaments_service: &H5TournamentsService,
+    challonge_service: &ChallongeService
+) -> Result<CreateInteractionResponseMessage, crate::Error> {
+    let tournament_data = tournaments_service
+        .get_tournament_data(GetTournament::default().with_reports_channel(interaction.channel.as_ref().unwrap().id.to_string())).await?.unwrap();
+    let organizer = tournaments_service
+        .get_organizer(GetOrganizerPayload::default().with_id(tournament_data.organizer.unwrap())).await?.unwrap();
+    let user_data = tournaments_service.get_user(
+        GetUser::default().with_discord_id(interaction.user.id.get().to_string())
+    ).await?.unwrap();
+    let participant = tournaments_service.get_participant(tournament_data.id, user_data.id).await?.unwrap();
+    let challonge_participants = challonge_service
+        .get_participants(&organizer.challonge, tournament_data.challonge_id.as_ref().unwrap()).await?;
+    let matches =  challonge_service.get_open_matches_for_participant(
+        &organizer.challonge, 
+        tournament_data.challonge_id.as_ref().unwrap(), 
+        //participant.challonge.as_ref().unwrap().clone()
+    ).await?;
 
-    let tournament_data = api.get_tournament_data(GetTournament::default().with_reports_channel(channel.to_string())).await?.unwrap();
-    let operator_data = api.get_operator_data(tournament_data.operator.unwrap()).await?;
-    let user_data = api.get_user(GetUser::default().with_discord_id(user.to_string())).await?.unwrap();
-    let participant = api.get_participant(tournament_data.id, user_data.id).await?.unwrap();
-    let participants = api.get_participants(tournament_data.id, participant.group).await?;
-    tracing::info!("Match build started by interaction {}", interaction.id.get());
-    api.create_match(tournament_data.id, user_data.id, interaction.id.get()).await?;
+    let matches_sorted = matches.iter()
+        .filter(|m| {
+            m.relationships.player1.data.id == *participant.challonge.as_ref().unwrap() || 
+            m.relationships.player2.data.id == *participant.challonge.as_ref().unwrap()
+        })
+        .collect::<Vec<&ChallongeMatchData>>();
 
-    let message_builder = CreateInteractionResponseMessage::new()
-        .add_embed(
-            CreateEmbed::new()
-                .title("Отчет о турнирной игре")
-                .description(format!("Турнир **{}** by **{}**", tournament_data.name.to_uppercase(), operator_data.name))
-                .fields(
-                [
-                    (
-                        "Автор",
-                        format!("{}", &user_data.nickname),
-                        false
-                    ),
-                    (
-                        "Стадия",
-                        "Групповой этап".to_string(),
-                        false
-                    ),
-                    (
-                        "Группа",
-                        participant.group.to_string(),
-                        true
-                    )
-                ])
-        )
-        .select_menu(create_opponent_selector(participants, None, user_data.id))
-        .select_menu(create_games_count_selector(5, None))
-        .button(CreateButton::new("start_report").label("Начать заполнение отчета").disabled(true))
-        .ephemeral(true);
-
-    interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::Message(message_builder)).await?;
-    Ok(())
+    tracing::info!("OPENED MATCHES FOR PARTICIPANT: {:?}", &matches_sorted);  
+    Ok(
+        CreateInteractionResponseMessage::new()
+            .content("Test")
+            .ephemeral(true)
+            .select_menu(CreateSelectMenu::new("opponent_selector", CreateSelectMenuKind::String { options: Vec::from_iter(
+                matches_sorted.iter()
+                    .map(|m| {
+                        if m.relationships.player1.data.id != *participant.challonge.as_ref().unwrap() {
+                            CreateSelectMenuOption::new(
+                                challonge_participants.iter().find(|p| {
+                                    p.id == m.relationships.player1.data.id
+                                }).unwrap().attributes.name.clone(), &m.id)
+                        } else {
+                            CreateSelectMenuOption::new(
+                                challonge_participants.iter().find(|p| {
+                                    p.id == m.relationships.player2.data.id
+                                }).unwrap().attributes.name.clone(), &m.id) 
+                        }
+                    })
+            )}))
+    )
 }
 
 pub async fn rebuild_initial(match_id: Uuid, api: &H5TournamentsService) -> Result<CreateInteractionResponseMessage, crate::Error> {
@@ -69,7 +70,7 @@ pub async fn rebuild_initial(match_id: Uuid, api: &H5TournamentsService) -> Resu
         let user_data = api.get_user(GetUser::default().with_id(match_data.first_player)).await?.unwrap();
         tracing::info!("User data: {:?}", &user_data);
         let participant = api.get_participant(tournament_data.id, user_data.id).await?.unwrap();
-        let participants = api.get_participants(tournament_data.id, participant.group).await?;
+        let participants = api.get_participants(tournament_data.id, 0).await?;
         let message_builder = CreateInteractionResponseMessage::new()
             .add_embed(
                 CreateEmbed::new()
@@ -89,7 +90,7 @@ pub async fn rebuild_initial(match_id: Uuid, api: &H5TournamentsService) -> Resu
                         ),
                         (
                             "Группа",
-                            participant.group.to_string(),
+                            "0".to_string(),
                             true
                         )
                     ])

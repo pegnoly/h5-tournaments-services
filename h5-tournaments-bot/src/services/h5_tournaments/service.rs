@@ -769,7 +769,7 @@ impl H5TournamentsService {
         let response = client.post(&self.url).json(&query).send().await;
         match response {
             Ok(response) => {
-                let result = response.json::<Response<queries::get_participant::ResponseData>>().await;
+                let result = response.json::<Response<get_participant::ResponseData>>().await;
                 match result {
                     Ok(result) => {
                         tracing::info!("Get participant result: {:?}", &result);

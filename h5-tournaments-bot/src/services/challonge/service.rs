@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use super::{payloads::{ChallongeData, ChallongeParticipantAttributes, ChallongeParticipantPayload, ChallongeParticipantsBulkAddPayload, ChallongeParticipantsBulkAttributes}, types::{ChallongeParticipantSimpleData, ChallongeParticipantsSimple, ChallongeTournamentSimpleData, ChallongeTournamentsSimple}};
+use super::{payloads::{ChallongeData, ChallongeParticipantAttributes, ChallongeParticipantPayload, ChallongeParticipantsBulkAddPayload, ChallongeParticipantsBulkAttributes}, types::{ChallongeMatchData, ChallongeMatches, ChallongeParticipantSimpleData, ChallongeParticipantsSimple, ChallongeTournamentSimpleData, ChallongeTournamentsSimple}};
 
 pub struct ChallongeService {
     client: ChallongeClient
@@ -19,7 +19,7 @@ impl ChallongeClient {
         }
     }
 
-    pub async fn get(&self, api_key: String, params: &str) -> Result<reqwest::Response, reqwest::Error> {
+    pub async fn get(&self, api_key: &String, params: &str) -> Result<reqwest::Response, reqwest::Error> {
         let client_locked = self.client.read().await;
         let response = client_locked.get(format!("{}{}", self.url, &params))
             .header("Accept", "application/json")
@@ -31,7 +31,7 @@ impl ChallongeClient {
         response
     }
 
-    pub async fn post<T: Serialize>(&self, api_key: String, params: &str, payload: ChallongeData<T>) -> Result<reqwest::Response, reqwest::Error> {
+    pub async fn post<T: Serialize>(&self, api_key: &String, params: &str, payload: ChallongeData<T>) -> Result<reqwest::Response, reqwest::Error> {
         let client_locked = self.client.read().await;
         let response = client_locked.post(format!("{}{}", self.url, &params))
             .header("Accept", "application/json")
@@ -53,7 +53,7 @@ impl ChallongeService {
         }
     }
 
-    pub async fn get_tournaments(&self, api_key: String) -> Result<Vec<ChallongeTournamentSimpleData>, crate::Error> {
+    pub async fn get_tournaments(&self, api_key: &String) -> Result<Vec<ChallongeTournamentSimpleData>, crate::Error> {
         let response = self.client.get(api_key, "tournaments.json?page=1&per_page=25").await;
         match response {
             Ok(success) => {
@@ -74,7 +74,7 @@ impl ChallongeService {
         }
     }
 
-    pub async fn add_participant(&self, api_key: String, tournament_id: String, participant_id: String, participant_name: String) -> Result<(), crate::Error> {
+    pub async fn add_participant(&self, api_key: &String, tournament_id: String, participant_id: String, participant_name: String) -> Result<(), crate::Error> {
         let payload = ChallongeParticipantPayload {
             _type: super::payloads::ChallongePayloadType::Participants,
             attributes: Some(ChallongeParticipantAttributes {
@@ -104,7 +104,7 @@ impl ChallongeService {
         Ok(())
     }
 
-    pub async fn get_participants(&self, api_key: String, tournament_id: String) -> Result<Vec<ChallongeParticipantSimpleData>, crate::Error> {
+    pub async fn get_participants(&self, api_key: &String, tournament_id: &String) -> Result<Vec<ChallongeParticipantSimpleData>, crate::Error> {
         let response = self.client.get(api_key, &format!("tournaments/{}/participants.json?page=1&per_page=1000", tournament_id)).await;
         match response {
             Ok(success) => {
@@ -127,7 +127,7 @@ impl ChallongeService {
 
     pub async fn participants_bulk_add(
         &self, 
-        api_key: String, 
+        api_key: &String, 
         tournament_id: String, 
         data: Vec<ChallongeParticipantAttributes>
     ) -> Result<Vec<ChallongeParticipantSimpleData>, crate::Error> {
@@ -157,6 +157,35 @@ impl ChallongeService {
             Err(failure) => {
                 tracing::error!("Failed to send bulk add request: {}", failure.to_string());
                 Err(crate::Error::from("Failed to send bulk add request"))
+            }
+        }
+    }
+
+    pub async fn get_open_matches_for_participant(
+        &self,
+        api_key: &String,
+        tournament_id: &String,
+        //participant_id: String
+    ) -> Result<Vec<ChallongeMatchData>, crate::Error> {
+        let response = self.client.get(
+            api_key, 
+            &format!("tournaments/{}/matches.json?state=open&page=1&per_page=200", tournament_id)
+        ).await;
+
+        match response {
+            Ok(success) => {
+                match success.json::<ChallongeMatches>().await {
+                    Ok(data) => {
+                        Ok(data.data)
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(failure) => {
+                tracing::error!("Failed to send matches request: {}", failure.to_string());
+                Err(crate::Error::from("Failed to send matches request"))
             }
         }
     }

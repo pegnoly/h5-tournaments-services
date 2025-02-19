@@ -434,8 +434,8 @@ pub async fn start_participants_syncronization(
             let tournament_data = tournaments_service.get_tournament_data(GetTournament::default().with_id(*current_managed_tournament)).await?.unwrap();
             let users_data = tournaments_service.get_tournament_users(*current_managed_tournament).await?;
             let challonge_participants_data = challonge_service.get_participants(
-                organizer.challonge.clone(), 
-                tournament_data.challonge_id.as_ref().unwrap().clone()).await?;
+                &organizer.challonge, 
+                tournament_data.challonge_id.as_ref().unwrap()).await?;
             let payload = users_data.iter()
                 .filter_map(|u| {
                     if !challonge_participants_data.iter().any(|p| p.attributes.misc.is_some() && *p.attributes.misc.as_ref().unwrap() == u.id.to_string()) {
@@ -453,7 +453,7 @@ pub async fn start_participants_syncronization(
                 .collect::<Vec<ChallongeParticipantAttributes>>();
     
             let add_result_data = challonge_service.participants_bulk_add(
-                organizer.challonge, 
+                &organizer.challonge, 
                 tournament_data.challonge_id.as_ref().unwrap().clone(), 
                 payload
             ).await?;

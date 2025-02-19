@@ -31,7 +31,13 @@ impl MainEventHandler {
     async fn dispatch_buttons(&self, context: &Context, interaction: &ComponentInteraction, component_id: &String, channel: u64, user: u64) -> Result<(), crate::Error> {
         match component_id.as_str() {
             "create_report_button" => {
-                builders::report_message::initial_build(context, &self.tournaments_service, &interaction, component_id, channel, user).await?;
+                let message = builders::report_message::build_match_creation_interface(
+                    context, 
+                    interaction, 
+                    &self.tournaments_service, 
+                    &self.challonge_service
+                ).await?;
+                interaction.create_response(context, CreateInteractionResponse::Message(message)).await?;
             },
             "start_report" => {
                 let response_message = builders::report_message::build_game_message(

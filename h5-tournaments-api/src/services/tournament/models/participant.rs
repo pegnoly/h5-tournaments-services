@@ -54,4 +54,8 @@ impl TournamentParticipantModel {
     async fn group(&self) -> i32 {
         self.group_number
     }
+
+    async fn challonge(&self) -> Option<String> {
+        self.challonge_id.clone()
+    }
 }
