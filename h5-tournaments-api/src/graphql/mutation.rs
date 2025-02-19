@@ -1,10 +1,18 @@
 use async_graphql::Context;
 use sea_orm::DatabaseConnection;
+use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 
 use crate::{prelude::TournamentService, services::tournament::models::{game_builder::{GameBuilderModel, GameEditState, GameResult}, organizer::OrganizerModel, tournament, tournament_builder::{TournamentBuilderModel, TournamentEditState}}};
 
 pub struct Mutation;
+
+#[derive(Debug, Serialize, Deserialize, async_graphql::InputObject)]
+pub struct UpdateParticipant {
+    pub user_id: Uuid,
+    pub tournament_id: Uuid,
+    pub challonge_id: String
+}
 
 #[async_graphql::Object]
 impl Mutation {
@@ -339,6 +347,25 @@ impl Mutation {
         match res {
             Ok(_res) => {
                 Ok(_res)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
+
+    async fn update_participants_bulk<'a>(
+        &self,
+        context: &Context<'a>,
+        participants: Vec<UpdateParticipant>
+    ) -> Result<String, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.participants_bulk_update(db, participants).await;
+
+        match res {
+            Ok(_res) => {
+                Ok("Participants were updated successfully".to_string())
             },
             Err(error) => {
                 Err(error)

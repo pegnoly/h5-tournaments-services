@@ -125,7 +125,12 @@ impl ChallongeService {
         }
     }
 
-    pub async fn participants_bulk_add(&self, api_key: String, tournament_id: String, data: Vec<ChallongeParticipantAttributes>) -> Result<(), crate::Error> {
+    pub async fn participants_bulk_add(
+        &self, 
+        api_key: String, 
+        tournament_id: String, 
+        data: Vec<ChallongeParticipantAttributes>
+    ) -> Result<Vec<ChallongeParticipantSimpleData>, crate::Error> {
         let payload = ChallongeParticipantsBulkAddPayload {
             _type: super::payloads::ChallongePayloadType::Participants,
             attributes: Some(ChallongeParticipantsBulkAttributes {
@@ -140,9 +145,14 @@ impl ChallongeService {
 
         match response {
             Ok(success) => {
-                let text = success.text().await?;
-                tracing::info!("Bulk add result: {}", &text);
-                Ok(())
+                match success.json::<ChallongeParticipantsSimple>().await {
+                    Ok(data) => {
+                        Ok(data.data)
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
             },
             Err(failure) => {
                 tracing::error!("Failed to send bulk add request: {}", failure.to_string());

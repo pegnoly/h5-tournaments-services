@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 use poise::serenity_prelude::*;
 use strum::{Display, EnumString};
 use uuid::Uuid;
-use crate::{builders, event_handler::LocalSyncBuilder, graphql::queries::update_tournament_builder, services::{challonge::{payloads::{ChallongeParticipantAttributes, ChallongeParticipantPayload}, service::ChallongeService}, h5_tournaments::{payloads::{CreateOrganizerPayload, CreateTournamentPayload, GetOrganizerPayload, GetTournamentBuilderPayload, UpdateTournamentBuilderPayload, UpdateTournamentPayload}, service::H5TournamentsService}}, types::payloads::GetTournament};
+use crate::{builders, event_handler::LocalSyncBuilder, graphql::queries::{update_participants_bulk::UpdateParticipant, update_tournament_builder}, services::{challonge::{payloads::{ChallongeParticipantAttributes, ChallongeParticipantPayload}, service::ChallongeService}, h5_tournaments::{payloads::{CreateOrganizerPayload, CreateTournamentPayload, GetOrganizerPayload, GetTournamentBuilderPayload, UpdateTournamentBuilderPayload, UpdateTournamentPayload}, service::H5TournamentsService}}, types::payloads::GetTournament};
 
 pub async fn start_admin_registration(
     context: &Context,
@@ -452,7 +452,22 @@ pub async fn start_participants_syncronization(
                 })
                 .collect::<Vec<ChallongeParticipantAttributes>>();
     
-            challonge_service.participants_bulk_add(organizer.challonge, tournament_data.challonge_id.as_ref().unwrap().clone(), payload).await?;
+            let add_result_data = challonge_service.participants_bulk_add(
+                organizer.challonge, 
+                tournament_data.challonge_id.as_ref().unwrap().clone(), 
+                payload
+            ).await?;
+
+            let participants_to_update = add_result_data.iter()
+                .map(|p| {
+                    UpdateParticipant {
+                        tournament_id: *current_managed_tournament,
+                        user_id: Uuid::from_str(p.attributes.misc.as_ref().unwrap()).unwrap(),
+                        challonge_id: p.id.clone()
+                    }
+                })
+                .collect::<Vec<UpdateParticipant>>();
+            tournaments_service.update_participants_bulk(participants_to_update).await?;
             interaction.create_response(context, CreateInteractionResponse::Message(
                 CreateInteractionResponseMessage::new()
                     .ephemeral(true)

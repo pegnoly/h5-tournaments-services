@@ -1,0 +1,3 @@
+mutation UpdateParticipantsBulk($participants: [UpdateParticipant!]!) {
+    updateParticipantsBulk(participants: $participants)
+}

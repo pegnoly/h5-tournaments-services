@@ -1,9 +1,9 @@
 use rust_decimal::Decimal;
-use sea_orm::{sea_query::{expr, OnConflict, SimpleExpr}, ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, ModelTrait, PaginatorTrait, QueryFilter, Related, Set};
+use sea_orm::{sea_query::{expr, OnConflict, SimpleExpr}, ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, ModelTrait, PaginatorTrait, QueryFilter, Related, Set, TransactionTrait};
 use sqlx::{PgPool, Pool, Postgres};
 use uuid::Uuid;
 
-use crate::routes::models::MatchRegistrationForm;
+use crate::{graphql::mutation::UpdateParticipant, routes::models::MatchRegistrationForm};
 
 use self::{game_builder::GameResult, match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
 
@@ -1145,6 +1145,32 @@ impl TournamentService {
         match res {
             Ok(models) => {
                 Ok(models)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    pub async fn participants_bulk_update(&self, db: &DatabaseConnection, data: Vec<UpdateParticipant>) -> Result<(), String> {
+        let transaction = db.begin().await.unwrap();
+        for update_data in data {
+            let current_model = participant::Entity::find()
+                .filter(participant::Column::TournamentId.eq(update_data.tournament_id))
+                .filter(participant::Column::UserId.eq(update_data.user_id))
+                .one(db)
+                .await.unwrap();
+            if let Some(model) = current_model {
+                let mut model_to_update: participant::ActiveModel = model.into();
+                model_to_update.challonge_id = Set(Some(update_data.challonge_id));
+                model_to_update.update(db).await.unwrap();
+            }
+        }
+        let res = transaction.commit().await;
+        match res {
+            Ok(res) => {
+                tracing::info!("Participants were updated");
+                Ok(())
             },
             Err(error) => {
                 Err(error.to_string())
