@@ -5,7 +5,7 @@ use poise::serenity_prelude::*;
 use uuid::Uuid;
 
 use crate::{
-    builders::{self, report_message::build_game_message, types::{GameBuilder, GameBuilderContainer, GameBuilderState, GameResult, MatchBuilder, OpponentDataPayload, OpponentsData}}, graphql::queries::{create_games_bulk, GetMatchQuery}, services::{challonge::service::ChallongeService, h5_tournaments::service::H5TournamentsService}, types::payloads::{GetMatch, GetTournament, GetUser, UpdateMatch}
+    builders::{self, report_message::build_game_message, types::{GameBuilder, GameBuilderContainer, GameBuilderState, GameResult, MatchBuilder, OpponentDataPayload, OpponentsData}}, graphql::queries::{create_games_bulk, GetMatchQuery}, services::{challonge::{payloads::{ChallongeMatchParticipantsData, ChallongeUpdateMatchAttributes, ChallongeUpdateMatchPayload}, service::ChallongeService}, h5_tournaments::{payloads::GetOrganizerPayload, service::H5TournamentsService}}, types::payloads::{GetMatch, GetTournament, GetUser, UpdateMatch}
 };
 
 pub async fn select_opponent(
@@ -87,16 +87,19 @@ pub async fn finish_match_creation(
                 })
             )
         };
-        drop(builder_locked);
-        drop(match_builders_locked);
-        let mut match_builders_to_remove = match_builders.write().await;
-        match_builders_to_remove.remove(&interaction.message.id.get());
-        drop(match_builders_to_remove);
-
-        let response_message = build_game_message(tournaments_service, &container).await?; 
+        // drop(builder_locked);
+        // drop(match_builders_locked);
+        // let mut match_builders_to_remove = match_builders.write().await;
+        // match_builders_to_remove.remove(&interaction.message.id.get());
+        // drop(match_builders_to_remove);
         let mut game_builders_locked = game_builders.write().await;
         game_builders_locked.insert(interaction.message.id.get(), RwLock::new(container));
         drop(game_builders_locked);
+
+        let response_message = build_game_message(
+            tournaments_service, 
+            &*game_builders.read().await.get(&interaction.message.id.get()).unwrap().read().await
+        ).await?; 
         interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
     }
     Ok(())
@@ -235,16 +238,45 @@ pub async fn generate_final_report_message(
                     .fields(fields)
             );
         
+        drop(container_locked);
+        // let mut builders_to_remove = game_builders.write().await;
+        // builders_to_remove.remove(&message);
+        // drop(builders_to_remove);
+
         output_channel.send_message(context, message_builder).await?;
         interaction.create_response(context, CreateInteractionResponse::UpdateMessage(
             CreateInteractionResponseMessage::new()
                 .add_embed(CreateEmbed::new().title("Отчет успешно создан, можете закрыть это сообщение."))
                 .components(vec![])
         )).await?;
-        drop(container_locked);
-        let mut builders_to_remove = game_builders.write().await;
-        builders_to_remove.remove(&message);
-        drop(builders_to_remove);
+
+        let first_participant = tournaments_service.get_participant(Some(tournament_data.id), Some(first_user.id), None).await?.unwrap();
+        let second_participant = tournaments_service.get_participant(Some(tournament_data.id), Some(second_user.id), None).await?.unwrap();
+        let challonge_match = match_data.challonge;
+        let challonge_tournament = tournament_data.challonge_id.unwrap();
+        let organizer = tournaments_service
+            .get_organizer(GetOrganizerPayload::default().with_id(tournament_data.organizer.unwrap())).await?.unwrap();
+        let challonge_payload = ChallongeUpdateMatchPayload {
+            _type: crate::services::challonge::payloads::ChallongePayloadType::Match,
+            attributes: ChallongeUpdateMatchAttributes {
+                match_data: vec![
+                    ChallongeMatchParticipantsData {
+                        participant_id: first_participant.challonge.unwrap(),
+                        score_set: first_player_wins.to_string(),
+                        rank: 1.to_string(),
+                        advancing: true
+                    },
+                    ChallongeMatchParticipantsData {
+                        participant_id: second_participant.challonge.unwrap(),
+                        score_set: second_player_wins.to_string(),
+                        rank: 1.to_string(),
+                        advancing: false
+                    },
+                ],
+                tie: false
+            }
+        };
+        challonge_service.update_challonge_match(&organizer.challonge, &challonge_tournament, &challonge_match, challonge_payload).await?;
     }
     Ok(())
 }
@@ -307,9 +339,9 @@ pub async fn select_player_hero(
         let current_game_number = container_locked.current_number;
         let current_game = container_locked.builders.iter_mut().find(|g| g.number == current_game_number).unwrap();
         current_game.first_player_hero = Some(i64::from_str_radix(selected_value, 10)?);
-        drop(container_locked);
         let response_message = build_game_message(tournaments_service, &*container.read().await).await?;
         interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+        drop(container_locked);
     }
     Ok(())
 }

@@ -39,6 +39,11 @@ pub struct ChallongeMatches {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ChallongeSingleMatch {
+    pub data: ChallongeMatchData
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ChallongeMatchData {
     pub id: String,
     pub attributes: ChallongeMatchAttributes,

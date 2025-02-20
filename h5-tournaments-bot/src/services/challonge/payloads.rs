@@ -3,7 +3,8 @@ use strum::{Display, EnumString};
 
 #[derive(Debug, EnumString, Display, Serialize, Deserialize)]
 pub enum ChallongePayloadType {
-    Participants
+    Participants,
+    Match
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,4 +40,26 @@ pub struct ChallongeParticipantsBulkAddPayload {
     #[serde(rename = "type")]
     pub _type: ChallongePayloadType,
     pub attributes: Option<ChallongeParticipantsBulkAttributes>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChallongeUpdateMatchPayload {
+    #[serde(rename = "type")]
+    pub _type: ChallongePayloadType,
+    pub attributes: ChallongeUpdateMatchAttributes
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChallongeUpdateMatchAttributes {
+    #[serde(rename = "match")]
+    pub match_data: Vec<ChallongeMatchParticipantsData>,
+    pub tie: bool
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChallongeMatchParticipantsData {
+    pub participant_id: String,
+    pub score_set: String,
+    pub rank: String,
+    pub advancing: bool
 }
