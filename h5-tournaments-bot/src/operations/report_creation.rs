@@ -87,19 +87,16 @@ pub async fn finish_match_creation(
                 })
             )
         };
-        // drop(builder_locked);
-        // drop(match_builders_locked);
-        // let mut match_builders_to_remove = match_builders.write().await;
-        // match_builders_to_remove.remove(&interaction.message.id.get());
-        // drop(match_builders_to_remove);
+        drop(builder_locked);
+        drop(match_builders_locked);
+        let mut match_builders_to_remove = match_builders.write().await;
+        match_builders_to_remove.remove(&interaction.message.id.get());
+        drop(match_builders_to_remove);
+
+        let response_message = build_game_message(tournaments_service, &container).await?; 
         let mut game_builders_locked = game_builders.write().await;
         game_builders_locked.insert(interaction.message.id.get(), RwLock::new(container));
         drop(game_builders_locked);
-
-        let response_message = build_game_message(
-            tournaments_service, 
-            &*game_builders.read().await.get(&interaction.message.id.get()).unwrap().read().await
-        ).await?; 
         interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
     }
     Ok(())
@@ -238,17 +235,13 @@ pub async fn generate_final_report_message(
                     .fields(fields)
             );
         
-        drop(container_locked);
-        // let mut builders_to_remove = game_builders.write().await;
-        // builders_to_remove.remove(&message);
-        // drop(builders_to_remove);
-
         output_channel.send_message(context, message_builder).await?;
         interaction.create_response(context, CreateInteractionResponse::UpdateMessage(
             CreateInteractionResponseMessage::new()
                 .add_embed(CreateEmbed::new().title("Отчет успешно создан, можете закрыть это сообщение."))
                 .components(vec![])
         )).await?;
+
         drop(container_locked);
         drop(game_builders_locked);
         let mut builders_to_remove = game_builders.write().await;
@@ -344,9 +337,9 @@ pub async fn select_player_hero(
         let current_game_number = container_locked.current_number;
         let current_game = container_locked.builders.iter_mut().find(|g| g.number == current_game_number).unwrap();
         current_game.first_player_hero = Some(i64::from_str_radix(selected_value, 10)?);
+        drop(container_locked);
         let response_message = build_game_message(tournaments_service, &*container.read().await).await?;
         interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
-        drop(container_locked);
     }
     Ok(())
 }
