@@ -249,6 +249,11 @@ pub async fn generate_final_report_message(
                 .add_embed(CreateEmbed::new().title("Отчет успешно создан, можете закрыть это сообщение."))
                 .components(vec![])
         )).await?;
+        drop(container_locked);
+        drop(game_builders_locked);
+        let mut builders_to_remove = game_builders.write().await;
+        builders_to_remove.remove(&message);
+        drop(builders_to_remove);
 
         let first_participant = tournaments_service.get_participant(Some(tournament_data.id), Some(first_user.id), None).await?.unwrap();
         let second_participant = tournaments_service.get_participant(Some(tournament_data.id), Some(second_user.id), None).await?.unwrap();
