@@ -7,7 +7,7 @@ use crate::{graphql::mutation::UpdateParticipant, routes::models::MatchRegistrat
 
 use self::{game_builder::GameResult, match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
 
-use super::{models::{game_builder::{self, GameBuilderModel, GameEditState}, hero::{self, HeroModel}, match_structure, operator::{self, TournamentOperatorModel}, organizer::{self, OrganizerModel}, participant, tournament, tournament_builder::{self, TournamentBuilderModel, TournamentEditState}, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
+use super::{models::{game_builder::{self, CreateGameModel, GameModel}, hero::{self, HeroModel}, match_structure, operator::{self, TournamentOperatorModel}, organizer::{self, OrganizerModel}, participant, tournament, tournament_builder::{self, TournamentBuilderModel, TournamentEditState}, user}, types::{Game, Hero, Match, ModType, Race, Tournament}};
 
 #[derive(Clone)]
 pub struct LegacyTournamentService {
@@ -504,25 +504,25 @@ impl TournamentService {
         &self,
         db: &DatabaseConnection,
         tournament_id: Uuid,
-        interaction: String,
-        first_player: Uuid
-    ) -> Result<(), String> {
+        message: i64,
+        first_player: Uuid,
+        second_player: Uuid,
+        challonge_id: String
+    ) -> Result<Uuid, String> {
         let id = Uuid::new_v4();
-        let interaction_id = i64::from_str_radix(&interaction, 10).unwrap();
-
         let match_to_create = match_structure::ActiveModel {
             id: Set(id),
-            first_player: Set(first_player),
-            interaction_id: Set(interaction_id),
             tournament_id: Set(tournament_id),
-            current_game: Set(1),
-            ..Default::default()
+            message_id: Set(message),
+            first_player: Set(first_player),
+            second_player: Set(second_player),
+            challonge_id: Set(challonge_id)
         };
 
         let res = match_to_create.insert(db).await;
         match res {
-            Ok(_success) => {
-                Ok(())
+            Ok(model) => {
+                Ok(model.id)
             },
             Err(error) => {
                 Err(error.to_string())
@@ -530,75 +530,56 @@ impl TournamentService {
         }
     }
 
-    pub async fn update_match(
-        &self,
-        db: &DatabaseConnection,
-        id: Uuid,
-        games_count: Option<i32>,
-        second_player: Option<Uuid>,
-        data_message: Option<String>,
-        current_game: Option<i32>
-    ) -> Result<(), String> {
+    // pub async fn update_match(
+    //     &self,
+    //     db: &DatabaseConnection,
+    //     id: Uuid,
+    //     games_count: Option<i32>,
+    //     second_player: Option<Uuid>,
+    //     data_message: Option<String>,
+    //     current_game: Option<i32>
+    // ) -> Result<(), String> {
 
-        let current_match = match_structure::Entity::find_by_id(id).one(db).await.unwrap();
-        if let Some(current_match) = current_match {
+    //     let current_match = match_structure::Entity::find_by_id(id).one(db).await.unwrap();
+    //     if let Some(current_match) = current_match {
 
-            let mut match_to_update: match_structure::ActiveModel = current_match.into();
+    //         let mut match_to_update: match_structure::ActiveModel = current_match.into();
 
-            if let Some(games) = games_count {
-                match_to_update.games_count = Set(Some(games));
-            }
+    //         if let Some(games) = games_count {
+    //             match_to_update.games_count = Set(Some(games));
+    //         }
 
-            if let Some(second_player) = second_player {
-                match_to_update.second_player = Set(Some(second_player));
-            }
+    //         if let Some(second_player) = second_player {
+    //             match_to_update.second_player = Set(Some(second_player));
+    //         }
 
-            if let Some(data_message) = data_message {
-                match_to_update.data_message = Set(Some(i64::from_str_radix(&data_message, 10).unwrap()));
-            }
+    //         if let Some(data_message) = data_message {
+    //             match_to_update.data_message = Set(Some(i64::from_str_radix(&data_message, 10).unwrap()));
+    //         }
 
-            if let Some(current_game) = current_game {
-                match_to_update.current_game = Set(current_game);
-            }
+    //         if let Some(current_game) = current_game {
+    //             match_to_update.current_game = Set(current_game);
+    //         }
 
-            match_to_update.update(db).await.unwrap();
-        }
+    //         match_to_update.update(db).await.unwrap();
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     pub async fn get_match(
         &self,
         db: &DatabaseConnection,
-        id: Option<Uuid>,
-        data_message: Option<String>,
-        interaction: Option<String>
+        id: Uuid,
     ) -> Result<Option<MatchModel>, String> {
-        let conditions = Condition::all()
-            .add_option(if id.is_some() {
-                Some(expr::Expr::col(match_structure::Column::Id).eq(id.unwrap()))
-            } else {
-                None::<SimpleExpr>
-            })
-            .add_option(if data_message.is_some() {
-                Some(expr::Expr::col(match_structure::Column::DataMessage).eq(i64::from_str_radix(&data_message.unwrap(), 10).unwrap()))
-            } else {
-                None::<SimpleExpr>
-            })
-            .add_option(if interaction.is_some() {
-                Some(expr::Expr::col(match_structure::Column::InteractionId).eq(i64::from_str_radix(&interaction.unwrap(), 10).unwrap()))
-            } else {
-                None::<SimpleExpr>
-            });
-        
         let res = match_structure::Entity::find()
-            .filter(conditions)
+            .filter(match_structure::Column::Id.eq(id))
             .one(db)
             .await;
 
         match res {
-            Ok(match_model) => {
-                Ok(match_model)
+            Ok(model) => {
+                Ok(model)
             },
             Err(error) => {
                 Err(error.to_string())
@@ -621,27 +602,31 @@ impl TournamentService {
         }
     }
 
-    pub async fn create_game(
+    pub async fn create_games_bulk(
         &self,
         db: &DatabaseConnection,
-        match_id: Uuid,
-        number: i16
-    ) -> Result<GameBuilderModel, String> {
-        let id = Uuid::new_v4();
-        let game_to_insert = game_builder::ActiveModel {
-            id: Set(id),
-            match_id: Set(match_id),
-            number: Set(number),
-            edit_state: Set(Some(GameEditState::PlayerData)),
-            result: Set(GameResult::NotSelected),
-            bargains_amount: Set(0),
-            ..Default::default()
-        };
-
-        let res = game_to_insert.insert(db).await;
+        games: Vec<CreateGameModel>
+    ) -> Result<(), String> {
+        let transaction = db.begin().await.unwrap();
+        for game in games {
+            let id = Uuid::new_v4();
+            let game_to_insert = game_builder::ActiveModel {
+                id: Set(id),
+                match_id: Set(game.match_id),
+                first_player_race: Set(game.first_player_race),
+                first_player_hero: Set(game.first_player_hero),
+                second_player_race: Set(game.second_player_race),
+                second_player_hero: Set(game.second_player_hero),
+                result: Set(game.result),
+                bargains_color: Set(game.bargains_color),
+                bargains_amount: Set(game.bargains_amount)
+            };
+            game_to_insert.insert(db).await.unwrap();
+        }
+        let res = transaction.commit().await;
         match res {
-            Ok(model) => {
-                Ok(model)
+            Ok(_res) => {
+                Ok(())
             },
             Err(error) => {
                 Err(error.to_string())
@@ -649,91 +634,91 @@ impl TournamentService {
         }
     }
 
-    pub async fn update_game(
-        &self,
-        db: &DatabaseConnection,
-        match_id: Uuid,
-        number: i32,
-        edit_state: Option<GameEditState>,
-        first_player_race: Option<i32>,
-        first_player_hero: Option<i32>,
-        second_player_race: Option<i32>,
-        second_player_hero: Option<i32>,
-        bargains_amount: Option<i32>,
-        result: Option<GameResult>
-    ) -> Result<String, String> {
-        let current_game = game_builder::Entity::find()
-            .filter(
-                Condition::all()
-                    .add(game_builder::Column::MatchId.eq(match_id))
-                    .add(game_builder::Column::Number.eq(number))
-            )
-            .one(db)
-            .await.unwrap();
+    // pub async fn update_game(
+    //     &self,
+    //     db: &DatabaseConnection,
+    //     match_id: Uuid,
+    //     number: i32,
+    //     edit_state: Option<GameEditState>,
+    //     first_player_race: Option<i32>,
+    //     first_player_hero: Option<i32>,
+    //     second_player_race: Option<i32>,
+    //     second_player_hero: Option<i32>,
+    //     bargains_amount: Option<i32>,
+    //     result: Option<GameResult>
+    // ) -> Result<String, String> {
+    //     let current_game = game_builder::Entity::find()
+    //         .filter(
+    //             Condition::all()
+    //                 .add(game_builder::Column::MatchId.eq(match_id))
+    //                 .add(game_builder::Column::Number.eq(number))
+    //         )
+    //         .one(db)
+    //         .await.unwrap();
 
-        if let Some(game) = current_game {
-            let mut game_to_update: game_builder::ActiveModel = game.into();
-            if let Some(edit_state) = edit_state {
-                game_to_update.edit_state = Set(Some(edit_state));
-            }
-            if let Some(first_player_race) = first_player_race {
-                game_to_update.first_player_race = Set(Some(first_player_race));
-            }
-            if let Some(first_player_hero) = first_player_hero {
-                game_to_update.first_player_hero = Set(Some(first_player_hero));
-            }
-            if let Some(second_player_race) = second_player_race {
-                game_to_update.second_player_race = Set(Some(second_player_race));
-            }
-            if let Some(second_player_hero) = second_player_hero {
-                game_to_update.second_player_hero = Set(Some(second_player_hero));
-            }
-            if let Some(bargains_amount) = bargains_amount {
-                game_to_update.bargains_amount = Set(bargains_amount);
-            }
-            if let Some(result) = result {
-                game_to_update.result = Set(result);
-            }
+    //     if let Some(game) = current_game {
+    //         let mut game_to_update: game_builder::ActiveModel = game.into();
+    //         if let Some(edit_state) = edit_state {
+    //             game_to_update.edit_state = Set(Some(edit_state));
+    //         }
+    //         if let Some(first_player_race) = first_player_race {
+    //             game_to_update.first_player_race = Set(Some(first_player_race));
+    //         }
+    //         if let Some(first_player_hero) = first_player_hero {
+    //             game_to_update.first_player_hero = Set(Some(first_player_hero));
+    //         }
+    //         if let Some(second_player_race) = second_player_race {
+    //             game_to_update.second_player_race = Set(Some(second_player_race));
+    //         }
+    //         if let Some(second_player_hero) = second_player_hero {
+    //             game_to_update.second_player_hero = Set(Some(second_player_hero));
+    //         }
+    //         if let Some(bargains_amount) = bargains_amount {
+    //             game_to_update.bargains_amount = Set(bargains_amount);
+    //         }
+    //         if let Some(result) = result {
+    //             game_to_update.result = Set(result);
+    //         }
 
-            let res = game_to_update.update(db).await;
-            match res {
-                Ok(_success) => {
-                    Ok("Game updated successfully".to_string())
-                },
-                Err(error) => {
-                    Err(error.to_string())
-                }
-            }
-        }
-        else {
-            Err("Failed to find game".to_string())
-        }
-    }
+    //         let res = game_to_update.update(db).await;
+    //         match res {
+    //             Ok(_success) => {
+    //                 Ok("Game updated successfully".to_string())
+    //             },
+    //             Err(error) => {
+    //                 Err(error.to_string())
+    //             }
+    //         }
+    //     }
+    //     else {
+    //         Err("Failed to find game".to_string())
+    //     }
+    // }
 
-    pub async fn get_game(
-        &self,
-        db: &DatabaseConnection,
-        match_id: Uuid,
-        number: i32
-    ) -> Result<Option<GameBuilderModel>, String> {
-        let res = game_builder::Entity::find()
-            .filter(
-                Condition::all()
-                .add(game_builder::Column::MatchId.eq(match_id))
-                .add(game_builder::Column::Number.eq(number))
-            )
-            .one(db)
-            .await;
+    // pub async fn get_game(
+    //     &self,
+    //     db: &DatabaseConnection,
+    //     match_id: Uuid,
+    //     number: i32
+    // ) -> Result<Option<GameBuilderModel>, String> {
+    //     let res = game_builder::Entity::find()
+    //         .filter(
+    //             Condition::all()
+    //             .add(game_builder::Column::MatchId.eq(match_id))
+    //             .add(game_builder::Column::Number.eq(number))
+    //         )
+    //         .one(db)
+    //         .await;
 
-        match res {
-            Ok(game) => { 
-                Ok(game)
-            },
-            Err(error) => {
-                Err(error.to_string())
-            }
-        }
-    }
+    //     match res {
+    //         Ok(game) => { 
+    //             Ok(game)
+    //         },
+    //         Err(error) => {
+    //             Err(error.to_string())
+    //         }
+    //     }
+    // }
 
     pub async fn get_heroes(
         &self,
@@ -775,25 +760,25 @@ impl TournamentService {
         }
     }
 
-    pub async fn get_games(
-        &self,
-        db: &DatabaseConnection,
-        match_id: Uuid
-    ) -> Result<Vec<GameBuilderModel>, String> {
-        let res = game_builder::Entity::find()
-            .filter(game_builder::Column::MatchId.eq(match_id))
-            .all(db)
-            .await;
+    // pub async fn get_games(
+    //     &self,
+    //     db: &DatabaseConnection,
+    //     match_id: Uuid
+    // ) -> Result<Vec<GameBuilderModel>, String> {
+    //     let res = game_builder::Entity::find()
+    //         .filter(game_builder::Column::MatchId.eq(match_id))
+    //         .all(db)
+    //         .await;
 
-        match res {
-            Ok(games) => {
-                Ok(games)
-            },
-            Err(error) => {
-                Err(error.to_string())
-            }
-        }
-    }
+    //     match res {
+    //         Ok(games) => {
+    //             Ok(games)
+    //         },
+    //         Err(error) => {
+    //             Err(error.to_string())
+    //         }
+    //     }
+    // }
 
     pub async fn get_participants(
         &self,
@@ -823,15 +808,28 @@ impl TournamentService {
     pub async fn get_participant(
         &self,
         db: &DatabaseConnection,
-        user_id: Uuid,
-        tournament_id: Uuid
+        user_id: Option<Uuid>,
+        tournament_id: Option<Uuid>,
+        challonge_id: Option<String>
     ) -> Result<Option<participant::Model>, String> {
+        let conditions = Condition::all()
+            .add_option(if user_id.is_some() {
+                Some(expr::Expr::col(participant::Column::UserId).eq(user_id.unwrap()))
+            } else {
+                None::<SimpleExpr>
+            })
+            .add_option(if tournament_id.is_some() {
+                Some(expr::Expr::col(participant::Column::TournamentId).eq(tournament_id.unwrap()))
+            } else {
+                None::<SimpleExpr>
+            })
+            .add_option(if challonge_id.is_some() {
+                Some(expr::Expr::col(participant::Column::ChallongeId).eq(challonge_id.unwrap()))
+            } else {
+                None::<SimpleExpr>
+            });
         let res = participant::Entity::find()
-            .filter(
-                Condition::all()
-                    .add(participant::Column::TournamentId.eq(tournament_id))
-                    .add(participant::Column::UserId.eq(user_id))
-            )
+            .filter(conditions)
             .one(db)
             .await;
 

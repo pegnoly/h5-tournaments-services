@@ -6,10 +6,10 @@ use uuid::Uuid;
 
 use crate::{
     graphql::queries::{
-        self, create_game_mutation::{self, CreateGameMutationCreateGame}, create_organizer, create_participant, create_tournament_builder::{self, CreateTournamentBuilderCreateTournamentBuilder}, create_tournament_mutation, create_user_mutation::ResponseData, delete_participant, get_game_query::{self, GetGameQueryGame}, get_games_query::{self, GetGamesQueryGames}, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_operator_data_query::{self, GetOperatorDataQueryOperator}, get_organizer::{self, GetOrganizerOrganizer}, get_participant::{self, GetParticipantParticipant}, get_participants::{self, GetParticipantsParticipants}, get_tournament_builder::{self, GetTournamentBuilderTournamentBuilder}, get_tournament_query, get_tournament_users::{self, GetTournamentUsersTournamentUsers}, get_tournaments::{self, GetTournamentsTournaments}, get_user_query::{self, GetUserQueryUser}, update_game_mutation, update_match_mutation, update_participants_bulk::{self, UpdateParticipant}, update_tournament, update_tournament_builder::{self, UpdateTournamentBuilderUpdateTournamentBuilder}, update_user, CreateGameMutation, CreateMatchMutation, CreateOrganizer, CreateParticipant, CreateTournamentBuilder, CreateTournamentMutation, CreateUserMutation, DeleteParticipant, GetGameQuery, GetGamesQuery, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetOrganizer, GetParticipant, GetParticipants, GetTournamentBuilder, GetTournamentQuery, GetTournamentUsers, GetTournaments, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateGameMutation, UpdateMatchMutation, UpdateParticipantsBulk, UpdateTournament, UpdateTournamentBuilder, UpdateUser
+        self, create_games_bulk::{self, CreateGameModel}, create_organizer, create_participant, create_tournament_builder::{self, CreateTournamentBuilderCreateTournamentBuilder}, create_tournament_mutation, create_user_mutation::ResponseData, delete_participant, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroes}, get_match_query::GetMatchQueryGetMatch, get_operator_data_query::{self, GetOperatorDataQueryOperator}, get_organizer::{self, GetOrganizerOrganizer}, get_participant::{self, GetParticipantParticipant}, get_tournament_builder::{self, GetTournamentBuilderTournamentBuilder}, get_tournament_query, get_tournament_users::{self, GetTournamentUsersTournamentUsers}, get_tournaments::{self, GetTournamentsTournaments}, get_user_query::{self, GetUserQueryUser}, update_participants_bulk::{self, UpdateParticipant}, update_tournament, update_tournament_builder::{self, UpdateTournamentBuilderUpdateTournamentBuilder}, update_user, CreateGamesBulk, CreateMatchMutation, CreateOrganizer, CreateParticipant, CreateTournamentBuilder, CreateTournamentMutation, CreateUserMutation, DeleteParticipant, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetOrganizer, GetParticipant, GetTournamentBuilder, GetTournamentQuery, GetTournamentUsers, GetTournaments, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateParticipantsBulk, UpdateTournament, UpdateTournamentBuilder, UpdateUser
     }, 
     parser::service::ParsedData, 
-    types::payloads::{GetMatch, GetTournament, GetUser, UpdateGame, UpdateMatch}
+    types::payloads::{GetMatch, GetTournament, GetUser, UpdateMatch}
 };
 
 use super::payloads::{CreateOrganizerPayload, CreateTournamentPayload, GetOrganizerPayload, GetTournamentBuilderPayload, UpdateTournamentBuilderPayload, UpdateTournamentPayload};
@@ -393,13 +393,17 @@ impl H5TournamentsService {
     pub async fn create_match(
         &self,
         tournament_id: Uuid,
+        message: u64,
         first_player: Uuid,
-        interaction_id: u64
-    ) -> Result<String, crate::Error> {
+        second_player: Uuid,
+        challonge_id: String
+    ) -> Result<Uuid, crate::Error> {
         let variables = queries::create_match_mutation::Variables {
             tournament_id: tournament_id,
-            interaction: interaction_id.to_string(),
-            first_player: first_player
+            message: message as i64,
+            first_player: first_player,
+            second_player: second_player,
+            challonge_id: challonge_id
         };
 
         let client = self.client.read().await;
@@ -428,9 +432,9 @@ impl H5TournamentsService {
         }
     }
 
-    pub async fn get_match(&self, payload: GetMatch) -> Result<Option<queries::GetMatchResult>, crate::Error> {
+    pub async fn get_match(&self, id: Uuid) -> Result<Option<GetMatchQueryGetMatch>, crate::Error> {
         let client = self.client.read().await;
-        let query = GetMatchQuery::build_query(queries::get_match_query::Variables::from(payload));
+        let query = GetMatchQuery::build_query(queries::get_match_query::Variables {id: id});
         let response = client.post(&self.url).json(&query).send().await;
         match response {
             Ok(response) => {
@@ -438,7 +442,7 @@ impl H5TournamentsService {
                 match result {
                     Ok(result) => {
                         if let Some(data) = result.data {
-                            Ok(data.tournament_match)
+                            Ok(data.get_match)
                         }
                         else {
                             Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
@@ -455,32 +459,32 @@ impl H5TournamentsService {
         }
     }
 
-    pub async fn update_match(&self, payload: UpdateMatch) -> Result<String, crate::Error> {
-        let client = self.client.read().await;
-        let query = UpdateMatchMutation::build_query(update_match_mutation::Variables::from(payload));
-        let response = client.post(&self.url).json(&query).send().await;
-        match response {
-            Ok(response) => {
-                let result = response.json::<Response<queries::update_match_mutation::ResponseData>>().await;
-                match result {
-                    Ok(result) => {
-                        if let Some(data) = result.data {
-                            Ok(data.update_match)
-                        }
-                        else {
-                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
-                        }
-                    },
-                    Err(json_error) => {
-                        Err(crate::Error::from(json_error))
-                    }
-                }
-            },
-            Err(response_error) => {
-                Err(crate::Error::from(response_error))
-            }
-        }
-    }
+    // pub async fn update_match(&self, payload: UpdateMatch) -> Result<String, crate::Error> {
+    //     let client = self.client.read().await;
+    //     let query = UpdateMatchMutation::build_query(update_match_mutation::Variables::from(payload));
+    //     let response = client.post(&self.url).json(&query).send().await;
+    //     match response {
+    //         Ok(response) => {
+    //             let result = response.json::<Response<queries::update_match_mutation::ResponseData>>().await;
+    //             match result {
+    //                 Ok(result) => {
+    //                     if let Some(data) = result.data {
+    //                         Ok(data.update_match)
+    //                     }
+    //                     else {
+    //                         Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+    //                     }
+    //                 },
+    //                 Err(json_error) => {
+    //                     Err(crate::Error::from(json_error))
+    //                 }
+    //             }
+    //         },
+    //         Err(response_error) => {
+    //             Err(crate::Error::from(response_error))
+    //         }
+    //     }
+    // }
 
     pub async fn get_users(&self) -> Result<Option<Vec<GetUsersResult>>, crate::Error> {
         let variables = queries::get_users_query::Variables;
@@ -510,105 +514,105 @@ impl H5TournamentsService {
         }
     }
 
-    pub async fn get_game(
-        &self,
-        match_id: Uuid,
-        number: i64
-    ) -> Result<Option<GetGameQueryGame>, crate::Error> {
-        let variables = get_game_query::Variables {
-            match_id: match_id,
-            number: number as i64
-        };
-        let client = self.client.read().await;
-        let query = GetGameQuery::build_query(variables);
-        let response = client.post(&self.url).json(&query).send().await;
-        match response {
-            Ok(response) => {
-                let result = response.json::<Response<queries::get_game_query::ResponseData>>().await;
-                match result {
-                    Ok(result) => {
-                        if let Some(data) = result.data {
-                            Ok(data.game)
-                        }
-                        else {
-                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
-                        }
-                    },
-                    Err(json_error) => {
-                        Err(crate::Error::from(json_error))
-                    }
-                }
-            },
-            Err(response_error) => {
-                Err(crate::Error::from(response_error))
-            }
-        }
-    }
+    // pub async fn get_game(
+    //     &self,
+    //     match_id: Uuid,
+    //     number: i64
+    // ) -> Result<Option<GetGameQueryGame>, crate::Error> {
+    //     let variables = get_game_query::Variables {
+    //         match_id: match_id,
+    //         number: number as i64
+    //     };
+    //     let client = self.client.read().await;
+    //     let query = GetGameQuery::build_query(variables);
+    //     let response = client.post(&self.url).json(&query).send().await;
+    //     match response {
+    //         Ok(response) => {
+    //             let result = response.json::<Response<queries::get_game_query::ResponseData>>().await;
+    //             match result {
+    //                 Ok(result) => {
+    //                     if let Some(data) = result.data {
+    //                         Ok(data.game)
+    //                     }
+    //                     else {
+    //                         Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+    //                     }
+    //                 },
+    //                 Err(json_error) => {
+    //                     Err(crate::Error::from(json_error))
+    //                 }
+    //             }
+    //         },
+    //         Err(response_error) => {
+    //             Err(crate::Error::from(response_error))
+    //         }
+    //     }
+    // }
     
-    pub async fn create_game(
-        &self,
-        match_id: Uuid,
-        number: i64
-    ) -> Result<CreateGameMutationCreateGame, crate::Error> {
-        let variables = create_game_mutation::Variables {
-            match_id: match_id,
-            number: number as i64
-        };
+    // pub async fn create_game(
+    //     &self,
+    //     match_id: Uuid,
+    //     number: i64
+    // ) -> Result<CreateGameMutationCreateGame, crate::Error> {
+    //     let variables = create_game_mutation::Variables {
+    //         match_id: match_id,
+    //         number: number as i64
+    //     };
 
-        let client = self.client.read().await;
-        let query = CreateGameMutation::build_query(variables);
-        let response = client.post(&self.url).json(&query).send().await;
-        match response {
-            Ok(response) => {
-                let result = response.json::<Response<queries::create_game_mutation::ResponseData>>().await;
-                match result {
-                    Ok(result) => {
-                        tracing::info!("Game creation result: {:?}", &result);
-                        if let Some(data) = result.data {
-                            Ok(data.create_game)
-                        }
-                        else {
-                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
-                        }
-                    },
-                    Err(json_error) => {
-                        Err(crate::Error::from(json_error))
-                    }
-                }
-            },
-            Err(response_error) => {
-                Err(crate::Error::from(response_error))
-            }
-        }
-    }
+    //     let client = self.client.read().await;
+    //     let query = CreateGameMutation::build_query(variables);
+    //     let response = client.post(&self.url).json(&query).send().await;
+    //     match response {
+    //         Ok(response) => {
+    //             let result = response.json::<Response<queries::create_game_mutation::ResponseData>>().await;
+    //             match result {
+    //                 Ok(result) => {
+    //                     tracing::info!("Game creation result: {:?}", &result);
+    //                     if let Some(data) = result.data {
+    //                         Ok(data.create_game)
+    //                     }
+    //                     else {
+    //                         Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+    //                     }
+    //                 },
+    //                 Err(json_error) => {
+    //                     Err(crate::Error::from(json_error))
+    //                 }
+    //             }
+    //         },
+    //         Err(response_error) => {
+    //             Err(crate::Error::from(response_error))
+    //         }
+    //     }
+    // }
 
-    pub async fn update_game(&self, payload: UpdateGame) -> Result<String, crate::Error> {
-        let client = self.client.read().await;
-        let query = UpdateGameMutation::build_query(update_game_mutation::Variables::from(payload));
-        let response = client.post(&self.url).json(&query).send().await;
-        match response {
-            Ok(response) => {
-                let result = response.json::<Response<queries::update_game_mutation::ResponseData>>().await;
-                match result {
-                    Ok(result) => {
-                        tracing::info!("Game update result: {:?}", &result);
-                        if let Some(data) = result.data {
-                            Ok(data.update_game)
-                        }
-                        else {
-                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
-                        }
-                    },
-                    Err(json_error) => {
-                        Err(crate::Error::from(json_error))
-                    }
-                }
-            },
-            Err(response_error) => {
-                Err(crate::Error::from(response_error))
-            }
-        }
-    }
+    // pub async fn update_game(&self, payload: UpdateGame) -> Result<String, crate::Error> {
+    //     let client = self.client.read().await;
+    //     let query = UpdateGameMutation::build_query(update_game_mutation::Variables::from(payload));
+    //     let response = client.post(&self.url).json(&query).send().await;
+    //     match response {
+    //         Ok(response) => {
+    //             let result = response.json::<Response<queries::update_game_mutation::ResponseData>>().await;
+    //             match result {
+    //                 Ok(result) => {
+    //                     tracing::info!("Game update result: {:?}", &result);
+    //                     if let Some(data) = result.data {
+    //                         Ok(data.update_game)
+    //                     }
+    //                     else {
+    //                         Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+    //                     }
+    //                 },
+    //                 Err(json_error) => {
+    //                     Err(crate::Error::from(json_error))
+    //                 }
+    //             }
+    //         },
+    //         Err(response_error) => {
+    //             Err(crate::Error::from(response_error))
+    //         }
+    //     }
+    // }
 
     pub async fn get_heroes(
         &self,
@@ -680,40 +684,40 @@ impl H5TournamentsService {
         }
     }
 
-    pub async fn get_games(
-        &self,
-        match_id: Uuid
-    ) -> Result<Vec<GetGamesQueryGames>, crate::Error> {
-        let variables = get_games_query::Variables {
-            match_id: match_id
-        };
+    // pub async fn get_games(
+    //     &self,
+    //     match_id: Uuid
+    // ) -> Result<Vec<GetGamesQueryGames>, crate::Error> {
+    //     let variables = get_games_query::Variables {
+    //         match_id: match_id
+    //     };
 
-        let client = self.client.read().await;
-        let query = GetGamesQuery::build_query(variables);
-        let response = client.post(&self.url).json(&query).send().await;
-        match response {
-            Ok(response) => {
-                let result = response.json::<Response<queries::get_games_query::ResponseData>>().await;
-                match result {
-                    Ok(result) => {
-                        tracing::info!("Hero fetch result: {:?}", &result);
-                        if let Some(data) = result.data {
-                            Ok(data.games)
-                        }
-                        else {
-                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
-                        }
-                    },
-                    Err(json_error) => {
-                        Err(crate::Error::from(json_error))
-                    }
-                }
-            },
-            Err(response_error) => {
-                Err(crate::Error::from(response_error))
-            }
-        }
-    }
+    //     let client = self.client.read().await;
+    //     let query = GetGamesQuery::build_query(variables);
+    //     let response = client.post(&self.url).json(&query).send().await;
+    //     match response {
+    //         Ok(response) => {
+    //             let result = response.json::<Response<queries::get_games_query::ResponseData>>().await;
+    //             match result {
+    //                 Ok(result) => {
+    //                     tracing::info!("Hero fetch result: {:?}", &result);
+    //                     if let Some(data) = result.data {
+    //                         Ok(data.games)
+    //                     }
+    //                     else {
+    //                         Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+    //                     }
+    //                 },
+    //                 Err(json_error) => {
+    //                     Err(crate::Error::from(json_error))
+    //                 }
+    //             }
+    //         },
+    //         Err(response_error) => {
+    //             Err(crate::Error::from(response_error))
+    //         }
+    //     }
+    // }
 
     pub async fn create_participant(
         &self,
@@ -756,12 +760,14 @@ impl H5TournamentsService {
 
     pub async fn get_participant(
         &self,
-        tournament_id: Uuid,
-        user_id: Uuid
+        tournament_id: Option<Uuid>,
+        user_id: Option<Uuid>,
+        challonge: Option<String>
     ) -> Result<Option<GetParticipantParticipant>, crate::Error> {
         let variables = get_participant::Variables {
             tournament_id: tournament_id,
-            user_id: user_id
+            user_id: user_id,
+            challonge: challonge
         };
 
         let client = self.client.read().await;
@@ -791,42 +797,42 @@ impl H5TournamentsService {
         } 
     }
 
-    pub async fn get_participants(
-        &self,
-        tournament_id: Uuid,
-        group: i64
-    ) -> Result<Vec<GetParticipantsParticipants>, crate::Error> {
-        let variables = get_participants::Variables {
-            tournament_id: tournament_id,
-            group: group
-        };
+    // pub async fn get_participants(
+    //     &self,
+    //     tournament_id: Uuid,
+    //     group: i64
+    // ) -> Result<Vec<GetParticipantsParticipants>, crate::Error> {
+    //     let variables = get_participants::Variables {
+    //         tournament_id: tournament_id,
+    //         group: group
+    //     };
 
-        let client = self.client.read().await;
-        let query = GetParticipants::build_query(variables);
-        let response = client.post(&self.url).json(&query).send().await;
-        match response {
-            Ok(response) => {
-                let result = response.json::<Response<queries::get_participants::ResponseData>>().await;
-                match result {
-                    Ok(result) => {
-                        tracing::info!("Get participants result: {:?}", &result);
-                        if let Some(data) = result.data {
-                            Ok(data.participants)
-                        }
-                        else {
-                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
-                        }
-                    },
-                    Err(json_error) => {
-                        Err(crate::Error::from(json_error))
-                    }
-                }
-            },
-            Err(response_error) => {
-                Err(crate::Error::from(response_error))
-            }
-        } 
-    }
+    //     let client = self.client.read().await;
+    //     let query = GetParticipants::build_query(variables);
+    //     let response = client.post(&self.url).json(&query).send().await;
+    //     match response {
+    //         Ok(response) => {
+    //             let result = response.json::<Response<queries::get_participants::ResponseData>>().await;
+    //             match result {
+    //                 Ok(result) => {
+    //                     tracing::info!("Get participants result: {:?}", &result);
+    //                     if let Some(data) = result.data {
+    //                         Ok(data.participants)
+    //                     }
+    //                     else {
+    //                         Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+    //                     }
+    //                 },
+    //                 Err(json_error) => {
+    //                     Err(crate::Error::from(json_error))
+    //                 }
+    //             }
+    //         },
+    //         Err(response_error) => {
+    //             Err(crate::Error::from(response_error))
+    //         }
+    //     } 
+    // }
 
     pub async fn delete_participant(
         &self,
@@ -1149,6 +1155,34 @@ impl H5TournamentsService {
                         tracing::info!("Get participants bulk update result: {:?}", &result);
                         if let Some(data) = result.data {
                             Ok(data.update_participants_bulk)
+                        }
+                        else {
+                            Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))
+                        }
+                    },
+                    Err(json_error) => {
+                        Err(crate::Error::from(json_error))
+                    }
+                }
+            },
+            Err(response_error) => {
+                Err(crate::Error::from(response_error))
+            }
+        } 
+    }
+
+    pub async fn create_games_bulk(&self, games: Vec<CreateGameModel>) -> Result<String, crate::Error> {
+        let client = self.client.read().await;
+        let query = CreateGamesBulk::build_query(create_games_bulk::Variables {games: games});
+        let response = client.post(&self.url).json(&query).send().await;
+        match response {
+            Ok(response) => {
+                let result = response.json::<Response<create_games_bulk::ResponseData>>().await;
+                match result {
+                    Ok(result) => {
+                        tracing::info!("Get create games bulk result: {:?}", &result);
+                        if let Some(data) = result.data {
+                            Ok(data.create_games_bulk)
                         }
                         else {
                             Err(crate::Error::from("Unknown error: got successful response but incorrect data".to_string()))

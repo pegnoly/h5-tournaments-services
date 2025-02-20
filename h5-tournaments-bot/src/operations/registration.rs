@@ -15,7 +15,7 @@ pub async fn try_register_in_tournament(
     let tournament = api.get_tournament_data(GetTournament::default().with_register_channel(channel.get().to_string())).await?.unwrap();
                 
     if let Some(existing_user) = api.get_user(GetUser::default().with_discord_id(user.id.get().to_string())).await? {
-        if let Some(_existing_participant) = api.get_participant(tournament.id, existing_user.id).await? {
+        if let Some(_existing_participant) = api.get_participant(Some(tournament.id), Some(existing_user.id), None).await? {
             interaction.create_response(context, CreateInteractionResponse::Message(
                 CreateInteractionResponseMessage::new().ephemeral(true).content("Вы уже зарегистрированы в этом турнире")
             )).await?;
@@ -83,7 +83,7 @@ pub async fn try_remove_registration(
     let tournament = api.get_tournament_data(GetTournament::default().with_register_channel(channel.get().to_string())).await?.unwrap();
                 
     if let Some(existing_user) = api.get_user(GetUser::default().with_discord_id(user.id.get().to_string())).await? {
-        if let Some(_participant) = api.get_participant(tournament.id, existing_user.id).await? {
+        if let Some(_participant) = api.get_participant(Some(tournament.id), Some(existing_user.id), None).await? {
             api.delete_participant(tournament.id, existing_user.id).await?;
             let mut roles_to_update = vec![];
             for role in guild.roles(context).await? {

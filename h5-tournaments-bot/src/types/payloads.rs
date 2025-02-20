@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::graphql::queries::{get_match_query, get_tournament_query, get_user_query, update_game_mutation, update_match_mutation};
+use crate::graphql::queries::{get_tournament_query, get_user_query};
 
 #[derive(Debug, Default)]
 pub struct GetMatch {
@@ -26,91 +26,91 @@ impl GetMatch {
     }
 }
 
-impl From<GetMatch> for get_match_query::Variables {
-    fn from(value: GetMatch) -> Self {
-        get_match_query::Variables { id: value.id, data_message: value.message_id, interaction: value.interaction_id }
-    }
-}
+// impl From<GetMatch> for get_match_query::Variables {
+//     fn from(value: GetMatch) -> Self {
+//         get_match_query::Variables { id: value.id, data_message: value.message_id, interaction: value.interaction_id }
+//     }
+// }
 
-#[derive(Debug)]
-pub struct UpdateGame {
-    pub match_id: Uuid,
-    pub game_number: i64,
-    pub edit_state: Option<update_game_mutation::GameEditState>,
-    pub first_player_race: Option<i64>,
-    pub first_player_hero: Option<i64>,
-    pub second_player_race: Option<i64>,
-    pub second_player_hero: Option<i64>,
-    pub bargains_amount: Option<i64>,
-    pub result: Option<update_game_mutation::GameResult>
-}
+// #[derive(Debug)]
+// pub struct UpdateGame {
+//     pub match_id: Uuid,
+//     pub game_number: i64,
+//     pub edit_state: Option<update_game_mutation::GameEditState>,
+//     pub first_player_race: Option<i64>,
+//     pub first_player_hero: Option<i64>,
+//     pub second_player_race: Option<i64>,
+//     pub second_player_hero: Option<i64>,
+//     pub bargains_amount: Option<i64>,
+//     pub result: Option<update_game_mutation::GameResult>
+// }
 
-impl UpdateGame {
-    pub fn new(match_id: Uuid, game_number: i64) -> Self {
-        UpdateGame {
-            match_id: match_id,
-            game_number: game_number,
-            edit_state: None,
-            first_player_race: None,
-            first_player_hero: None,
-            second_player_race: None,
-            second_player_hero: None,
-            bargains_amount: None,
-            result: None
-        }
-    }
+// impl UpdateGame {
+//     pub fn new(match_id: Uuid, game_number: i64) -> Self {
+//         UpdateGame {
+//             match_id: match_id,
+//             game_number: game_number,
+//             edit_state: None,
+//             first_player_race: None,
+//             first_player_hero: None,
+//             second_player_race: None,
+//             second_player_hero: None,
+//             bargains_amount: None,
+//             result: None
+//         }
+//     }
 
-    pub fn with_edit_state(mut self, state: update_game_mutation::GameEditState) -> Self {
-        self.edit_state = Some(state);
-        self
-    }
+//     pub fn with_edit_state(mut self, state: update_game_mutation::GameEditState) -> Self {
+//         self.edit_state = Some(state);
+//         self
+//     }
 
-    pub fn with_first_player_race(mut self, race: i64) -> Self {
-        self.first_player_race = Some(race);
-        self
-    }
+//     pub fn with_first_player_race(mut self, race: i64) -> Self {
+//         self.first_player_race = Some(race);
+//         self
+//     }
 
-    pub fn with_first_player_hero(mut self, hero: i64) -> Self {
-        self.first_player_hero = Some(hero);
-        self
-    }
+//     pub fn with_first_player_hero(mut self, hero: i64) -> Self {
+//         self.first_player_hero = Some(hero);
+//         self
+//     }
 
-    pub fn with_second_player_race(mut self, race: i64) -> Self {
-        self.second_player_race = Some(race);
-        self
-    }
+//     pub fn with_second_player_race(mut self, race: i64) -> Self {
+//         self.second_player_race = Some(race);
+//         self
+//     }
 
-    pub fn with_second_player_hero(mut self, hero: i64) -> Self {
-        self.second_player_hero = Some(hero);
-        self
-    }
+//     pub fn with_second_player_hero(mut self, hero: i64) -> Self {
+//         self.second_player_hero = Some(hero);
+//         self
+//     }
 
-    pub fn with_bargains_amount(mut self, amount: i64) -> Self {
-        self.bargains_amount = Some(amount);
-        self
-    }
+//     pub fn with_bargains_amount(mut self, amount: i64) -> Self {
+//         self.bargains_amount = Some(amount);
+//         self
+//     }
 
-    pub fn with_result(mut self, result: update_game_mutation::GameResult) -> Self {
-        self.result = Some(result);
-        self
-    }
-}
+//     pub fn with_result(mut self, result: update_game_mutation::GameResult) -> Self {
+//         self.result = Some(result);
+//         self
+//     }
+// }
 
-impl From<UpdateGame> for update_game_mutation::Variables {
-    fn from(value: UpdateGame) -> Self {
-        update_game_mutation::Variables { 
-            match_id: value.match_id, 
-            number: value.game_number, 
-            edit_state: value.edit_state, 
-            first_player_race: value.first_player_race, 
-            first_player_hero: value.first_player_hero, 
-            second_player_race: value.second_player_race, 
-            second_player_hero: value.second_player_hero, 
-            bargains_amount: value.bargains_amount, 
-            result: value.result 
-        }
-    }
-}
+// impl From<UpdateGame> for update_game_mutation::Variables {
+//     fn from(value: UpdateGame) -> Self {
+//         update_game_mutation::Variables { 
+//             match_id: value.match_id, 
+//             number: value.game_number, 
+//             edit_state: value.edit_state, 
+//             first_player_race: value.first_player_race, 
+//             first_player_hero: value.first_player_hero, 
+//             second_player_race: value.second_player_race, 
+//             second_player_hero: value.second_player_hero, 
+//             bargains_amount: value.bargains_amount, 
+//             result: value.result 
+//         }
+//     }
+// }
 
 
 #[derive(Debug)]
@@ -154,17 +154,17 @@ impl UpdateMatch {
     }
 }
 
-impl From<UpdateMatch> for update_match_mutation::Variables {
-    fn from(value: UpdateMatch) -> Self {
-        update_match_mutation::Variables { 
-            id: value.id, 
-            games_count: value.games_count, 
-            second_player: value.second_player, 
-            data_message: value.message, 
-            current_game: value.current_game 
-        }
-    }
-}
+// impl From<UpdateMatch> for update_match_mutation::Variables {
+//     fn from(value: UpdateMatch) -> Self {
+//         update_match_mutation::Variables { 
+//             id: value.id, 
+//             games_count: value.games_count, 
+//             second_player: value.second_player, 
+//             data_message: value.message, 
+//             current_game: value.current_game 
+//         }
+//     }
+// }
 
 #[derive(Debug, Default)]
 pub struct GetTournament {

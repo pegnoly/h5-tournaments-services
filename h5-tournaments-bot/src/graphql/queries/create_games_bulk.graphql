@@ -1,0 +1,3 @@
+mutation CreateGamesBulk($games: [CreateGameModel!]!) {
+    createGamesBulk(games: $games)
+}

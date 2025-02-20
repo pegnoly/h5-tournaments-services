@@ -1,10 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
-
+use tokio::sync::RwLock;
 use poise::serenity_prelude::*;
 use shuttle_runtime::async_trait;
 use uuid::Uuid;
 
-use crate::{builders, graphql::queries::{update_game_mutation::GameEditState, update_tournament_builder}, operations, services::{challonge::service::ChallongeService, h5_tournaments::service::H5TournamentsService}};
+use crate::{builders::{self, types::{GameBuilder, GameBuilderContainer, MatchBuilder}}, graphql::queries::update_tournament_builder, operations, services::{challonge::service::ChallongeService, h5_tournaments::service::H5TournamentsService}};
 
 pub struct LocalSyncBuilder {
     pub challonge_id: Option<String>,
@@ -14,8 +14,10 @@ pub struct LocalSyncBuilder {
 pub struct MainEventHandler {
     tournaments_service: Arc<H5TournamentsService>,
     challonge_service: Arc<ChallongeService>,
-    sync_builders: tokio::sync::RwLock<HashMap<u64, LocalSyncBuilder>>,
-    managed_tournaments: tokio::sync::RwLock<HashMap<u64, Uuid>>
+    sync_builders: RwLock<HashMap<u64, LocalSyncBuilder>>,
+    managed_tournaments: RwLock<HashMap<u64, Uuid>>,
+    match_builders: RwLock<HashMap<u64, RwLock<MatchBuilder>>>,
+    game_builders: RwLock<HashMap<u64, RwLock<GameBuilderContainer>>>
 }
 
 impl MainEventHandler {
@@ -23,47 +25,84 @@ impl MainEventHandler {
         MainEventHandler { 
             tournaments_service: tournaments_service, 
             challonge_service: challonge_service, 
-            sync_builders: tokio::sync::RwLock::new(HashMap::new()),
-            managed_tournaments: tokio::sync::RwLock::new(HashMap::new())
+            sync_builders: RwLock::new(HashMap::new()),
+            managed_tournaments: RwLock::new(HashMap::new()),
+            match_builders: RwLock::new(HashMap::new()),
+            game_builders: RwLock::new(HashMap::new())
         }
     }
 
     async fn dispatch_buttons(&self, context: &Context, interaction: &ComponentInteraction, component_id: &String, channel: u64, user: u64) -> Result<(), crate::Error> {
         match component_id.as_str() {
             "create_report_button" => {
-                let message = builders::report_message::build_match_creation_interface(
+                builders::report_message::collect_match_creation_data(
                     context, 
                     interaction, 
                     &self.tournaments_service, 
-                    &self.challonge_service
+                    &self.challonge_service,
+                    &self.match_builders
                 ).await?;
-                interaction.create_response(context, CreateInteractionResponse::Message(message)).await?;
             },
             "start_report" => {
-                let response_message = builders::report_message::build_game_message(
-                    context, &self.tournaments_service, interaction.message.id.get()).await.unwrap();
-                interaction.create_response(context, poise::serenity_prelude::CreateInteractionResponse::UpdateMessage(response_message)).await?;
+                operations::report_creation::finish_match_creation(
+                    context, 
+                    interaction, 
+                    &self.tournaments_service, 
+                    &self.match_builders,
+                    &self.game_builders
+                ).await?;
             },
             "bargains_data_button" => {
-                operations::report_creation::show_bargains_modal(interaction, context).await?;
+                //operations::report_creation::show_bargains_modal(interaction, context).await?;
             },
             "opponent_data_button" => {
-                operations::report_creation::switch_to_edition_state(interaction, context, &self.tournaments_service, GameEditState::OPPONENT_DATA).await?;
+                operations::report_creation::switch_to_edition_state(
+                    interaction, context, 
+                    &self.tournaments_service, 
+                    &self.game_builders,
+                    builders::types::GameBuilderState::OpponentData
+                ).await?;
             },
             "player_data_button" => {
-                operations::report_creation::switch_to_edition_state(interaction, context, &self.tournaments_service, GameEditState::PLAYER_DATA).await?;
+                operations::report_creation::switch_to_edition_state(
+                    interaction, context, 
+                    &self.tournaments_service, 
+                    &self.game_builders,
+                    builders::types::GameBuilderState::PlayerData
+                ).await?;
             }
             "result_data_button" => {
-                operations::report_creation::switch_to_edition_state(interaction, context, &self.tournaments_service, GameEditState::RESULT_DATA).await?;
+                operations::report_creation::switch_to_edition_state(
+                    interaction, context, 
+                    &self.tournaments_service, 
+                    &self.game_builders,
+                    builders::types::GameBuilderState::ResultData
+                ).await?;
             },
             "next_game_button" => {
-                operations::report_creation::switch_games(interaction, context, &self.tournaments_service, 1).await?;
+                operations::report_creation::switch_games(
+                    interaction, context, 
+                    &self.tournaments_service, 
+                    &self.game_builders,
+                    1
+                ).await?;
             },
             "previous_game_button" => {
-                operations::report_creation::switch_games(interaction, context, &self.tournaments_service, -1).await?;
+                operations::report_creation::switch_games(
+                    interaction, context, 
+                    &self.tournaments_service, 
+                    &self.game_builders,
+                    -1
+                ).await?;
             },
             "submit_report" => {
-                operations::report_creation::generate_final_report_message(interaction, context, &self.tournaments_service).await?;
+                operations::report_creation::generate_final_report_message(
+                    context,
+                    interaction,
+                    &self.tournaments_service,
+                    &self.challonge_service,
+                    &self.game_builders
+                ).await?;
             },
             "register_user_button" => {
                 operations::registration::try_register_in_tournament(interaction, context, &self.tournaments_service).await?;
@@ -137,25 +176,60 @@ impl MainEventHandler {
     async fn dispatch_string_selection(&self, context: &Context, interaction: &ComponentInteraction, message_id: u64, component_id: &String, selected: &String) -> Result<(), crate::Error> {
         match component_id.as_str() {
             "games_count_selector" => {
-                operations::report_creation::select_games_count(interaction, context, &self.tournaments_service, message_id, selected).await?;
+                operations::report_creation::select_games_count(
+                    context,
+                    interaction,
+                    &self.match_builders,
+                    selected
+                ).await?;
             },
             "opponent_selector" => {
-                operations::report_creation::select_opponent(interaction, context, &self.tournaments_service, message_id, selected).await?;
+                operations::report_creation::select_opponent(
+                    context,
+                    interaction,
+                    &self.match_builders,
+                    selected
+                ).await?;
             },
             "player_race_selector" => {
-                operations::report_creation::select_player_race(interaction, context, &self.tournaments_service, message_id, selected).await?;
+                operations::report_creation::select_player_race(
+                    interaction, context, 
+                    &self.tournaments_service, 
+                    &self.game_builders,
+                    selected
+                ).await?;
             },
             "opponent_race_selector" => {
-                operations::report_creation::select_opponent_race(interaction, context, &self.tournaments_service, message_id, selected).await?;
+                operations::report_creation::select_opponent_race(
+                    interaction, context, 
+                    &self.tournaments_service, 
+                    &self.game_builders,
+                    selected
+                ).await?;
             },
             "player_hero_selector" => {
-                operations::report_creation::select_player_hero(interaction, context, &self.tournaments_service, message_id, selected).await?;
+                operations::report_creation::select_player_hero(
+                    interaction, context, 
+                    &self.tournaments_service, 
+                    &self.game_builders,
+                    selected
+                ).await?;
             },
             "opponent_hero_selector" => {
-                operations::report_creation::select_opponent_hero(interaction, context, &self.tournaments_service, message_id, selected).await?;
+                operations::report_creation::select_opponent_hero(
+                    interaction, context, 
+                    &self.tournaments_service, 
+                    &self.game_builders,
+                    selected
+                ).await?;
             },
             "game_result_selector" => {
-                operations::report_creation::select_game_result(interaction, context, &self.tournaments_service, message_id, selected).await?;
+                operations::report_creation::select_game_result(
+                    interaction, context, 
+                    &self.tournaments_service, 
+                    &self.game_builders,
+                    selected
+                ).await?;
             },
             "tournament_bargains_usage_selector" => {
                 operations::administration::select_tournament_builder_bargains_usage(context, interaction, &self.tournaments_service, selected).await?
@@ -241,7 +315,7 @@ impl MainEventHandler {
     async fn dispatch_modals(&self, context: &Context, interaction: &ModalInteraction) -> Result<(), crate::Error> {
         match interaction.data.custom_id.as_str() {
             "player_data_modal" => {
-                operations::report_creation::process_bargains_modal(interaction, context, &self.tournaments_service).await?;
+                //operations::report_creation::process_bargains_modal(interaction, context, &self.tournaments_service).await?;
             },
             "user_lobby_nickname_modal" => {
                 operations::registration::process_registration_modal(interaction, &context, &self.tournaments_service).await?;
@@ -261,7 +335,6 @@ impl MainEventHandler {
     }
 
     async fn dispatch_message_created_by_interaction(&self, _context: &Context, message_id: u64, interaction_id: u64) -> Result<(), crate::Error> {
-        operations::report_creation::save_report_user_message(_context, &self.tournaments_service, message_id, interaction_id).await?;
         Ok(())
     }
 }

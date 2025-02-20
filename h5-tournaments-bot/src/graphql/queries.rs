@@ -1,7 +1,8 @@
-use get_match_query::GetMatchQueryTournamentMatch;
 use get_tournament_query::GetTournamentQueryTournament;
 use get_users_query::GetUsersQueryUsers;
 use graphql_client::GraphQLQuery;
+
+use crate::builders;
 
 type UUID = uuid::Uuid;
 
@@ -87,13 +88,13 @@ pub struct GetUserQuery;
 )]
 pub struct CreateMatchMutation;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/queries/update_match.graphql",
-    response_derives = "Debug"
-)]
-pub struct UpdateMatchMutation;
+// #[derive(GraphQLQuery)]
+// #[graphql(
+//     schema_path = "src/graphql/schema.json",
+//     query_path = "src/graphql/queries/update_match.graphql",
+//     response_derives = "Debug"
+// )]
+// pub struct UpdateMatchMutation;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -102,9 +103,6 @@ pub struct UpdateMatchMutation;
     response_derives = "Debug"
 )]
 pub struct GetMatchQuery;
-
-pub type GetMatchResult = GetMatchQueryTournamentMatch;
-
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -124,29 +122,29 @@ pub type GetUsersResult = GetUsersQueryUsers;
 )]
 pub struct UpdateUser;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/queries/create_game.graphql",
-    response_derives = "Debug, PartialEq, Eq"
-)]
-pub struct CreateGameMutation;
+// #[derive(GraphQLQuery)]
+// #[graphql(
+//     schema_path = "src/graphql/schema.json",
+//     query_path = "src/graphql/queries/create_game.graphql",
+//     response_derives = "Debug, PartialEq, Eq"
+// )]
+// pub struct CreateGameMutation;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/queries/update_game.graphql",
-    response_derives = "Debug, PartialEq, Eq"
-)]
-pub struct UpdateGameMutation;
+// #[derive(GraphQLQuery)]
+// #[graphql(
+//     schema_path = "src/graphql/schema.json",
+//     query_path = "src/graphql/queries/update_game.graphql",
+//     response_derives = "Debug, PartialEq, Eq"
+// )]
+// pub struct UpdateGameMutation;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/queries/get_game.graphql",
-    response_derives = "Debug, PartialEq, Eq"
-)]
-pub struct GetGameQuery;
+// #[derive(GraphQLQuery)]
+// #[graphql(
+//     schema_path = "src/graphql/schema.json",
+//     query_path = "src/graphql/queries/get_game.graphql",
+//     response_derives = "Debug, PartialEq, Eq"
+// )]
+// pub struct GetGameQuery;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -164,13 +162,13 @@ pub struct GetHeroesQuery;
 )]
 pub struct GetHeroQuery;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/queries/get_games.graphql",
-    response_derives = "Debug, PartialEq, Eq"
-)]
-pub struct GetGamesQuery;
+// #[derive(GraphQLQuery)]
+// #[graphql(
+//     schema_path = "src/graphql/schema.json",
+//     query_path = "src/graphql/queries/get_games.graphql",
+//     response_derives = "Debug, PartialEq, Eq"
+// )]
+// pub struct GetGamesQuery;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -180,13 +178,13 @@ pub struct GetGamesQuery;
 )]
 pub struct GetParticipant;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/queries/get_participants.graphql",
-    response_derives = "Debug"
-)]
-pub struct GetParticipants;
+// #[derive(GraphQLQuery)]
+// #[graphql(
+//     schema_path = "src/graphql/schema.json",
+//     query_path = "src/graphql/queries/get_participants.graphql",
+//     response_derives = "Debug"
+// )]
+// pub struct GetParticipants;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -276,13 +274,21 @@ pub struct GetTournamentUsers;
 )]
 pub struct UpdateParticipantsBulk;
 
-pub fn int_to_game_result(num: i32) -> update_game_mutation::GameResult {
-    match num {
-        1 => update_game_mutation::GameResult::FIRST_PLAYER_WON,
-        2 => update_game_mutation::GameResult::SECOND_PLAYER_WON,
-        _=> update_game_mutation::GameResult::NOT_SELECTED
-    }
-}
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/create_games_bulk.graphql",
+    response_derives = "Debug"
+)]
+pub struct CreateGamesBulk;
+
+// pub fn int_to_game_result(num: i32) -> update_game_mutation::GameResult {
+//     match num {
+//         1 => update_game_mutation::GameResult::FIRST_PLAYER_WON,
+//         2 => update_game_mutation::GameResult::SECOND_PLAYER_WON,
+//         _=> update_game_mutation::GameResult::NOT_SELECTED
+//     }
+// }
 
 impl Into<update_tournament_builder::TournamentEditState> for get_tournament_builder::TournamentEditState {
     fn into(self) -> update_tournament_builder::TournamentEditState {
@@ -291,6 +297,17 @@ impl Into<update_tournament_builder::TournamentEditState> for get_tournament_bui
             get_tournament_builder::TournamentEditState::NOT_SELECTED => update_tournament_builder::TournamentEditState::NOT_SELECTED,
             get_tournament_builder::TournamentEditState::REPORTS_DATA => update_tournament_builder::TournamentEditState::REPORTS_DATA,
             _=> update_tournament_builder::TournamentEditState::NOT_SELECTED
+        }
+    }
+}
+
+impl Into<create_games_bulk::GameResult> for builders::types::GameResult {
+    fn into(self) -> create_games_bulk::GameResult {
+        match self {
+            builders::types::GameResult::NotSelected => create_games_bulk::GameResult::NOT_SELECTED,
+            builders::types::GameResult::FirstPlayerWon => create_games_bulk::GameResult::FIRST_PLAYER_WON,
+            builders::types::GameResult::SecondPlayerWon => create_games_bulk::GameResult::SECOND_PLAYER_WON,
+            _=> create_games_bulk::GameResult::NOT_SELECTED
         }
     }
 }
