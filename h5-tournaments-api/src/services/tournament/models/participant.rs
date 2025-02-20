@@ -9,7 +9,8 @@ pub struct Model {
     pub id: Uuid,
     pub tournament_id: Uuid,
     pub user_id: Uuid,
-    pub group_number: i32
+    pub group_number: i32,
+    pub challonge_id: Option<String>
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -52,5 +53,9 @@ impl TournamentParticipantModel {
 
     async fn group(&self) -> i32 {
         self.group_number
+    }
+
+    async fn challonge(&self) -> Option<String> {
+        self.challonge_id.clone()
     }
 }

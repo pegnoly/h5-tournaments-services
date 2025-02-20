@@ -1,0 +1,7 @@
+query GetOrganizer($id: UUID, $discordId: Int, $challongeKey: String) {
+    organizer(id: $id, discordId: $discordId, challongeKey: $challongeKey) {
+        id,
+        discord,
+        challonge
+    }
+}

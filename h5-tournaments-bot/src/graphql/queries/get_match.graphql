@@ -1,12 +1,9 @@
-query GetMatchQuery($id: UUID, $dataMessage: String, $interaction: String) {
-    tournamentMatch(id: $id, dataMessage: $dataMessage, interaction: $interaction) {
+query GetMatchQuery($id: UUID!) {
+    getMatch(id: $id) {
         id,
-        data,
-        interaction,
-        gamesCount,
-        secondPlayer,
         tournament,
         firstPlayer,
-        currentGame
+        secondPlayer,
+        challonge
     }
 }

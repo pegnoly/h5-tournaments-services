@@ -1,7 +1,7 @@
-query GetParticipant($tournamentId: UUID!, $userId: UUID!) {
-    participant(tournamentId: $tournamentId, userId: $userId) {
+query GetParticipant($tournamentId: UUID, $userId: UUID, $challonge: String) {
+    participant(tournamentId: $tournamentId, userId: $userId, challonge: $challonge) {
         id,
         user,
-        group
+        challonge
     }
 }

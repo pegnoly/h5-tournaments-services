@@ -1,12 +1,11 @@
 use std::{str::FromStr, vec};
 
-use futures_executor::block_on_stream;
 use h5_tournaments_api::prelude::ModType;
 use poise::serenity_prelude::*;
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::{builders, graphql::queries::create_user_mutation::Variables, parser::{types::HrtaParser, utils::ParsingDataModel}};
+use crate::parser::{types::HrtaParser, utils::ParsingDataModel};
 
 /// This command collects user input and if everything is correct sends tournament creating request
 // Correctness check isn't implemented yet and i think won't be cause in new project this won't be used.
@@ -30,8 +29,8 @@ pub async fn init_tournament(
     let first_message_id = u64::from_str_radix(&first_message_id, 10).unwrap();
     let last_message_id = u64::from_str_radix(&last_message_id, 10).unwrap();
 
-    let api_connection_service = &context.data().api_connection_service;
-    let answer = api_connection_service.init_tournament(&json!({
+    let h5_tournament_service = &context.data().h5_tournament_service;
+    let answer = h5_tournament_service.init_tournament(&json!({
         "mod_type": mod_type,
         "name": name,
         "server_id": server_id,
@@ -53,10 +52,10 @@ pub async fn parse_results(
     tournament_id: String
 ) -> Result<(), crate::Error> {
 
-    let api_connection_service = &context.data().api_connection_service;
+    let h5_tournament_service = &context.data().h5_tournament_service;
     let parser_service = &context.data().parser_service;
 
-    let tournament = api_connection_service.get_tournament(tournament_id).await?;
+    let tournament = h5_tournament_service.get_tournament(tournament_id).await?;
 
     let channel = ChannelId::new(tournament.channel_id as u64);
     let messages = channel.messages(context, GetMessages::new().after(tournament.first_message_id as u64).limit(100)).await.unwrap();
@@ -70,8 +69,8 @@ pub async fn parse_results(
     }
 
     let mod_type = ModType::from_repr(tournament.mod_type).unwrap();
-    let races = api_connection_service.load_races().await?;
-    let heroes = api_connection_service.load_heroes(mod_type).await?;
+    let races = h5_tournament_service.load_races().await?;
+    let heroes = h5_tournament_service.load_heroes(mod_type).await?;
     let data_model =  ParsingDataModel { races: races, heroes: heroes};
 
     match mod_type {
@@ -82,7 +81,7 @@ pub async fn parse_results(
             tracing::info!("Processing hrta data");
             for message in &messages_filtered {
                 let mut parsed_data = parser_service.parse_match_structure(&message.content, &HrtaParser{}, &data_model);
-                api_connection_service.send_match(&mut parsed_data, tournament.id, message.id.get() as i64).await?;
+                h5_tournament_service.send_match(&mut parsed_data, tournament.id, message.id.get() as i64).await?;
             }
         }
     }
@@ -100,8 +99,8 @@ pub async fn create_user(
     #[description = "User's discord id"]
     id: String
 ) -> Result<(), crate::Error> {
-    let api_connection_service = &context.data().api_connection_service;
-    let res = api_connection_service.create_user(nickname, id, false).await;
+    let h5_tournament_service = &context.data().h5_tournament_service;
+    let res = h5_tournament_service.create_user(nickname, id, false).await;
     match res {
         Ok(res) => {
             context.say(res).await.unwrap();
@@ -173,8 +172,8 @@ pub async fn setup_tournament(
     role: String,
     create_objects: bool
 ) -> Result<(), crate::Error> {
-    let api_connection_service = &context.data().api_connection_service;
-    //let section_id = api_connection_service.get_operator_section(operator_id).await?;
+    let h5_tournament_service = &context.data().h5_tournament_service;
+    //let section_id = h5_tournament_service.get_operator_section(operator_id).await?;
     let reports_channel = ChannelId::from(u64::from_str_radix(&reports_channel_id, 10)?);
     let register_channel = ChannelId::from(u64::from_str_radix(&register_channel_id, 10)?);
 
@@ -194,17 +193,17 @@ pub async fn setup_tournament(
         register_channel.send_message(context, register_message).await?;
     }
 
-    let create_tournament_res = api_connection_service.create_tournament(
-        name, 
-        operator_id, 
-        reports_channel_id, 
-        register_channel_id, 
-        use_bargains,
-        use_foreign_heroes,
-        role
-    ).await?;
+    // let create_tournament_res = h5_tournament_service.create_tournament(
+    //     name, 
+    //     operator_id, 
+    //     reports_channel_id, 
+    //     register_channel_id, 
+    //     use_bargains,
+    //     use_foreign_heroes,
+    //     role
+    // ).await?;
 
-    context.say(create_tournament_res).await?;
+    // context.say(create_tournament_res).await?;
 
     Ok(())
 }
@@ -216,7 +215,7 @@ pub async fn delete_unused(
     message_id: String
 ) -> Result<(), crate::Error> {
     let id = u64::from_str_radix(&message_id, 10).unwrap();
-    let guild = context.guild_id().unwrap();
+    //let guild = context.guild_id().unwrap();
     let channel_id = u64::from_str_radix(&channel, 10).unwrap();
     let channel = ChannelId::from(channel_id);
     channel.delete_message(context, id).await.unwrap();
@@ -232,8 +231,50 @@ pub async fn register_in_tournament(
 ) -> Result<(), crate::Error> {
     let tournament_id = Uuid::from_str(&tournament).unwrap();
     let user_id = Uuid::from_str(&user).unwrap();
-    let api = &context.data().api_connection_service;
+    let api = &context.data().h5_tournament_service;
     let res = api.create_participant(tournament_id, user_id, group).await?;
     context.say(res.to_string()).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn get_tournaments(
+    context: crate::Context<'_>
+) -> Result<(), crate::Error> {
+    let service = &context.data().challonge_service;
+    //service.get_tournaments().await?;
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn test_challonge_participant_add(
+    context: crate::Context<'_>,
+    tournament_id: String,
+    participant_id: String,
+    participant_name: String
+) -> Result<(), crate::Error> {
+    let service = &context.data().challonge_service;
+    //service.add_participant(tournament_id, participant_id, participant_name).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+pub async fn build_administration_panel(
+    context: crate::Context<'_>,
+    channel_id: String
+) -> Result<(), crate::Error> {
+    let message_builder = CreateMessage::new()
+        .components(vec![
+            CreateActionRow::Buttons(vec![
+                CreateButton::new("admin_registration_button").label("Привязать свой Challonge.com ключ API").style(ButtonStyle::Primary),
+                CreateButton::new("tournament_creation_button").label("Зарегистрировать турнир в базе бота").style(ButtonStyle::Secondary),
+                CreateButton::new("tournament_sync_button").label("Синхронизировать турниры с Challonge.com").style(ButtonStyle::Secondary),
+                CreateButton::new("administrate_tournament_button").label("Настроить турнир").style(ButtonStyle::Secondary)
+            ])
+        ]);
+
+    let channel = ChannelId::from(u64::from_str_radix(&channel_id, 10)?);
+    channel.send_message(context, message_builder).await?;
+    context.say(format!("Administration interface built successfully in channel {}", &channel)).await?;
     Ok(())
 }

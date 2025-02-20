@@ -15,14 +15,17 @@ pub enum TournamentStage {
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
-    pub operator_id: Uuid,
+    pub operator_id: Option<Uuid>,
     pub channel_id: i64,
     pub name: String,
-    pub stage: TournamentStage,
+    pub stage: Option<TournamentStage>,
     pub register_channel: i64,
     pub with_bargains: bool,
+    pub with_bargains_color: bool,
     pub with_foreign_heroes: bool,
-    pub role_id: i64
+    pub role_id: i64,
+    pub challonge_id: Option<String>,
+    pub organizer: Option<Uuid>
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -36,7 +39,7 @@ impl TournamentModel {
         self.id
     }
 
-    async fn operator(&self) -> Uuid {
+    async fn operator(&self) -> Option<Uuid> {
         self.operator_id
     }
 
@@ -48,7 +51,7 @@ impl TournamentModel {
         self.name.clone()
     }
 
-    async fn stage(&self) -> TournamentStage {
+    async fn stage(&self) -> Option<TournamentStage> {
         self.stage
     }
 
@@ -60,11 +63,23 @@ impl TournamentModel {
         self.with_bargains
     }
 
+    async fn with_bargains_color(&self) -> bool {
+        self.with_bargains_color
+    }
+
     async fn with_foreign_heroes(&self) -> bool {
         self.with_foreign_heroes
     }
 
     async fn role(&self) -> i64 {
         self.role_id
+    }
+
+    async fn challonge_id(&self) -> Option<String> {
+        self.challonge_id.clone()
+    }
+
+    async fn organizer(&self) -> Option<Uuid> {
+        self.organizer
     }
 }

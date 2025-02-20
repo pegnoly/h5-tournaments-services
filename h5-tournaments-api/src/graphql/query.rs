@@ -2,7 +2,7 @@ use async_graphql::Context;
 use sea_orm::{error, DatabaseConnection};
 use uuid::Uuid;
 
-use crate::{prelude::TournamentService, services::tournament::models::{game_builder::GameBuilderModel, hero::HeroModel, match_structure::MatchModel, operator::TournamentOperatorModel, participant, tournament::TournamentModel, user::UserModel}};
+use crate::{prelude::TournamentService, services::tournament::models::{hero::HeroModel, match_structure::MatchModel, operator::TournamentOperatorModel, organizer::OrganizerModel, participant, tournament::TournamentModel, tournament_builder::TournamentBuilderModel, user::UserModel}};
 
 pub struct Query;
 
@@ -73,20 +73,18 @@ impl Query {
         }
     }
 
-    async fn tournament_match<'a>(
+    async fn get_match<'a>(
         &self,
         context: &Context<'a>,
-        id: Option<Uuid>,
-        data_message: Option<String>,
-        interaction: Option<String>
+        id: Uuid
     ) -> Result<Option<MatchModel>, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.get_match(db, id, data_message, interaction).await;
+        let res = service.get_match(db, id).await;
 
         match res {
-            Ok(match_model) => {
-                Ok(match_model)
+            Ok(model) => {
+                Ok(model)
             },
             Err(error) => {
                 Err(error)
@@ -112,25 +110,25 @@ impl Query {
         }
     }
 
-    async fn game<'a>(
-        &self,
-        context: &Context<'a>,
-        match_id: Uuid,
-        number: i32
-    ) -> Result<Option<GameBuilderModel>, String> {
-        let service = context.data::<TournamentService>().unwrap();
-        let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.get_game(db, match_id, number).await;
+    // async fn game<'a>(
+    //     &self,
+    //     context: &Context<'a>,
+    //     match_id: Uuid,
+    //     number: i32
+    // ) -> Result<Option<GameBuilderModel>, String> {
+    //     let service = context.data::<TournamentService>().unwrap();
+    //     let db = context.data::<DatabaseConnection>().unwrap();
+    //     let res = service.get_game(db, match_id, number).await;
         
-        match res {
-            Ok(game) => {
-                Ok(game)
-            },
-            Err(error) => {
-                Err(error)
-            }
-        }
-    }
+    //     match res {
+    //         Ok(game) => {
+    //             Ok(game)
+    //         },
+    //         Err(error) => {
+    //             Err(error)
+    //         }
+    //     }
+    // }
 
     async fn heroes<'a>(
         &self,
@@ -170,24 +168,24 @@ impl Query {
         }
     }
 
-    async fn games<'a>(
-        &self,
-        context: &Context<'a>,
-        match_id: Uuid
-    ) -> Result<Vec<GameBuilderModel>, String> {
-        let service = context.data::<TournamentService>().unwrap();
-        let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.get_games(db, match_id).await;
+    // async fn games<'a>(
+    //     &self,
+    //     context: &Context<'a>,
+    //     match_id: Uuid
+    // ) -> Result<Vec<GameBuilderModel>, String> {
+    //     let service = context.data::<TournamentService>().unwrap();
+    //     let db = context.data::<DatabaseConnection>().unwrap();
+    //     let res = service.get_games(db, match_id).await;
 
-        match res {
-            Ok(games) => {
-                Ok(games)
-            },
-            Err(error) => {
-                Err(error)
-            }
-        }
-    }
+    //     match res {
+    //         Ok(games) => {
+    //             Ok(games)
+    //         },
+    //         Err(error) => {
+    //             Err(error)
+    //         }
+    //     }
+    // }
 
     async fn participants<'a>(
         &self,
@@ -212,16 +210,96 @@ impl Query {
     async fn participant<'a>(
         &self,
         context: &Context<'a>,
-        tournament_id: Uuid,
-        user_id: Uuid
+        tournament_id: Option<Uuid>,
+        user_id: Option<Uuid>,
+        challonge: Option<String>
     ) -> Result<Option<participant::Model>, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.get_participant(db, user_id, tournament_id).await;
+        let res = service.get_participant(db, user_id, tournament_id, challonge).await;
 
         match res {
             Ok(user) => {
                 Ok(user)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        } 
+    }
+
+    async fn organizer<'a>(
+        &self,
+        context: &Context<'a>,
+        id: Option<Uuid>,
+        discord_id: Option<i64>,
+        challonge_key: Option<String> 
+    ) -> Result<Option<OrganizerModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_organizer(db, id, discord_id, challonge_key).await;
+
+        match res {
+            Ok(model) => {
+                Ok(model)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        } 
+    }
+
+    async fn tournament_builder<'a>(
+        &self,
+        context: &Context<'a>,
+        id: Option<Uuid>,
+        message: Option<i64>
+    ) -> Result<Option<TournamentBuilderModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_tournament_builder(db, id, message).await;
+
+        match res {
+            Ok(model) => {
+                Ok(model)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        } 
+    }
+
+    async fn tournaments<'a>(
+        &self,
+        context: &Context<'a>,
+        organizer_id: Uuid
+    ) -> Result<Vec<TournamentModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_tournaments_by_organizer(db, organizer_id).await;
+
+        match res {
+            Ok(models) => {
+                Ok(models)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        } 
+    }
+
+    async fn tournament_users<'a>(
+        &self,
+        context: &Context<'a>,
+        tournament_id: Uuid
+    ) -> Result<Vec<UserModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_users_by_tournament(db, tournament_id).await;
+
+        match res {
+            Ok(models) => {
+                Ok(models)
             },
             Err(error) => {
                 Err(error)

@@ -6,3 +6,5 @@ pub(crate) mod user;
 pub(crate) mod participant;
 pub(crate) mod match_structure;
 pub(crate) mod game_builder;
+pub(crate) mod tournament_builder;
+pub(crate) mod organizer;

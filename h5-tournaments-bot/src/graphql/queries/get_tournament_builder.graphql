@@ -1,0 +1,14 @@
+query GetTournamentBuilder($id: UUID, $message: Int) {
+    tournamentBuilder(id: $id, message: $message) {
+        id,
+        message,
+        name,
+        editState,
+        registerChannel,
+        reportsChannel,
+        role,
+        useBargains,
+        useBargainsColor,
+        useForeignHeroes
+    }
+}

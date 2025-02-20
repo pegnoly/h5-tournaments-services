@@ -1,0 +1,6 @@
+mutation CreateTournamentBuilder($messageId: String!) {
+    createTournamentBuilder(messageId: $messageId) {
+        id,
+        message
+    }
+}
