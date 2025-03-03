@@ -1,3 +1,3 @@
-mutation CreateParticipant($tournamentId: UUID!, $userId: UUID!, $group: Int!) {
-    createParticipant(tournamentId: $tournamentId, userId: $userId, group: $group)
+mutation CreateParticipant($tournamentId: UUID!, $userId: UUID!, $challongeId: String!) {
+    createParticipant(tournamentId: $tournamentId, userId: $userId, challongeId: $challongeId)
 }

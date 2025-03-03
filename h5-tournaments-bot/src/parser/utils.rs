@@ -6,13 +6,13 @@ use h5_tournaments_api::prelude::*;
 
 pub struct ParsingDataModel {
     pub races: Vec<Race>,
-    pub heroes: Vec<Hero>
+    pub heroes: Vec<Hero>,
 }
 
 /// Result of parsing single player's side info in a game
 pub struct GameSideData {
     pub race: i32,
-    pub hero: i32
+    pub hero: i32,
 }
 
 /// Possible colors used in bargains
@@ -21,18 +21,18 @@ pub struct GameSideData {
 pub enum BargainsColor {
     NotDetected,
     ColorRed,
-    ColorBlue
+    ColorBlue,
 }
 
 /// Predefined type for bargains color detection
 pub struct BargainsType {
     pub color: BargainsColor,
     pub actual_name: String,
-    pub variants: Vec<String>
+    pub variants: Vec<String>,
 }
 
 /// Result of parsing single game bargains info
 pub struct BargainsData {
     pub color: BargainsColor,
-    pub amount: i32
+    pub amount: i32,
 }

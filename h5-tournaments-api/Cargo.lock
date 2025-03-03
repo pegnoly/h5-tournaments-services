@@ -970,7 +970,7 @@ dependencies = [
 
 [[package]]
 name = "h5-tournaments-api"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "async-graphql",
  "async-graphql-axum",

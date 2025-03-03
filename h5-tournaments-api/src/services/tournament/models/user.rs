@@ -1,4 +1,5 @@
 use sea_orm::prelude::*;
+use serde::{Serialize, Deserialize};
 
 pub type UserModel = Model;
 
@@ -8,6 +9,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
     pub discord_id: i64,
+    pub discord_nick: String,
     pub nickname: String,
     pub registered_manually: bool
 }
@@ -43,6 +45,10 @@ impl UserModel {
         self.discord_id
     }
 
+    async fn discord_nick(&self) -> String {
+        self.discord_nick.clone()
+    }
+
     async fn nickname(&self) -> String {
         self.nickname.clone()
     }
@@ -50,4 +56,10 @@ impl UserModel {
     async fn registered(&self) -> bool {
         self.registered_manually
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, async_graphql::InputObject)]
+pub struct UserBulkUpdatePayload {
+    pub id: Uuid,
+    pub discord_nick: Option<String>
 }

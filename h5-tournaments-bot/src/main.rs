@@ -1,27 +1,27 @@
 use std::collections::HashMap;
 
 use anyhow::Context as _;
-use services::h5_tournaments::service::H5TournamentsService;
-use services::challonge::service::ChallongeService;
 use event_handler::MainEventHandler;
 use parser::service::ParserService;
 use poise::serenity_prelude::{ClientBuilder, GatewayIntents};
+use services::challonge::service::ChallongeService;
+use services::h5_tournaments::service::H5TournamentsService;
 use shuttle_runtime::SecretStore;
 use shuttle_serenity::ShuttleSerenity;
 
+pub mod builders;
 pub mod commands;
+pub mod event_handler;
+pub mod graphql;
+pub mod operations;
 pub mod parser;
 pub mod services;
-pub mod graphql;
-pub mod builders;
-pub mod event_handler;
-pub mod operations;
 pub mod types;
 
 pub struct Data {
     pub h5_tournament_service: std::sync::Arc<H5TournamentsService>,
     pub challonge_service: std::sync::Arc<ChallongeService>,
-    pub parser_service: ParserService
+    pub parser_service: ParserService,
 } // User data, which is stored and accessible in all command invocations
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
@@ -42,13 +42,14 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
                 commands::init_tournament(),
                 commands::parse_results(),
                 commands::init_services(),
-                commands::create_user(),
+                //commands::create_user(),
                 commands::setup_tournament(),
                 commands::delete_unused(),
-                commands::register_in_tournament(),
+                //commands::register_in_tournament(),
                 commands::get_tournaments(),
                 commands::test_challonge_participant_add(),
-                commands::build_administration_panel()
+                commands::build_administration_panel(),
+                commands::sync_users_nicknames(),
             ],
             ..Default::default()
         })
@@ -66,7 +67,10 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
 
     let client = ClientBuilder::new(discord_token, GatewayIntents::all())
         .framework(framework)
-        .event_handler(MainEventHandler::new(h5_tournaments_service, challonge_service))
+        .event_handler(MainEventHandler::new(
+            h5_tournaments_service,
+            challonge_service,
+        ))
         .await
         .map_err(shuttle_runtime::CustomError::new)?;
 

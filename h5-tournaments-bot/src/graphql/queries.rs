@@ -1,4 +1,6 @@
+use create_user_mutation::CreateUserMutationCreateUser;
 use get_tournament_query::GetTournamentQueryTournament;
+use get_user_query::GetUserQueryUser;
 use get_users_query::GetUsersQueryUsers;
 use graphql_client::GraphQLQuery;
 
@@ -12,7 +14,7 @@ pub enum GameEditState {
     NotSelected = 0,
     PlayerData = 1,
     OpponentData = 2,
-    ResultData = 3
+    ResultData = 3,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -20,7 +22,7 @@ pub enum GameEditState {
 pub enum GameResult {
     NotSelected = 0,
     FirstPlayerWon = 1,
-    SecondPlayerWon = 2
+    SecondPlayerWon = 2,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -28,7 +30,7 @@ pub enum GameResult {
 pub enum TournamentEditState {
     NotSelected = 0,
     ChannelsData = 1,
-    ReportsData = 2
+    ReportsData = 2,
 }
 
 #[derive(GraphQLQuery)]
@@ -88,13 +90,13 @@ pub struct GetUserQuery;
 )]
 pub struct CreateMatchMutation;
 
-// #[derive(GraphQLQuery)]
-// #[graphql(
-//     schema_path = "src/graphql/schema.json",
-//     query_path = "src/graphql/queries/update_match.graphql",
-//     response_derives = "Debug"
-// )]
-// pub struct UpdateMatchMutation;
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/update_match.graphql",
+    response_derives = "Debug"
+)]
+pub struct UpdateMatch;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -282,6 +284,22 @@ pub struct UpdateParticipantsBulk;
 )]
 pub struct CreateGamesBulk;
 
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/update_users_bulk.graphql",
+    response_derives = "Debug"
+)]
+pub struct UpdateUsersBulk;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/queries/games_count.graphql",
+    response_derives = "Debug"
+)]
+pub struct GamesCount;
+
 // pub fn int_to_game_result(num: i32) -> update_game_mutation::GameResult {
 //     match num {
 //         1 => update_game_mutation::GameResult::FIRST_PLAYER_WON,
@@ -290,13 +308,21 @@ pub struct CreateGamesBulk;
 //     }
 // }
 
-impl Into<update_tournament_builder::TournamentEditState> for get_tournament_builder::TournamentEditState {
+impl Into<update_tournament_builder::TournamentEditState>
+    for get_tournament_builder::TournamentEditState
+{
     fn into(self) -> update_tournament_builder::TournamentEditState {
         match self {
-            get_tournament_builder::TournamentEditState::CHANNELS_DATA => update_tournament_builder::TournamentEditState::CHANNELS_DATA,
-            get_tournament_builder::TournamentEditState::NOT_SELECTED => update_tournament_builder::TournamentEditState::NOT_SELECTED,
-            get_tournament_builder::TournamentEditState::REPORTS_DATA => update_tournament_builder::TournamentEditState::REPORTS_DATA,
-            _=> update_tournament_builder::TournamentEditState::NOT_SELECTED
+            get_tournament_builder::TournamentEditState::CHANNELS_DATA => {
+                update_tournament_builder::TournamentEditState::CHANNELS_DATA
+            }
+            get_tournament_builder::TournamentEditState::NOT_SELECTED => {
+                update_tournament_builder::TournamentEditState::NOT_SELECTED
+            }
+            get_tournament_builder::TournamentEditState::REPORTS_DATA => {
+                update_tournament_builder::TournamentEditState::REPORTS_DATA
+            }
+            _ => update_tournament_builder::TournamentEditState::NOT_SELECTED,
         }
     }
 }
@@ -305,9 +331,24 @@ impl Into<create_games_bulk::GameResult> for builders::types::GameResult {
     fn into(self) -> create_games_bulk::GameResult {
         match self {
             builders::types::GameResult::NotSelected => create_games_bulk::GameResult::NOT_SELECTED,
-            builders::types::GameResult::FirstPlayerWon => create_games_bulk::GameResult::FIRST_PLAYER_WON,
-            builders::types::GameResult::SecondPlayerWon => create_games_bulk::GameResult::SECOND_PLAYER_WON,
-            _=> create_games_bulk::GameResult::NOT_SELECTED
+            builders::types::GameResult::FirstPlayerWon => {
+                create_games_bulk::GameResult::FIRST_PLAYER_WON
+            }
+            builders::types::GameResult::SecondPlayerWon => {
+                create_games_bulk::GameResult::SECOND_PLAYER_WON
+            }
+            _ => create_games_bulk::GameResult::NOT_SELECTED,
+        }
+    }
+}
+
+impl From<CreateUserMutationCreateUser> for GetUserQueryUser {
+    fn from(value: CreateUserMutationCreateUser) -> Self {
+        GetUserQueryUser {
+            nickname: value.nickname,
+            id: value.id,
+            registered: value.registered,
+            discord_id: value.discord_id,
         }
     }
 }

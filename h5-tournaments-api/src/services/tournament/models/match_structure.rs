@@ -12,7 +12,8 @@ pub struct Model {
     pub message_id: i64,
     pub first_player: Uuid,
     pub second_player: Uuid,
-    pub challonge_id: String
+    pub challonge_id: String,
+    pub report_link: Option<String>
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -60,5 +61,9 @@ impl MatchModel {
 
     async fn challonge(&self) -> String {
         self.challonge_id.clone()
+    }
+
+    async fn report_link(&self) -> Option<String> {
+        self.report_link.clone()
     }
 }

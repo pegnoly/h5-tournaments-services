@@ -2,7 +2,7 @@ use async_graphql::Context;
 use sea_orm::{error, DatabaseConnection};
 use uuid::Uuid;
 
-use crate::{prelude::TournamentService, services::tournament::models::{hero::HeroModel, match_structure::MatchModel, operator::TournamentOperatorModel, organizer::OrganizerModel, participant, tournament::TournamentModel, tournament_builder::TournamentBuilderModel, user::UserModel}};
+use crate::{prelude::{ModType, TournamentService}, services::tournament::models::{hero::HeroModel, heroes::HeroesModel, match_structure::MatchModel, operator::TournamentOperatorModel, organizer::OrganizerModel, participant, tournament::TournamentModel, tournament_builder::TournamentBuilderModel, user::UserModel}};
 
 pub struct Query;
 
@@ -11,18 +11,17 @@ impl Query {
     async fn operator<'a>(
         &self, 
         context: &Context<'a>,
-        id: Uuid
+        id: Option<Uuid>,
+        server_id: Option<i64>
     ) -> Result<Option<TournamentOperatorModel>, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.get_operator(db, id).await;
-
-        match res {
+        match service.get_operator(db, id, server_id).await {
             Ok(operator) => {
                 Ok(operator)
             },
             Err(error) => {
-                Err(error)
+                Err(error.to_string())
             }
         }
     }
@@ -305,5 +304,41 @@ impl Query {
                 Err(error)
             }
         } 
+    }
+
+    async fn games_count<'a>(
+        &self,
+        context: &Context<'a>,
+        match_id: Uuid
+    ) -> Result<u64, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_games_count(db, match_id).await;
+
+        match res {
+            Ok(res) => {
+                Ok(res)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    async fn heroes_new<'a>(
+        &self,
+        context: &Context<'a>,
+        mod_type: ModType
+    ) -> Result<HeroesModel, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        match service.get_heroes_new(db, mod_type).await {
+            Ok(heroes) => {
+                Ok(heroes)
+            },
+            Err(db_error) => {
+                Err(db_error.to_string())
+            }
+        }
     }
 }

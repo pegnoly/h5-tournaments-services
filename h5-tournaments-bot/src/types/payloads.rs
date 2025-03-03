@@ -6,7 +6,7 @@ use crate::graphql::queries::{get_tournament_query, get_user_query};
 pub struct GetMatch {
     pub id: Option<Uuid>,
     pub interaction_id: Option<String>,
-    pub message_id: Option<String>
+    pub message_id: Option<String>,
 }
 
 impl GetMatch {
@@ -98,20 +98,19 @@ impl GetMatch {
 
 // impl From<UpdateGame> for update_game_mutation::Variables {
 //     fn from(value: UpdateGame) -> Self {
-//         update_game_mutation::Variables { 
-//             match_id: value.match_id, 
-//             number: value.game_number, 
-//             edit_state: value.edit_state, 
-//             first_player_race: value.first_player_race, 
-//             first_player_hero: value.first_player_hero, 
-//             second_player_race: value.second_player_race, 
-//             second_player_hero: value.second_player_hero, 
-//             bargains_amount: value.bargains_amount, 
-//             result: value.result 
+//         update_game_mutation::Variables {
+//             match_id: value.match_id,
+//             number: value.game_number,
+//             edit_state: value.edit_state,
+//             first_player_race: value.first_player_race,
+//             first_player_hero: value.first_player_hero,
+//             second_player_race: value.second_player_race,
+//             second_player_hero: value.second_player_hero,
+//             bargains_amount: value.bargains_amount,
+//             result: value.result
 //         }
 //     }
 // }
-
 
 #[derive(Debug)]
 pub struct UpdateMatch {
@@ -119,7 +118,7 @@ pub struct UpdateMatch {
     pub message: Option<String>,
     pub games_count: Option<i64>,
     pub second_player: Option<Uuid>,
-    pub current_game: Option<i64>
+    pub current_game: Option<i64>,
 }
 
 impl UpdateMatch {
@@ -129,7 +128,7 @@ impl UpdateMatch {
             message: None,
             games_count: None,
             second_player: None,
-            current_game: None
+            current_game: None,
         }
     }
 
@@ -156,12 +155,12 @@ impl UpdateMatch {
 
 // impl From<UpdateMatch> for update_match_mutation::Variables {
 //     fn from(value: UpdateMatch) -> Self {
-//         update_match_mutation::Variables { 
-//             id: value.id, 
-//             games_count: value.games_count, 
-//             second_player: value.second_player, 
-//             data_message: value.message, 
-//             current_game: value.current_game 
+//         update_match_mutation::Variables {
+//             id: value.id,
+//             games_count: value.games_count,
+//             second_player: value.second_player,
+//             data_message: value.message,
+//             current_game: value.current_game
 //         }
 //     }
 // }
@@ -170,7 +169,7 @@ impl UpdateMatch {
 pub struct GetTournament {
     pub id: Option<Uuid>,
     pub reports_channel_id: Option<String>,
-    pub register_channel_id: Option<String>
+    pub register_channel_id: Option<String>,
 }
 
 impl GetTournament {
@@ -192,10 +191,10 @@ impl GetTournament {
 
 impl From<GetTournament> for get_tournament_query::Variables {
     fn from(value: GetTournament) -> Self {
-        get_tournament_query::Variables { 
-            id: value.id, 
-            reports_channel_id: value.reports_channel_id, 
-            register_channel_id: value.register_channel_id 
+        get_tournament_query::Variables {
+            id: value.id,
+            reports_channel_id: value.reports_channel_id,
+            register_channel_id: value.register_channel_id,
         }
     }
 }
@@ -203,7 +202,7 @@ impl From<GetTournament> for get_tournament_query::Variables {
 #[derive(Debug, Default)]
 pub struct GetUser {
     pub id: Option<Uuid>,
-    pub discord_id: Option<String>
+    pub discord_id: Option<String>,
 }
 
 impl GetUser {
@@ -220,9 +219,9 @@ impl GetUser {
 
 impl From<GetUser> for get_user_query::Variables {
     fn from(value: GetUser) -> Self {
-        get_user_query::Variables { 
-            id: value.id, 
-            discord_id: value.discord_id 
+        get_user_query::Variables {
+            id: value.id,
+            discord_id: value.discord_id,
         }
     }
 }

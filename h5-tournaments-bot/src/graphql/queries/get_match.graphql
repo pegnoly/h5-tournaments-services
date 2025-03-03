@@ -4,6 +4,7 @@ query GetMatchQuery($id: UUID!) {
         tournament,
         firstPlayer,
         secondPlayer,
-        challonge
+        challonge,
+        reportLink
     }
 }

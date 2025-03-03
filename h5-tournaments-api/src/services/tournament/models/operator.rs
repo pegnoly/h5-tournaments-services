@@ -32,11 +32,11 @@ impl TournamentOperatorModel {
     async fn server(&self) -> i64 {
         self.server_id
     }
- 
+
     async fn heroes(&self) -> Vec<i32> {
         self.heroes.clone()
     }
-
+ 
     async fn section(&self) -> i64 {
         self.section_id
     }

@@ -1,5 +1,7 @@
 use sea_orm::prelude::*;
 
+use crate::prelude::ModType;
+
 pub type TournamentModel = Model;
 
 #[derive(Debug, EnumIter, DeriveActiveEnum, Clone, Copy, PartialEq, Eq, async_graphql::Enum)]
@@ -10,12 +12,19 @@ pub enum TournamentStage {
     PlayOff = 2
 }
 
+#[derive(Debug, EnumIter, DeriveActiveEnum, Clone, Copy, PartialEq, Eq, async_graphql::Enum)]
+#[sea_orm(rs_type = "i32", db_type = "Integer")]
+pub enum GameType {
+    Rmg = 1,
+    Arena = 2
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "tournaments_new")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
-    pub operator_id: Option<Uuid>,
+    pub operator_id: Uuid,
     pub channel_id: i64,
     pub name: String,
     pub stage: Option<TournamentStage>,
@@ -25,7 +34,9 @@ pub struct Model {
     pub with_foreign_heroes: bool,
     pub role_id: i64,
     pub challonge_id: Option<String>,
-    pub organizer: Option<Uuid>
+    pub organizer: Uuid,
+    pub game_type: GameType,
+    pub mod_type: ModType
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -39,7 +50,7 @@ impl TournamentModel {
         self.id
     }
 
-    async fn operator(&self) -> Option<Uuid> {
+    async fn operator(&self) -> Uuid {
         self.operator_id
     }
 
@@ -79,7 +90,15 @@ impl TournamentModel {
         self.challonge_id.clone()
     }
 
-    async fn organizer(&self) -> Option<Uuid> {
+    async fn organizer(&self) -> Uuid {
         self.organizer
+    }
+    
+    async fn game_type(&self) -> GameType {
+        self.game_type
+    }
+
+    async fn mod_type(&self) -> ModType {
+        self.mod_type
     }
 }

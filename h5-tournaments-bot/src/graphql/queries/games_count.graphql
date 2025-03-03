@@ -1,0 +1,3 @@
+query GamesCount($matchId: UUID!) {
+    gamesCount(matchId: $matchId)
+}

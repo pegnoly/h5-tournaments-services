@@ -1,3 +1,8 @@
-mutation CreateUserMutation($name: String!, $discord: String!, $confirmRegister: Boolean!) {
-    createUser(name: $name, discord: $discord, confirmRegister: $confirmRegister)
+mutation CreateUserMutation($name: String!, $discordId: Int!, $discordNick: String!) {
+    createUser(name: $name, discordId: $discordId, discordNick: $discordNick) {
+        id,
+        nickname,
+        registered,
+        discordId
+    }
 } 
