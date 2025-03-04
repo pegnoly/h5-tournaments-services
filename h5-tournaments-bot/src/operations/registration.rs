@@ -1,3 +1,6 @@
+use std::str::FromStr;
+
+use chrono::{DateTime, Local};
 use poise::serenity_prelude::*;
 use uuid::Uuid;
 
@@ -8,7 +11,7 @@ use crate::{
     services::{
         challonge::{
             payloads::{ChallongeParticipantAttributes, ChallongeParticipantPayload},
-            service::ChallongeService,
+            service::ChallongeService, types::ChallongeTournamentState,
         },
         h5_tournaments::{
             payloads::{
@@ -41,52 +44,65 @@ pub async fn try_register_in_tournament(
             "No tournament associated with register channel {}",
             channel.get()
         )))?;
-    match tournament_service.get_user(get_user_payload).await? {
-        Some(system_user) => {
-            let get_participant_payload = GetParticipantPayload::default()
-                .with_tournament(tournament.id)
-                .with_user(system_user.id);
-            if tournament_service
-                .get_participant(get_participant_payload)
-                .await?
-                .is_some()
-            {
-                interaction
-                    .create_response(
-                        context,
-                        CreateInteractionResponse::Message(
-                            CreateInteractionResponseMessage::new()
-                                .ephemeral(true)
-                                .content("Вы уже зарегистрированы в этом турнире"),
-                        ),
-                    )
-                    .await?;
-            } else {
-                if system_user.registered {
-                    register_participant(
-                        channel,
-                        guild,
-                        discord_user,
-                        &tournament,
-                        &system_user,
-                        context,
-                        tournament_service,
-                        challonge_service,
-                    )
-                    .await?;
+    let organizer = tournament_service
+        .get_organizer(GetOrganizerPayload::default().with_id(tournament.organizer))
+        .await?
+        .unwrap();
+    let challonge_tournament = challonge_service
+        .get_challonge_tournament(&organizer.challonge, &tournament.challonge_id.as_ref().unwrap()).await?;
+    let state = ChallongeTournamentState::from_str(&challonge_tournament.attributes.state)?;
+    if state != ChallongeTournamentState::Pending {
+        interaction.create_response(context, CreateInteractionResponse::Message(
+            CreateInteractionResponseMessage::new()
+                .ephemeral(true)
+                .content("Регистрация на турнир закрыта")
+        )).await?
+    }
+    else {
+        match tournament_service.get_user(get_user_payload).await? {
+            Some(system_user) => {
+                let get_participant_payload = GetParticipantPayload::default()
+                    .with_tournament(tournament.id)
+                    .with_user(system_user.id);
+                if tournament_service
+                    .get_participant(get_participant_payload)
+                    .await?
+                    .is_some()
+                {
                     interaction
-                        .create_response(context, CreateInteractionResponse::Acknowledge)
+                        .create_response(
+                            context,
+                            CreateInteractionResponse::Message(
+                                CreateInteractionResponseMessage::new()
+                                    .ephemeral(true)
+                                    .content("Вы уже зарегистрированы в этом турнире"),
+                            ),
+                        )
                         .await?;
                 } else {
-                    build_registration_modal(interaction, context).await?;
+                    if system_user.registered {
+                        interaction.create_response(context, CreateInteractionResponse::Acknowledge).await?;
+                        register_participant(
+                            channel,
+                            guild,
+                            discord_user,
+                            &tournament,
+                            &system_user,
+                            context,
+                            tournament_service,
+                            challonge_service,
+                        )
+                        .await?;
+                    } else {
+                        build_registration_modal(interaction, context).await?;
+                    }
                 }
             }
-        }
-        _ => {
-            build_registration_modal(interaction, context).await?;
+            _ => {
+                build_registration_modal(interaction, context).await?;
+            }
         }
     }
-
     Ok(())
 }
 
@@ -397,7 +413,7 @@ async fn register_participant(
     let participant_data = challonge_service
         .create_challonge_participant(
             &organizer.challonge,
-            &tournament.id.to_string(),
+            &tournament.challonge_id.as_ref().unwrap(),
             ChallongeParticipantPayload {
                 _type: crate::services::challonge::payloads::ChallongePayloadType::Participants,
                 attributes: Some(ChallongeParticipantAttributes {

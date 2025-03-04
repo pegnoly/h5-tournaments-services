@@ -1,8 +1,22 @@
 use serde::{Deserialize, Serialize};
+use strum::{Display, EnumString};
+
+#[derive(Debug, Serialize, Deserialize, EnumString, Display, PartialEq, Eq)]
+pub enum ChallongeTournamentState {
+    #[strum(serialize = "pending")]
+    Pending,
+    #[strum(serialize = "group_stages_underway")]
+    GroupStagesUnderway
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChallongeTournamentsSimple {
     pub data: Vec<ChallongeTournamentSimpleData>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChallongeTournamentSimple {
+    pub data: ChallongeTournamentSimpleData
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -14,11 +28,18 @@ pub struct ChallongeTournamentSimpleData {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChallongeTournamentSimpleAttributes {
     pub name: String,
+    pub state: String,
+    pub starts_at: String
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChallongeParticipantsSimple {
     pub data: Vec<ChallongeParticipantSimpleData>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChallongeParticipantSimple {
+    pub data: ChallongeParticipantSimpleData,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

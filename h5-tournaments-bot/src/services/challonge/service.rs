@@ -7,9 +7,7 @@ use super::{
         ChallongeUpdateMatchPayload,
     },
     types::{
-        ChallongeMatchData, ChallongeMatches, ChallongeParticipantSimpleData,
-        ChallongeParticipantsSimple, ChallongeSingleMatch, ChallongeTournamentSimpleData,
-        ChallongeTournamentsSimple,
+        ChallongeMatchData, ChallongeMatches, ChallongeParticipantSimple, ChallongeParticipantSimpleData, ChallongeParticipantsSimple, ChallongeSingleMatch, ChallongeTournamentSimple, ChallongeTournamentSimpleData, ChallongeTournamentsSimple
     },
 };
 
@@ -360,7 +358,10 @@ impl ChallongeService {
                 ChallongeData { data: data },
             )
             .await?;
-        Ok(response.json().await?)
+        
+        // tracing::info!("Response data: {}", response.text().await?);
+        // Err(crate::Error::from("Error"))
+        Ok(response.json::<ChallongeParticipantSimple>().await?.data)
     }
 
     pub async fn delete_challonge_participant(
@@ -379,5 +380,29 @@ impl ChallongeService {
             )
             .await?;
         Ok(())
+    }
+
+    pub async fn get_challonge_tournament(&self, api_key: &String, tournament_id: &String) -> Result<ChallongeTournamentSimpleData, crate::Error> {
+        let response = self
+        .client
+        .get(
+            api_key,
+            &format!(
+                "tournaments/{}.json",
+                tournament_id
+            ),
+        )
+        .await;
+
+    match response {
+        Ok(success) => match success.json::<ChallongeTournamentSimple>().await {
+            Ok(data) => Ok(data.data),
+            Err(json_error) => Err(crate::Error::from(json_error)),
+        },
+        Err(failure) => {
+            tracing::error!("Failed to send tournament request: {}", failure.to_string());
+            Err(crate::Error::from("Failed to send tournament request"))
+        }
+    }
     }
 }

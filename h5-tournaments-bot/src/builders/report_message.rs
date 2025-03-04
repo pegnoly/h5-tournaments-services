@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use crate::{
     builders::types::GameBuilderState,
     services::{
-        challonge::{service::ChallongeService, types::ChallongeMatchData},
+        challonge::{service::ChallongeService, types::{ChallongeMatchData, ChallongeTournamentState}},
         h5_tournaments::{
             payloads::{GetOrganizerPayload, GetParticipantPayload},
             service::H5TournamentsService,
@@ -38,102 +38,113 @@ pub async fn collect_match_creation_data(
         .get_organizer(GetOrganizerPayload::default().with_id(tournament_data.organizer))
         .await?
         .unwrap();
-    let user_data = tournaments_service
-        .get_user(GetUser::default().with_discord_id(interaction.user.id.get().to_string()))
-        .await?
-        .unwrap();
-    let participant = tournaments_service
-        .get_participant(
-            GetParticipantPayload::default()
-                .with_tournament(tournament_data.id)
-                .with_user(user_data.id),
-        )
-        .await?
-        .ok_or(crate::Error::from(format!(
-            "User {} isn't found in tournament {}",
-            &user_data.nickname, &tournament_data.name
-        )))?;
-    let challonge_participants = challonge_service
-        .get_participants(
-            &organizer.challonge,
-            tournament_data.challonge_id.as_ref().unwrap(),
-        )
-        .await?;
-    let matches = challonge_service
-        .get_open_matches_for_participant(
-            &organizer.challonge,
-            tournament_data.challonge_id.as_ref().unwrap(),
-            //participant.challonge.as_ref().unwrap().clone()
-        )
-        .await?;
+    let challonge_tournament = challonge_service.get_challonge_tournament(
+        &organizer.challonge, tournament_data.challonge_id.as_ref().unwrap()).await?;
+    let state = ChallongeTournamentState::from_str(&challonge_tournament.attributes.state)?;
+    if state == ChallongeTournamentState::Pending {
+        interaction.create_response(context, CreateInteractionResponse::Message(
+            CreateInteractionResponseMessage::new()
+                .ephemeral(true)
+                .content("Нет возможности создавать отчеты - турнир еще не стартовал")   
+        )).await?;
+    } else {
+        let user_data = tournaments_service
+            .get_user(GetUser::default().with_discord_id(interaction.user.id.get().to_string()))
+            .await?
+            .unwrap();
+        let participant = tournaments_service
+            .get_participant(
+                GetParticipantPayload::default()
+                    .with_tournament(tournament_data.id)
+                    .with_user(user_data.id),
+            )
+            .await?
+            .ok_or(crate::Error::from(format!(
+                "User {} isn't found in tournament {}",
+                &user_data.nickname, &tournament_data.name
+            )))?;
+        let challonge_participants = challonge_service
+            .get_participants(
+                &organizer.challonge,
+                tournament_data.challonge_id.as_ref().unwrap(),
+            )
+            .await?;
+        let matches = challonge_service
+            .get_open_matches_for_participant(
+                &organizer.challonge,
+                tournament_data.challonge_id.as_ref().unwrap(),
+                //participant.challonge.as_ref().unwrap().clone()
+            )
+            .await?;
 
-    let matches_sorted = matches
-        .iter()
-        .filter(|m| {
-            m.relationships.player1.data.id == *participant.challonge.as_ref().unwrap()
-                || m.relationships.player2.data.id == *participant.challonge.as_ref().unwrap()
-        })
-        .collect::<Vec<&ChallongeMatchData>>();
+        let matches_sorted = matches
+            .iter()
+            .filter(|m| {
+                m.relationships.player1.data.id == *participant.challonge.as_ref().unwrap()
+                    || m.relationships.player2.data.id == *participant.challonge.as_ref().unwrap()
+            })
+            .collect::<Vec<&ChallongeMatchData>>();
 
-    let opponents_data = matches_sorted
-        .iter()
-        .map(|m| {
-            if m.relationships.player1.data.id != *participant.challonge.as_ref().unwrap() {
-                let opponent = challonge_participants
-                    .iter()
-                    .find(|p| p.id == m.relationships.player1.data.id)
-                    .unwrap();
-                OpponentsData {
-                    nickname: opponent.attributes.name.clone(),
-                    challonge_data: serde_json::to_string(&OpponentDataPayload {
+        let opponents_data = matches_sorted
+            .iter()
+            .map(|m| {
+                if m.relationships.player1.data.id != *participant.challonge.as_ref().unwrap() {
+                    let opponent = challonge_participants
+                        .iter()
+                        .find(|p| p.id == m.relationships.player1.data.id)
+                        .unwrap();
+                    OpponentsData {
                         nickname: opponent.attributes.name.clone(),
-                        opponent_id: opponent.id.clone(),
-                        match_id: m.id.clone(),
-                    })
-                    .unwrap(),
-                }
-            } else {
-                let opponent = challonge_participants
-                    .iter()
-                    .find(|p| p.id == m.relationships.player2.data.id)
-                    .unwrap();
-                OpponentsData {
-                    nickname: opponent.attributes.name.clone(),
-                    challonge_data: serde_json::to_string(&OpponentDataPayload {
+                        challonge_data: serde_json::to_string(&OpponentDataPayload {
+                            nickname: opponent.attributes.name.clone(),
+                            opponent_id: opponent.id.clone(),
+                            match_id: m.id.clone(),
+                        })
+                        .unwrap(),
+                    }
+                } else {
+                    let opponent = challonge_participants
+                        .iter()
+                        .find(|p| p.id == m.relationships.player2.data.id)
+                        .unwrap();
+                    OpponentsData {
                         nickname: opponent.attributes.name.clone(),
-                        opponent_id: opponent.id.clone(),
-                        match_id: m.id.clone(),
-                    })
-                    .unwrap(),
+                        challonge_data: serde_json::to_string(&OpponentDataPayload {
+                            nickname: opponent.attributes.name.clone(),
+                            opponent_id: opponent.id.clone(),
+                            match_id: m.id.clone(),
+                        })
+                        .unwrap(),
+                    }
                 }
-            }
-        })
-        .collect::<Vec<OpponentsData>>();
+            })
+            .collect::<Vec<OpponentsData>>();
 
-    let match_builder = MatchBuilder {
-        opponents: opponents_data,
-        selected_opponent: None,
-        player: participant.challonge.as_ref().unwrap().clone(),
-        games_count: None,
-        user_nickname: user_data.nickname,
-        tournament_name: tournament_data.name,
-        tournament_id: tournament_data.id,
-    };
+        let match_builder = MatchBuilder {
+            opponents: opponents_data,
+            selected_opponent: None,
+            player: participant.challonge.as_ref().unwrap().clone(),
+            games_count: None,
+            user_nickname: user_data.nickname,
+            tournament_name: tournament_data.name,
+            tournament_id: tournament_data.id,
+        };
 
-    let response_message = build_match_creation_interface(&match_builder).await?;
-    interaction
-        .create_response(
-            context,
-            CreateInteractionResponse::Message(response_message),
-        )
-        .await?;
-    let message_new = interaction.get_response(context).await?;
-    let mut message_builders_locked = match_builders.write().await;
-    message_builders_locked.insert(
-        message_new.id.get(),
-        tokio::sync::RwLock::new(match_builder),
-    );
-    drop(message_builders_locked); // heh 3
+        let response_message = build_match_creation_interface(&match_builder).await?;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::Message(response_message),
+            )
+            .await?;
+        let message_new = interaction.get_response(context).await?;
+        let mut message_builders_locked = match_builders.write().await;
+        message_builders_locked.insert(
+            message_new.id.get(),
+            tokio::sync::RwLock::new(match_builder),
+        );
+        drop(message_builders_locked); // heh 3
+    }
     Ok(())
 }
 
