@@ -4,7 +4,7 @@ use get_user_query::GetUserQueryUser;
 use get_users_query::GetUsersQueryUsers;
 use graphql_client::GraphQLQuery;
 
-use crate::builders;
+use crate::builders::{self, types::GameType};
 
 type UUID = uuid::Uuid;
 
@@ -338,6 +338,37 @@ impl Into<create_games_bulk::GameResult> for builders::types::GameResult {
                 create_games_bulk::GameResult::SECOND_PLAYER_WON
             }
             _ => create_games_bulk::GameResult::NOT_SELECTED,
+        }
+    }
+}
+
+impl From<get_tournament_query::GameType> for GameType {
+    fn from(value: get_tournament_query::GameType) -> Self {
+        match value {
+            get_tournament_query::GameType::ARENA => GameType::Arena,
+            get_tournament_query::GameType::RMG => GameType::Rmg,
+            _=> GameType::Arena
+        }
+    }
+}
+
+impl Into<get_heroes_query::ModType> for h5_tournaments_api::prelude::ModType {
+    fn into(self) -> get_heroes_query::ModType {
+        match self {
+            h5_tournaments_api::prelude::ModType::Hrta => get_heroes_query::ModType::HRTA,
+            h5_tournaments_api::prelude::ModType::Universe => get_heroes_query::ModType::UNIVERSE,
+            _=> get_heroes_query::ModType::UNIVERSE
+        }
+    }
+}
+
+impl Into<create_games_bulk::GameOutcome> for crate::builders::types::GameOutcome {
+    fn into(self) -> create_games_bulk::GameOutcome {
+        match self {
+            builders::types::GameOutcome::FinalBattleVictory => create_games_bulk::GameOutcome::FINAL_BATTLE_VICTORY,
+            builders::types::GameOutcome::NeutralsVictory => create_games_bulk::GameOutcome::NEUTRALS_VICTORY,
+            builders::types::GameOutcome::OpponentSurrender => create_games_bulk::GameOutcome::OPPONENT_SURRENDER,
+            _=> create_games_bulk::GameOutcome::FINAL_BATTLE_VICTORY
         }
     }
 }

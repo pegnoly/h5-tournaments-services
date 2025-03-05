@@ -1,25 +1,23 @@
 use std::{collections::HashMap, str::FromStr};
 
 use crate::{
-    builders::types::GameBuilderState,
-    services::{
+    builders::types::GameBuilderState, graphql::queries::get_heroes_query::GetHeroesQueryHeroesNewHeroesEntities, services::{
         challonge::{service::ChallongeService, types::{ChallongeMatchData, ChallongeTournamentState}},
         h5_tournaments::{
             payloads::{GetOrganizerPayload, GetParticipantPayload},
             service::H5TournamentsService,
         },
-    },
-    types::payloads::{GetMatch, GetTournament, GetUser},
+    }, types::payloads::{GetTournament, GetUser}
 };
-use h5_tournaments_api::prelude::Hero;
 use poise::serenity_prelude::*;
 use tokio::sync::RwLock;
-use uuid::Uuid;
-
 use super::types::{
-    GameBuilder, GameBuilderContainer, GameResult, MatchBuilder, OpponentDataPayload, OpponentsData,
+    BargainsColor, GameBuilder, GameBuilderContainer, GameOutcome, GameResult, GameType, MatchBuilder, OpponentDataPayload, OpponentsData
 };
 
+/// Invoked when user starts to create report.
+/// This function collects all data related to this uses in a context of this tournament.
+/// Checks state of tournament and decides to allow user to start report.
 pub async fn collect_match_creation_data(
     context: &Context,
     interaction: &ComponentInteraction,
@@ -76,74 +74,81 @@ pub async fn collect_match_creation_data(
                 //participant.challonge.as_ref().unwrap().clone()
             )
             .await?;
+        if matches.len() < 1 {
+            interaction.create_response(context, CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::new()
+                    .ephemeral(true)
+                    .content("Для вас нет открытых матчей на этом турнире")   
+            )).await?;
+        } else {
+            let matches_sorted = matches
+                .iter()
+                .filter(|m| {
+                    m.attributes.points_by_participant[0].participant_id.to_string() == *participant.challonge.as_ref().unwrap()
+                        || m.attributes.points_by_participant[1].participant_id.to_string() == *participant.challonge.as_ref().unwrap()
+                })
+                .collect::<Vec<&ChallongeMatchData>>();
 
-        let matches_sorted = matches
-            .iter()
-            .filter(|m| {
-                m.relationships.player1.data.id == *participant.challonge.as_ref().unwrap()
-                    || m.relationships.player2.data.id == *participant.challonge.as_ref().unwrap()
-            })
-            .collect::<Vec<&ChallongeMatchData>>();
-
-        let opponents_data = matches_sorted
-            .iter()
-            .map(|m| {
-                if m.relationships.player1.data.id != *participant.challonge.as_ref().unwrap() {
-                    let opponent = challonge_participants
-                        .iter()
-                        .find(|p| p.id == m.relationships.player1.data.id)
-                        .unwrap();
-                    OpponentsData {
-                        nickname: opponent.attributes.name.clone(),
-                        challonge_data: serde_json::to_string(&OpponentDataPayload {
+            let opponents_data = matches_sorted
+                .iter()
+                .map(|m| {
+                    if m.attributes.points_by_participant[0].participant_id.to_string() != *participant.challonge.as_ref().unwrap() {
+                        let opponent = challonge_participants
+                            .iter()
+                            .find(|p| p.id == m.attributes.points_by_participant[0].participant_id.to_string())
+                            .unwrap();
+                        OpponentsData {
                             nickname: opponent.attributes.name.clone(),
-                            opponent_id: opponent.id.clone(),
-                            match_id: m.id.clone(),
-                        })
-                        .unwrap(),
-                    }
-                } else {
-                    let opponent = challonge_participants
-                        .iter()
-                        .find(|p| p.id == m.relationships.player2.data.id)
-                        .unwrap();
-                    OpponentsData {
-                        nickname: opponent.attributes.name.clone(),
-                        challonge_data: serde_json::to_string(&OpponentDataPayload {
+                            challonge_data: serde_json::to_string(&OpponentDataPayload {
+                                nickname: opponent.attributes.name.clone(),
+                                opponent_id: opponent.id.clone(),
+                                match_id: m.id.clone(),
+                            })
+                            .unwrap(),
+                        }
+                    } else {
+                        let opponent = challonge_participants
+                            .iter()
+                            .find(|p| p.id == m.attributes.points_by_participant[1].participant_id.to_string())
+                            .unwrap();
+                        OpponentsData {
                             nickname: opponent.attributes.name.clone(),
-                            opponent_id: opponent.id.clone(),
-                            match_id: m.id.clone(),
-                        })
-                        .unwrap(),
+                            challonge_data: serde_json::to_string(&OpponentDataPayload {
+                                nickname: opponent.attributes.name.clone(),
+                                opponent_id: opponent.id.clone(),
+                                match_id: m.id.clone(),
+                            })
+                            .unwrap(),
+                        }
                     }
-                }
-            })
-            .collect::<Vec<OpponentsData>>();
+                })
+                .collect::<Vec<OpponentsData>>();
 
-        let match_builder = MatchBuilder {
-            opponents: opponents_data,
-            selected_opponent: None,
-            player: participant.challonge.as_ref().unwrap().clone(),
-            games_count: None,
-            user_nickname: user_data.nickname,
-            tournament_name: tournament_data.name,
-            tournament_id: tournament_data.id,
-        };
+            let match_builder = MatchBuilder {
+                opponents: opponents_data,
+                selected_opponent: None,
+                player: participant.challonge.as_ref().unwrap().clone(),
+                games_count: None,
+                user_nickname: user_data.nickname,
+                tournament_name: tournament_data.name,
+                tournament_id: tournament_data.id,
+            };
 
-        let response_message = build_match_creation_interface(&match_builder).await?;
-        interaction
-            .create_response(
-                context,
-                CreateInteractionResponse::Message(response_message),
-            )
-            .await?;
-        let message_new = interaction.get_response(context).await?;
-        let mut message_builders_locked = match_builders.write().await;
-        message_builders_locked.insert(
-            message_new.id.get(),
-            tokio::sync::RwLock::new(match_builder),
-        );
-        drop(message_builders_locked); // heh 3
+            let response_message = build_match_creation_interface(&match_builder).await?;
+            interaction
+                .create_response(
+                    context,
+                    CreateInteractionResponse::Message(response_message),
+                )
+                .await?;
+            let message_new = interaction.get_response(context).await?;
+            let mut message_builders_locked = match_builders.write().await;
+            message_builders_locked.insert(
+                message_new.id.get(),
+                tokio::sync::RwLock::new(match_builder),
+            );
+            drop(message_builders_locked); // heh 3
+        }
     }
     Ok(())
 }
@@ -253,9 +258,9 @@ pub async fn build_game_message(
             game_builder_container
                 .heroes
                 .iter()
-                .find(|h| h.id == game_data.first_player_hero.unwrap() as i32)
+                .find(|h| h.id == game_data.first_player_hero.unwrap())
                 .unwrap()
-                .actual_name
+                .name
                 .clone()
         } else {
             "Неизвестный герой".to_string()
@@ -263,8 +268,7 @@ pub async fn build_game_message(
         match game_data.result {
             GameResult::NotSelected => "Неизвестный результат".to_string(),
             GameResult::FirstPlayerWon => ">".to_string(),
-            GameResult::SecondPlayerWon => "<".to_string(),
-            _ => "Неизвестный результат".to_string(),
+            GameResult::SecondPlayerWon => "<".to_string()
         },
         if game_data.second_player_race.is_some() {
             tournaments_service
@@ -281,9 +285,9 @@ pub async fn build_game_message(
             game_builder_container
                 .heroes
                 .iter()
-                .find(|h| h.id == game_data.second_player_hero.unwrap() as i32)
+                .find(|h| h.id == game_data.second_player_hero.unwrap())
                 .unwrap()
-                .actual_name
+                .name
                 .clone()
         } else {
             "Неизвестный герой".to_string()
@@ -291,7 +295,7 @@ pub async fn build_game_message(
         //game_data.bargains_amount.to_string()
     );
 
-    let mut core_components = build_core_components(game_data);
+    let mut core_components = build_core_components(game_data, game_builder_container);
     let mut second_row =
         generate_second_row(tournaments_service, game_builder_container, game_data).await;
     core_components.append(&mut second_row);
@@ -352,6 +356,7 @@ fn check_game_is_full_built(game: &GameBuilder) -> bool {
     game.result != GameResult::NotSelected
 }
 
+/// Builds interface based on current state of report fill process
 async fn generate_second_row(
     tournaments_service: &H5TournamentsService,
     game_builder_container: &GameBuilderContainer,
@@ -361,8 +366,9 @@ async fn generate_second_row(
         GameBuilderState::PlayerData => {
             build_player_data_selector(
                 tournaments_service,
-                &game_builder_container.heroes,
+                game_builder_container,
                 game_data.first_player_race,
+                game_data.first_player_hero_race,
                 game_data.first_player_hero,
             )
             .await
@@ -370,13 +376,15 @@ async fn generate_second_row(
         GameBuilderState::OpponentData => {
             build_opponent_data_selector(
                 tournaments_service,
-                &game_builder_container.heroes,
+                &game_builder_container,
                 game_data.second_player_race,
+                game_data.second_player_hero_race,
                 game_data.second_player_hero,
             )
             .await
         }
-        GameBuilderState::ResultData => build_result_selector(&game_data.result),
+        GameBuilderState::ResultData => build_result_selector(game_data, game_builder_container),
+        GameBuilderState::BargainsData => build_bargains_data_interface(game_data, game_builder_container),
         _ => {
             vec![]
         }
@@ -384,8 +392,9 @@ async fn generate_second_row(
 }
 
 // Main buttons, must be always rendered, style depends on current edit state
-fn build_core_components(game_builder: &GameBuilder) -> Vec<CreateActionRow> {
-    vec![CreateActionRow::Buttons(vec![
+fn build_core_components(game_builder: &GameBuilder, container: &GameBuilderContainer) -> Vec<CreateActionRow> {
+    let mut buttons = vec![];
+    buttons.push(
         CreateButton::new("player_data_button")
             .label("Указать данные игрока")
             .style(if game_builder.state == GameBuilderState::PlayerData {
@@ -397,7 +406,9 @@ fn build_core_components(game_builder: &GameBuilder) -> Vec<CreateActionRow> {
                 true
             } else {
                 false
-            }),
+            })
+    );
+    buttons.push(        
         CreateButton::new("opponent_data_button")
             .label("Указать данные оппонента")
             .style(if game_builder.state == GameBuilderState::OpponentData {
@@ -409,8 +420,25 @@ fn build_core_components(game_builder: &GameBuilder) -> Vec<CreateActionRow> {
                 true
             } else {
                 false
-            }),
-        //CreateButton::new("bargains_data_button").label("Указать данные о торгах"),
+            })
+    );
+    if container.use_bargains {
+        buttons.push(        
+            CreateButton::new("bargains_data_button")
+                .label("Указать данные о торгах")
+                .style(if game_builder.state == GameBuilderState::BargainsData {
+                    ButtonStyle::Success
+                } else {
+                    ButtonStyle::Primary
+                })
+                .disabled(if game_builder.state == GameBuilderState::BargainsData {
+                    true
+                } else {
+                    false
+                })
+        );
+    }
+    buttons.push(
         CreateButton::new("result_data_button")
             .label("Указать результат игры")
             .style(if game_builder.state == GameBuilderState::ResultData {
@@ -422,18 +450,22 @@ fn build_core_components(game_builder: &GameBuilder) -> Vec<CreateActionRow> {
                 true
             } else {
                 false
-            }),
-    ])]
+            })
+    );
+    vec![CreateActionRow::Buttons(buttons)]
 }
 
+/// Creates selectors of race and hero for user who fills the report.
+/// If foreign heroes can be used in tournament, additional selector will be created.
 async fn build_player_data_selector(
     tournaments_service: &H5TournamentsService,
-    heroes: &Vec<Hero>,
+    container: &GameBuilderContainer,
     race: Option<i64>,
+    hero_race: Option<i64>,
     hero: Option<i64>,
 ) -> Vec<CreateActionRow> {
-    tracing::info!("Building player data, race: {:?}", race);
-    vec![
+    let mut rows = vec![];
+    rows.push(
         CreateActionRow::SelectMenu(
             CreateSelectMenu::new(
                 "player_race_selector",
@@ -458,27 +490,62 @@ async fn build_player_data_selector(
                 },
             )
             .placeholder("Выбрать расу игрока"),
-        ),
+        )
+    );
+    if container.use_foreign_heroes {
+        rows.push(
+            CreateActionRow::SelectMenu(
+                CreateSelectMenu::new(
+                    "player_hero_race_selector",
+                    poise::serenity_prelude::CreateSelectMenuKind::String {
+                        options: tournaments_service
+                            .races
+                            .iter()
+                            .map(|race_new| {
+                                CreateSelectMenuOption::new(
+                                    race_new.name.clone(),
+                                    race_new.id.to_string(),
+                                )
+                                .default_selection(
+                                    if hero_race.is_some() && hero_race.unwrap() == race_new.id {
+                                        true
+                                    } else {
+                                        false
+                                    },
+                                )
+                            })
+                            .collect::<Vec<CreateSelectMenuOption>>(),
+                    },
+                )
+                .disabled(race.is_none())
+                .placeholder("Выбрать расу героя игрока(используйте, если использовался неродной герой, иначе - не заполняйте)"),
+            )
+        );
+    }
+    rows.push(
         CreateActionRow::SelectMenu(
             CreateSelectMenu::new(
                 "player_hero_selector",
                 CreateSelectMenuKind::String {
-                    options: build_heroes_list(heroes, race, hero).await,
+                    options: build_heroes_list(&container.heroes, race, hero_race, hero).await,
                 },
             )
             .disabled(race.is_none())
             .placeholder("Выбрать героя игрока"),
-        ),
-    ]
+        )
+    );
+    rows
 }
 
 async fn build_opponent_data_selector(
     tournaments_service: &H5TournamentsService,
-    heroes: &Vec<Hero>,
+    container: &GameBuilderContainer,
     race: Option<i64>,
+    hero_race: Option<i64>,
     hero: Option<i64>,
 ) -> Vec<CreateActionRow> {
-    vec![
+    let mut rows = vec![];
+    rows.push(
         CreateActionRow::SelectMenu(
             CreateSelectMenu::new(
                 "opponent_race_selector",
@@ -503,35 +570,70 @@ async fn build_opponent_data_selector(
                 },
             )
             .placeholder("Выбрать расу оппонента"),
-        ),
+        )
+    );
+    if container.use_foreign_heroes {
+        rows.push(
+            CreateActionRow::SelectMenu(
+                CreateSelectMenu::new(
+                    "opponent_hero_race_selector",
+                    poise::serenity_prelude::CreateSelectMenuKind::String {
+                        options: tournaments_service
+                            .races
+                            .iter()
+                            .map(|race_new| {
+                                CreateSelectMenuOption::new(
+                                    race_new.name.clone(),
+                                    race_new.id.to_string(),
+                                )
+                                .default_selection(
+                                    if hero_race.is_some() && hero_race.unwrap() == race_new.id {
+                                        true
+                                    } else {
+                                        false
+                                    },
+                                )
+                            })
+                            .collect::<Vec<CreateSelectMenuOption>>(),
+                    },
+                )
+                .disabled(race.is_none())
+                .placeholder("Выбрать расу героя оппонента(используйте, если использовался неродной герой, иначе - не заполняйте)"),
+            )
+        );
+    }
+    rows.push(
         CreateActionRow::SelectMenu(
             CreateSelectMenu::new(
                 "opponent_hero_selector",
                 CreateSelectMenuKind::String {
-                    options: build_heroes_list(heroes, race, hero).await,
+                    options: build_heroes_list(&container.heroes, race, hero_race, hero).await,
                 },
             )
             .disabled(race.is_none())
             .placeholder("Выбрать героя оппонента"),
-        ),
-    ]
+        )
+    );
+
+    rows
 }
 
-fn build_result_selector(current_result: &GameResult) -> Vec<CreateActionRow> {
-    vec![CreateActionRow::SelectMenu(
+fn build_result_selector(game: &GameBuilder, container: &GameBuilderContainer) -> Vec<CreateActionRow> {
+    let mut rows = vec![];
+    rows.push(CreateActionRow::SelectMenu(
         CreateSelectMenu::new(
             "game_result_selector",
             poise::serenity_prelude::CreateSelectMenuKind::String {
                 options: vec![
                     CreateSelectMenuOption::new("Победа игрока", "1").default_selection(
-                        if *current_result == GameResult::FirstPlayerWon {
+                        if game.result == GameResult::FirstPlayerWon {
                             true
                         } else {
                             false
                         },
                     ),
                     CreateSelectMenuOption::new("Победа оппонента", "2").default_selection(
-                        if *current_result == GameResult::SecondPlayerWon {
+                        if game.result == GameResult::SecondPlayerWon {
                             true
                         } else {
                             false
@@ -541,28 +643,43 @@ fn build_result_selector(current_result: &GameResult) -> Vec<CreateActionRow> {
             },
         )
         .placeholder("Указать результат игры"),
-    )]
+    ));
+    if container.game_type == GameType::Rmg {
+        rows.push(CreateActionRow::SelectMenu(
+            CreateSelectMenu::new(
+                "game_outcome_selector", 
+            CreateSelectMenuKind::String { options: vec![
+                CreateSelectMenuOption::new("Победа нейтралов", GameOutcome::NeutralsVictory.to_string())
+                    .default_selection(game.outcome == GameOutcome::NeutralsVictory),
+                CreateSelectMenuOption::new("Оппонент сдался", GameOutcome::OpponentSurrender.to_string())
+                    .default_selection(game.outcome == GameOutcome::OpponentSurrender)
+            ] })
+            .placeholder("Укажите точную причину победы(если это НЕ победа в финалке)")
+        ));
+    }
+    rows
 }
 
 async fn build_heroes_list(
-    heroes: &Vec<Hero>,
+    heroes: &Vec<GetHeroesQueryHeroesNewHeroesEntities>,
     race: Option<i64>,
+    player_hero_race: Option<i64>,
     current_hero: Option<i64>,
 ) -> Vec<CreateSelectMenuOption> {
-    if race.is_none() {
+    if race.is_none() && player_hero_race.is_none() {
         vec![CreateSelectMenuOption::new("Нет героя", "-1")]
     } else {
         heroes
             .iter()
             .filter_map(|hero| {
-                if race.is_some() && hero.race == race.unwrap() as i32 {
+                if (race.is_some() && player_hero_race.is_none() && hero.race == race.unwrap()) || (player_hero_race.is_some() && hero.race == player_hero_race.unwrap()) {
                     Some(
                         CreateSelectMenuOption::new(
-                            hero.actual_name.to_string(),
+                            hero.name.to_string(),
                             hero.id.to_string(),
                         )
                         .default_selection(
-                            if current_hero.is_some() && hero.id == current_hero.unwrap() as i32 {
+                            if current_hero.is_some() && hero.id == current_hero.unwrap() {
                                 true
                             } else {
                                 false
@@ -575,4 +692,30 @@ async fn build_heroes_list(
             })
             .collect::<Vec<CreateSelectMenuOption>>()
     }
+}
+
+fn build_bargains_data_interface(
+    game: &GameBuilder,
+    container: &GameBuilderContainer
+) -> Vec<CreateActionRow> {
+    let mut rows = vec![];
+    rows.push(
+        CreateActionRow::Buttons(vec![
+            CreateButton::new("bargains_amount_button").style(ButtonStyle::Success).label("Укажите размер торга(в вашу сторону)")
+        ])
+    );
+    if container.use_bargains_color {
+        rows.push(
+            CreateActionRow::SelectMenu(
+                CreateSelectMenu::new("bargains_color_selector", CreateSelectMenuKind::String { options: vec![
+                    CreateSelectMenuOption::new("Красный", BargainsColor::BargainsColorRed.to_string())
+                        .default_selection(game.bargains_color.is_some() && *game.bargains_color.as_ref().unwrap() == BargainsColor::BargainsColorRed),
+                    CreateSelectMenuOption::new("Синий", BargainsColor::BargainsColorBlue.to_string())
+                        .default_selection(game.bargains_color.is_some() && *game.bargains_color.as_ref().unwrap() == BargainsColor::BargainsColorBlue),    
+                ] })
+                .placeholder("Укажите цвет, на котором ВЫ играли")
+            )
+        );
+    }
+    rows
 }

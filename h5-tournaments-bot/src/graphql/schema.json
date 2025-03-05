@@ -115,6 +115,35 @@
       "subscriptionType": null,
       "types": [
         {
+          "description": null,
+          "enumValues": [
+            {
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "NOT_SELECTED"
+            },
+            {
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "BARGAINS_COLOR_RED"
+            },
+            {
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "BARGAINS_COLOR_BLUE"
+            }
+          ],
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "kind": "ENUM",
+          "name": "BargainsColor",
+          "possibleTypes": null
+        },
+        {
           "description": "The `Boolean` scalar type represents `true` or `false`.",
           "enumValues": null,
           "fields": null,
@@ -188,8 +217,8 @@
               "description": null,
               "name": "bargainsColor",
               "type": {
-                "kind": "SCALAR",
-                "name": "Int",
+                "kind": "ENUM",
+                "name": "BargainsColor",
                 "ofType": null
               }
             },
@@ -216,6 +245,16 @@
                   "ofType": null
                 }
               }
+            },
+            {
+              "defaultValue": null,
+              "description": null,
+              "name": "outcome",
+              "type": {
+                "kind": "ENUM",
+                "name": "GameOutcome",
+                "ofType": null
+              }
             }
           ],
           "interfaces": null,
@@ -231,6 +270,35 @@
           "interfaces": null,
           "kind": "SCALAR",
           "name": "Float",
+          "possibleTypes": null
+        },
+        {
+          "description": null,
+          "enumValues": [
+            {
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "FINAL_BATTLE_VICTORY"
+            },
+            {
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "NEUTRALS_VICTORY"
+            },
+            {
+              "deprecationReason": null,
+              "description": null,
+              "isDeprecated": false,
+              "name": "OPPONENT_SURRENDER"
+            }
+          ],
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "kind": "ENUM",
+          "name": "GameOutcome",
           "possibleTypes": null
         },
         {

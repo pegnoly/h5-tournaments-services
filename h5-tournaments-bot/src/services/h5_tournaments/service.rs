@@ -6,35 +6,7 @@ use uuid::Uuid;
 
 use crate::{
     graphql::queries::{
-        self, CreateGamesBulk, CreateMatchMutation, CreateOrganizer, CreateParticipant,
-        CreateTournamentBuilder, CreateTournamentMutation, CreateUserMutation, DeleteParticipant,
-        GamesCount, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery,
-        GetOperatorSectionQuery, GetOrganizer, GetParticipant, GetTournamentBuilder,
-        GetTournamentQuery, GetTournamentUsers, GetTournaments, GetUserQuery, GetUsersQuery,
-        GetUsersResult, UpdateMatch, UpdateParticipantsBulk, UpdateTournament,
-        UpdateTournamentBuilder, UpdateUser, UpdateUsersBulk,
-        create_games_bulk::{self, CreateGameModel},
-        create_organizer, create_participant,
-        create_tournament_builder::{self, CreateTournamentBuilderCreateTournamentBuilder},
-        create_tournament_mutation,
-        create_user_mutation::{self, CreateUserMutationCreateUser, ResponseData},
-        delete_participant, games_count,
-        get_hero_query::{self, GetHeroQueryHero},
-        get_heroes_query::{self, GetHeroesQueryHeroes},
-        get_match_query::GetMatchQueryGetMatch,
-        get_operator_data_query::{self, GetOperatorDataQueryOperator},
-        get_organizer::{self, GetOrganizerOrganizer},
-        get_participant::{self, GetParticipantParticipant},
-        get_tournament_builder::{self, GetTournamentBuilderTournamentBuilder},
-        get_tournament_query,
-        get_tournament_users::{self, GetTournamentUsersTournamentUsers},
-        get_tournaments::{self, GetTournamentsTournaments},
-        get_user_query::{self, GetUserQueryUser},
-        update_match,
-        update_participants_bulk::{self, UpdateParticipant},
-        update_tournament,
-        update_tournament_builder::{self, UpdateTournamentBuilderUpdateTournamentBuilder},
-        update_user, update_users_bulk,
+        self, create_games_bulk::{self, CreateGameModel}, create_organizer, create_participant, create_tournament_builder::{self, CreateTournamentBuilderCreateTournamentBuilder}, create_tournament_mutation, create_user_mutation::{self, CreateUserMutationCreateUser, ResponseData}, delete_participant, games_count, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroesNewHeroesEntities}, get_match_query::GetMatchQueryGetMatch, get_operator_data_query::{self, GetOperatorDataQueryOperator}, get_organizer::{self, GetOrganizerOrganizer}, get_participant::{self, GetParticipantParticipant}, get_tournament_builder::{self, GetTournamentBuilderTournamentBuilder}, get_tournament_query, get_tournament_users::{self, GetTournamentUsersTournamentUsers}, get_tournaments::{self, GetTournamentsTournaments}, get_user_query::{self, GetUserQueryUser}, update_match, update_participants_bulk::{self, UpdateParticipant}, update_tournament, update_tournament_builder::{self, UpdateTournamentBuilderUpdateTournamentBuilder}, update_user, update_users_bulk, CreateGamesBulk, CreateMatchMutation, CreateOrganizer, CreateParticipant, CreateTournamentBuilder, CreateTournamentMutation, CreateUserMutation, DeleteParticipant, GamesCount, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetOrganizer, GetParticipant, GetTournamentBuilder, GetTournamentQuery, GetTournamentUsers, GetTournaments, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateMatch, UpdateParticipantsBulk, UpdateTournament, UpdateTournamentBuilder, UpdateUser, UpdateUsersBulk
     },
     parser::service::ParsedData,
     types::payloads::{GetMatch, GetTournament, GetUser},
@@ -461,9 +433,8 @@ impl H5TournamentsService {
         let response = client.post(&self.url).json(&query).send().await;
         match response {
             Ok(response) => {
-                let result = response
-                    .json::<Response<queries::create_match_mutation::ResponseData>>()
-                    .await;
+                let result = response.json::<Response<queries::create_match_mutation::ResponseData>>().await;
+                tracing::info!("Got create match response: {:?}", &result);
                 match result {
                     Ok(result) => {
                         if let Some(data) = result.data {
@@ -664,11 +635,9 @@ impl H5TournamentsService {
     //     }
     // }
 
-    pub async fn get_heroes(&self, race: i64) -> Result<Vec<GetHeroesQueryHeroes>, crate::Error> {
-        let variables = get_heroes_query::Variables { race: race };
-
+    pub async fn get_heroes(&self, mod_type: h5_tournaments_api::prelude::ModType) -> Result<Vec<GetHeroesQueryHeroesNewHeroesEntities>, crate::Error> {
         let client = self.client.read().await;
-        let query = GetHeroesQuery::build_query(variables);
+        let query = GetHeroesQuery::build_query(get_heroes_query::Variables {mod_type: mod_type.into()});
         let response = client.post(&self.url).json(&query).send().await;
         match response {
             Ok(response) => {
@@ -679,7 +648,7 @@ impl H5TournamentsService {
                     Ok(result) => {
                         tracing::info!("Heroes fetch result: {:?}", &result);
                         if let Some(data) = result.data {
-                            Ok(data.heroes)
+                            Ok(data.heroes_new.heroes.entities)
                         } else {
                             Err(crate::Error::from(
                                 "Unknown error: got successful response but incorrect data"

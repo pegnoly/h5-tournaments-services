@@ -77,7 +77,14 @@ impl MainEventHandler {
                 .await?;
             }
             "bargains_data_button" => {
-                //operations::report_creation::show_bargains_modal(interaction, context).await?;
+                operations::report_creation::switch_to_edition_state(
+                    interaction,
+                    context,
+                    &self.tournaments_service,
+                    &self.game_builders,
+                    builders::types::GameBuilderState::BargainsData,
+                )
+                .await?;
             }
             "opponent_data_button" => {
                 operations::report_creation::switch_to_edition_state(

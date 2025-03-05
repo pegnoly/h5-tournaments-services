@@ -9,8 +9,7 @@ use crate::{
         self,
         report_message::build_game_message,
         types::{
-            GameBuilder, GameBuilderContainer, GameBuilderState, GameResult, MatchBuilder,
-            OpponentDataPayload, OpponentsData,
+            GameBuilder, GameBuilderContainer, GameBuilderState, GameResult, GameType, MatchBuilder, OpponentDataPayload, OpponentsData
         },
     },
     graphql::queries::{create_games_bulk, GetMatchQuery},
@@ -122,14 +121,22 @@ pub async fn finish_match_creation(
             .await?;
 
         let heroes = tournaments_service
-            .load_heroes(h5_tournaments_api::prelude::ModType::Universe)
+            .get_heroes(h5_tournaments_api::prelude::ModType::Universe)
             .await?;
+
+        let tournament_data = tournaments_service.get_tournament_data(
+            GetTournament::default().with_id(builder_locked.tournament_id)
+        ).await?.unwrap();
 
         let container = GameBuilderContainer {
             match_id: created_match_id,
             tournament_id: builder_locked.tournament_id,
             heroes: heroes,
             current_number: 1,
+            use_bargains: tournament_data.with_bargains,
+            use_bargains_color: tournament_data.with_bargains_color,
+            use_foreign_heroes: tournament_data.with_foreign_heroes,
+            game_type: GameType::from(tournament_data.game_type),
             player_nickname: builder_locked.user_nickname.clone(),
             opponent_nickname: opponent_data.nickname,
             builders: Vec::from_iter((1..builder_locked.games_count.unwrap() + 1).map(|n| {
@@ -353,6 +360,7 @@ async fn generate_report_final_message(
             bargains_color: None,
             bargains_amount: Some(g.bargains_amount),
             result: g.result.clone().into(),
+            outcome: Some(g.outcome.clone().into())
         })
         .collect::<Vec<create_games_bulk::CreateGameModel>>();
 
@@ -375,9 +383,9 @@ async fn generate_report_final_message(
                 &containter
                     .heroes
                     .iter()
-                    .find(|h| h.id == game.first_player_hero.unwrap() as i32)
+                    .find(|h| h.id == game.first_player_hero.unwrap())
                     .unwrap()
-                    .actual_name,
+                    .name,
                 match game.result {
                     builders::types::GameResult::FirstPlayerWon => ">".to_string(),
                     builders::types::GameResult::SecondPlayerWon => "<".to_string(),
@@ -392,9 +400,9 @@ async fn generate_report_final_message(
                 &containter
                     .heroes
                     .iter()
-                    .find(|h| h.id == game.second_player_hero.unwrap() as i32)
+                    .find(|h| h.id == game.second_player_hero.unwrap())
                     .unwrap()
-                    .actual_name,
+                    .name,
                 //game.bargains_amount.to_string()
             ),
             false,

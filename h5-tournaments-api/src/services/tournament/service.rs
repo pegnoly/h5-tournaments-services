@@ -7,7 +7,7 @@ use crate::{graphql::mutation::UpdateParticipant, routes::models::MatchRegistrat
 
 use self::{game_builder::GameResult, match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
 
-use super::{models::{game_builder::{self, CreateGameModel, GameModel}, hero::{self, HeroModel}, heroes::{self, HeroesModel}, match_structure, operator::{self, TournamentOperatorModel}, organizer::{self, OrganizerModel}, participant, tournament::{self, GameType}, tournament_builder::{self, TournamentBuilderModel, TournamentEditState}, user::{self, UserBulkUpdatePayload}}, types::{Game, Hero, Match, ModType, Race, Tournament}};
+use super::{models::{game_builder::{self, CreateGameModel, GameModel, GameOutcome}, hero::{self, HeroModel}, heroes::{self, HeroesModel}, match_structure, operator::{self, TournamentOperatorModel}, organizer::{self, OrganizerModel}, participant, tournament::{self, GameType}, tournament_builder::{self, TournamentBuilderModel, TournamentEditState}, user::{self, UserBulkUpdatePayload}}, types::{Game, Hero, Match, ModType, Race, Tournament}};
 
 #[derive(Clone)]
 pub struct LegacyTournamentService {
@@ -601,7 +601,8 @@ impl TournamentService {
                 second_player_hero: Set(game.second_player_hero),
                 result: Set(game.result),
                 bargains_color: Set(game.bargains_color),
-                bargains_amount: Set(game.bargains_amount)
+                bargains_amount: Set(game.bargains_amount),
+                outcome: Set(if game.outcome.is_some() { game.outcome.unwrap() } else { GameOutcome::FinalBattleVictory })
             };
             game_to_insert.insert(db).await.unwrap();
         }

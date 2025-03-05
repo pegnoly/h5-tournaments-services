@@ -80,7 +80,7 @@ pub struct GameResultModel {
 }
 
 /// Possible colors used in bargains
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRepr, PartialEq, Eq, sqlx::Type)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRepr, PartialEq, Eq, sqlx::Type, EnumString, Display)]
 #[repr(i16)]
 pub enum BargainsColor {
     NotDetected,

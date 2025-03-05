@@ -1,6 +1,11 @@
-query GetHeroesQuery($race: Int!) {
-    heroes(race: $race) {
-        id,
-        name
+query GetHeroesQuery($modType: ModType!) {
+    heroesNew(modType: $modType) {
+        heroes {
+            entities {
+                id,
+                race,
+                name
+            }
+        }
     }
 }

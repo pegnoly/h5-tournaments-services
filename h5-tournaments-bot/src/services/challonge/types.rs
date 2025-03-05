@@ -6,7 +6,11 @@ pub enum ChallongeTournamentState {
     #[strum(serialize = "pending")]
     Pending,
     #[strum(serialize = "group_stages_underway")]
-    GroupStagesUnderway
+    GroupStagesUnderway,
+    #[strum(serialize = "group_stages_finalized")]
+    GroupStagesFinalized,
+    #[strum(serialize = "underway")]
+    Underway
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -68,7 +72,7 @@ pub struct ChallongeSingleMatch {
 pub struct ChallongeMatchData {
     pub id: String,
     pub attributes: ChallongeMatchAttributes,
-    pub relationships: ChallongeMatchRelationships,
+    //pub relationships: ChallongeMatchRelationships,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -76,6 +80,13 @@ pub struct ChallongeMatchAttributes {
     pub state: String,
     pub round: i32,
     pub identifier: String,
+    pub points_by_participant: Vec<ChallongeMatchParticipantInfo>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChallongeMatchParticipantInfo {
+    pub participant_id: i32, // so cool to store ids in different data types in different models :)
+    pub scores: Vec<i32>
 }
 
 #[derive(Debug, Serialize, Deserialize)]

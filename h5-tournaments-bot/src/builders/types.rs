@@ -1,9 +1,9 @@
-use std::default;
-
-use h5_tournaments_api::prelude::{Hero, ModType};
+use h5_tournaments_api::prelude::ModType;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString, FromRepr};
 use uuid::Uuid;
+
+use crate::graphql::queries::get_heroes_query::GetHeroesQueryHeroesNewHeroesEntities;
 
 #[derive(Serialize, Deserialize)]
 pub struct OpponentDataPayload {
@@ -48,26 +48,52 @@ pub enum GameResult {
     SecondPlayerWon = 2,
 }
 
+#[derive(Debug, EnumString, Display, Default, PartialEq, Eq, FromRepr, Clone)]
+#[repr(i32)]
+pub enum GameOutcome {
+    #[default]
+    FinalBattleVictory,
+    NeutralsVictory,
+    OpponentSurrender
+}
+
+#[derive(Debug, EnumString, Display, Default, PartialEq, Eq, FromRepr, Clone)]
+#[repr(i32)]
+pub enum BargainsColor {
+    #[default]
+    NotSelected,
+    BargainsColorRed,
+    BargainsColorBlue
+}
+
 #[derive(Debug, Default)]
 pub struct GameBuilder {
     pub number: i32,
     pub state: GameBuilderState,
     pub first_player_race: Option<i64>,
+    pub first_player_hero_race: Option<i64>,
     pub first_player_hero: Option<i64>,
     pub second_player_race: Option<i64>,
+    pub second_player_hero_race: Option<i64>,
     pub second_player_hero: Option<i64>,
     pub bargains_amount: i64,
+    pub bargains_color: Option<BargainsColor>,
     pub result: GameResult,
+    pub outcome: GameOutcome
 }
 
 #[derive(Debug)]
 pub struct GameBuilderContainer {
     pub tournament_id: Uuid,
     pub match_id: Uuid,
-    pub heroes: Vec<Hero>,
+    pub heroes: Vec<GetHeroesQueryHeroesNewHeroesEntities>,
     pub current_number: i32,
     pub player_nickname: String,
     pub opponent_nickname: String,
+    pub use_bargains: bool,
+    pub use_bargains_color: bool,
+    pub use_foreign_heroes: bool,
+    pub game_type: GameType,
     pub builders: Vec<GameBuilder>,
 }
 
