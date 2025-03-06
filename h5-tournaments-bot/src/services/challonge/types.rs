@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
-#[derive(Debug, Serialize, Deserialize, EnumString, Display, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, EnumString, Display, PartialEq, Eq, Clone)]
 pub enum ChallongeTournamentState {
     #[strum(serialize = "pending")]
     Pending,
@@ -10,7 +10,9 @@ pub enum ChallongeTournamentState {
     #[strum(serialize = "group_stages_finalized")]
     GroupStagesFinalized,
     #[strum(serialize = "underway")]
-    Underway
+    Underway,
+    #[strum(serialize = "awaiting_review")]
+    AwaitingReview
 }
 
 #[derive(Debug, Serialize, Deserialize)]

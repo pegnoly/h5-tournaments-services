@@ -19,7 +19,7 @@ use crate::{
                 ChallongeMatchParticipantsData, ChallongeUpdateMatchAttributes,
                 ChallongeUpdateMatchPayload,
             },
-            service::ChallongeService,
+            service::ChallongeService, types::ChallongeTournamentState,
         },
         h5_tournaments::{
             payloads::{GetOperatorPayload, GetOrganizerPayload, GetParticipantPayload},
@@ -145,6 +145,7 @@ pub async fn finish_match_creation(
                     ..Default::default()
                 }
             })),
+            tournament_state: builder_locked.tournament_state.clone()
         };
         drop(builder_locked);
         drop(match_builders_locked);
@@ -269,7 +270,20 @@ pub async fn generate_final_report_message(
                 context,
                 tournaments_service,
                 challonge_service,
-                &container_locked,
+                &container_locked
+            )
+            .await?;
+            interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(
+                    CreateInteractionResponseMessage::new()
+                        .add_embed(
+                            CreateEmbed::new()
+                                .title("Отчет успешно создан, можете закрыть это сообщение."),
+                        )
+                        .components(vec![]),
+                ),
             )
             .await?;
             drop(container_locked);
@@ -277,19 +291,6 @@ pub async fn generate_final_report_message(
             let mut builders_to_remove = game_builders.write().await;
             builders_to_remove.remove(&message);
             drop(builders_to_remove);
-            interaction
-                .create_response(
-                    context,
-                    CreateInteractionResponse::UpdateMessage(
-                        CreateInteractionResponseMessage::new()
-                            .add_embed(
-                                CreateEmbed::new()
-                                    .title("Отчет успешно создан, можете закрыть это сообщение."),
-                            )
-                            .components(vec![]),
-                    ),
-                )
-                .await?;
         } else {
             let match_data = tournaments_service
                 .get_match(container_locked.match_id)
@@ -328,10 +329,10 @@ async fn generate_report_final_message(
     context: &Context,
     tournaments_service: &H5TournamentsService,
     challonge_service: &ChallongeService,
-    containter: &RwLockReadGuard<'_, GameBuilderContainer>,
+    container: &RwLockReadGuard<'_, GameBuilderContainer>
 ) -> Result<(), crate::Error> {
     let tournament_data = tournaments_service
-        .get_tournament_data(GetTournament::default().with_id(containter.tournament_id))
+        .get_tournament_data(GetTournament::default().with_id(container.tournament_id))
         .await?
         .unwrap();
     let operator_data = tournaments_service
@@ -339,7 +340,7 @@ async fn generate_report_final_message(
         .await?;
     let output_channel = ChannelId::from(operator_data.generated as u64);
     let match_data = tournaments_service
-        .get_match(containter.match_id)
+        .get_match(container.match_id)
         .await?
         .unwrap();
     let first_user = tournaments_service
@@ -350,7 +351,7 @@ async fn generate_report_final_message(
         .get_user(GetUser::default().with_id(match_data.second_player))
         .await?
         .unwrap();
-    let games = containter
+    let games = container
         .builders
         .iter()
         .sorted_by_key(|g| g.number)
@@ -367,12 +368,12 @@ async fn generate_report_final_message(
     let games_to_insert = games
         .iter()
         .map(|g| create_games_bulk::CreateGameModel {
-            match_id: containter.match_id,
+            match_id: container.match_id,
             first_player_race: g.first_player_race,
             first_player_hero: g.first_player_hero,
             second_player_race: g.second_player_race,
             second_player_hero: g.second_player_hero,
-            bargains_color: None,
+            bargains_color: if g.bargains_color.is_none() { None } else { Some(g.bargains_color.clone().unwrap().into()) },
             bargains_amount: Some(g.bargains_amount),
             result: g.result.clone().into(),
             outcome: Some(g.outcome.clone().into())
@@ -385,41 +386,60 @@ async fn generate_report_final_message(
 
     let mut fields = vec![];
     for game in &games {
+        let mut game_string = format!(
+            "**{},** _{}_ **{}** **{},** _{}_. ",
+            &tournaments_service
+                .races
+                .iter()
+                .find(|r| r.id == game.first_player_race.unwrap())
+                .unwrap()
+                .name,
+            &container
+                .heroes
+                .iter()
+                .find(|h| h.id == game.first_player_hero.unwrap())
+                .unwrap()
+                .name,
+            match game.result {
+                builders::types::GameResult::FirstPlayerWon => ">".to_string(),
+                builders::types::GameResult::SecondPlayerWon => "<".to_string(),
+                _ => "?".to_string(),
+            },
+            &tournaments_service
+                .races
+                .iter()
+                .find(|r| r.id == game.second_player_race.unwrap())
+                .unwrap()
+                .name,
+            &container
+                .heroes
+                .iter()
+                .find(|h| h.id == game.second_player_hero.unwrap())
+                .unwrap()
+                .name
+        );
+        if container.use_bargains {
+            let mut bargains_string = String::from("**Торг**: ");
+            if container.use_bargains_color {
+                match game.bargains_color.as_ref().unwrap() {
+                    BargainsColor::NotSelected => bargains_string += &String::from("Неизвестный цвет, "),
+                    BargainsColor::BargainsColorBlue => bargains_string += &String::from("Синий, "),
+                    BargainsColor::BargainsColorRed => bargains_string += &String::from("Красный, ")
+                }
+            }
+            bargains_string += &game.bargains_amount.to_string();
+            game_string += &bargains_string;
+        }
+        if container.game_type == GameType::Rmg {
+            match game.outcome {
+                GameOutcome::FinalBattleVictory => game_string += &String::from("\n**Победа в финалке.**"),
+                GameOutcome::NeutralsVictory => game_string += &String::from("\n**Победа нейтралов.**"),
+                GameOutcome::OpponentSurrender => game_string += &String::from("\n**Признание поражения.**")
+            }
+        }
         fields.push((
             format!("_Игра {}_", game.number),
-            format!(
-                "**{},** _{}_ **{}** **{},** _{}_",
-                &tournaments_service
-                    .races
-                    .iter()
-                    .find(|r| r.id == game.first_player_race.unwrap())
-                    .unwrap()
-                    .name,
-                &containter
-                    .heroes
-                    .iter()
-                    .find(|h| h.id == game.first_player_hero.unwrap())
-                    .unwrap()
-                    .name,
-                match game.result {
-                    builders::types::GameResult::FirstPlayerWon => ">".to_string(),
-                    builders::types::GameResult::SecondPlayerWon => "<".to_string(),
-                    _ => "?".to_string(),
-                },
-                &tournaments_service
-                    .races
-                    .iter()
-                    .find(|r| r.id == game.second_player_race.unwrap())
-                    .unwrap()
-                    .name,
-                &containter
-                    .heroes
-                    .iter()
-                    .find(|h| h.id == game.second_player_hero.unwrap())
-                    .unwrap()
-                    .name,
-                //game.bargains_amount.to_string()
-            ),
+            game_string,
             false,
         ))
     }
@@ -432,8 +452,13 @@ async fn generate_report_final_message(
     let message_builder = CreateMessage::new().add_embed(
         CreateEmbed::new()
             .title(format!(
-                "**Турнир {}**, _групповой этап_",
-                &tournament_data.name.to_uppercase()
+                "**Турнир {}**, _{}_",
+                &tournament_data.name.to_uppercase(),
+                if container.tournament_state == ChallongeTournamentState::GroupStagesUnderway {
+                    "групповой этап"
+                } else {
+                    "плей-офф"
+                }
             ))
             .description(format!(
                 "**{}** _VS_ **{}**",
@@ -441,6 +466,14 @@ async fn generate_report_final_message(
             ))
             .fields(fields),
     );
+
+    let created_message = output_channel
+        .send_message(context, message_builder)
+        .await?;
+    let link = created_message.link();
+    tournaments_service
+        .update_match(container.match_id, link)
+        .await?;
 
     let first_participant = tournaments_service
         .get_participant(
@@ -497,14 +530,6 @@ async fn generate_report_final_message(
             &challonge_match,
             challonge_payload,
         )
-        .await?;
-
-    let created_message = output_channel
-        .send_message(context, message_builder)
-        .await?;
-    let link = created_message.link();
-    tournaments_service
-        .update_match(containter.match_id, link)
         .await?;
     Ok(())
 }

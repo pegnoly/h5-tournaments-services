@@ -96,6 +96,7 @@ pub struct GameBuilderContainer {
     pub use_foreign_heroes: bool,
     pub game_type: GameType,
     pub builders: Vec<GameBuilder>,
+    pub tournament_state: ChallongeTournamentState
 }
 
 #[derive(Debug, PartialEq, Eq, EnumString, Display, Clone, Copy)]

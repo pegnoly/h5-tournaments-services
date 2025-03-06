@@ -373,6 +373,16 @@ impl Into<create_games_bulk::GameOutcome> for crate::builders::types::GameOutcom
     }
 }
 
+impl Into<create_games_bulk::BargainsColor> for crate::builders::types::BargainsColor {
+    fn into(self) -> create_games_bulk::BargainsColor {
+        match self {
+            builders::types::BargainsColor::NotSelected => create_games_bulk::BargainsColor::NOT_SELECTED,
+            builders::types::BargainsColor::BargainsColorBlue => create_games_bulk::BargainsColor::BARGAINS_COLOR_BLUE,
+            builders::types::BargainsColor::BargainsColorRed => create_games_bulk::BargainsColor::BARGAINS_COLOR_RED
+        }
+    }
+}
+
 impl From<CreateUserMutationCreateUser> for GetUserQueryUser {
     fn from(value: CreateUserMutationCreateUser) -> Self {
         GetUserQueryUser {
