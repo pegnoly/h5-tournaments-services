@@ -517,22 +517,22 @@ impl TournamentService {
         second_player: Uuid,
         challonge_id: String
     ) -> Result<Uuid, DbErr> {
-        let id = Uuid::new_v4();
-        let on_conflict = OnConflict::column(match_structure::Column::ChallongeId).do_nothing().to_owned();
-        let match_to_create = match_structure::ActiveModel {
-            id: Set(id),
-            tournament_id: Set(tournament_id),
-            message_id: Set(message),
-            first_player: Set(first_player),
-            second_player: Set(second_player),
-            challonge_id: Set(challonge_id),
-            report_link: Set(None)
-        };
-        let insert_result = match_structure::Entity::insert(match_to_create)
-            .on_conflict(on_conflict)
-            .exec_with_returning(db)
-            .await?;
-        Ok(insert_result.id)
+        if let Some(existing_match) = match_structure::Entity::find().filter(match_structure::Column::ChallongeId.eq(&challonge_id)).one(db).await? {
+            Ok(existing_match.id)
+        } else {
+            let id = Uuid::new_v4();
+            let match_to_create = match_structure::ActiveModel {
+                id: Set(id),
+                tournament_id: Set(tournament_id),
+                message_id: Set(message),
+                first_player: Set(first_player),
+                second_player: Set(second_player),
+                challonge_id: Set(challonge_id),
+                report_link: Set(None)
+            };
+            match_to_create.insert(db).await?;
+            Ok(id)
+        }
     }
 
     pub async fn update_match(
