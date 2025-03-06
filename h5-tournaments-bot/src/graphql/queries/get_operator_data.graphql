@@ -1,7 +1,7 @@
-query GetOperatorDataQuery($id: UUID!) {
-    operator(id: $id) {
+query GetOperatorDataQuery($id: UUID, $serverId: Int) {
+    operator(id: $id, serverId: $serverId) {
+        id,
         name,
-        heroes,
         generated
     }
 }

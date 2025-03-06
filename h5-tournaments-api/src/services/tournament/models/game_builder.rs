@@ -10,6 +10,21 @@ pub enum GameResult {
     SecondPlayerWon = 2
 }
 
+#[derive(Debug, EnumIter, DeriveActiveEnum, Clone, Copy, PartialEq, Eq, async_graphql::Enum)]
+#[sea_orm(rs_type = "i32", db_type = "Integer")]
+pub enum GameOutcome {
+    FinalBattleVictory = 0,
+    NeutralsVictory = 1,
+    OpponentSurrender = 2
+}
+
+#[derive(Debug, EnumIter, DeriveActiveEnum, Clone, Copy, PartialEq, Eq, async_graphql::Enum)]
+#[sea_orm(rs_type = "i32", db_type = "Integer")]
+pub enum BargainsColor {
+    NotSelected = 0,
+    BargainsColorRed = 2,
+    BargainsColorBlue = 3
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "games")]
@@ -21,9 +36,10 @@ pub struct Model {
     pub first_player_hero: Option<i32>,
     pub second_player_race: Option<i32>,
     pub second_player_hero: Option<i32>,
-    pub bargains_color: Option<i32>,
+    pub bargains_color: Option<BargainsColor>,
     pub bargains_amount: Option<i32>,
-    pub result: GameResult
+    pub result: GameResult,
+    pub outcome: GameOutcome
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -76,10 +92,9 @@ impl GameModel {
         self.second_player_hero
     }
 
-    async fn bargains_color(&self) -> Option<i32> {
+    async fn bargains_color(&self) -> Option<BargainsColor> {
         self.bargains_color
     }
-
 
     async fn bargains_amount(&self) -> Option<i32> {
         self.bargains_amount
@@ -87,6 +102,10 @@ impl GameModel {
 
     async fn result(&self) -> GameResult {
         self.result
+    }
+
+    async fn outcome(&self) -> GameOutcome {
+        self.outcome
     }
 }
 
@@ -97,7 +116,8 @@ pub struct CreateGameModel {
     pub first_player_hero: Option<i32>,
     pub second_player_race: Option<i32>,
     pub second_player_hero: Option<i32>,
-    pub bargains_color: Option<i32>,
+    pub bargains_color: Option<BargainsColor>,
     pub bargains_amount: Option<i32>,
-    pub result: GameResult
+    pub result: GameResult,
+    pub outcome: Option<GameOutcome>
 }

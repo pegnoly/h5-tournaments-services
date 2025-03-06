@@ -1,24 +1,25 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
 #[derive(Debug, EnumString, Display, Serialize, Deserialize)]
 pub enum ChallongePayloadType {
     Participants,
-    Match
+    Match,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChallongeData<T>
-    where T: Serialize
+where
+    T: Serialize,
 {
-    pub data: T
+    pub data: T,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChallongeParticipantPayload {
     #[serde(rename = "type")]
     pub _type: ChallongePayloadType,
-    pub attributes: Option<ChallongeParticipantAttributes>
+    pub attributes: Option<ChallongeParticipantAttributes>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,33 +28,33 @@ pub struct ChallongeParticipantAttributes {
     pub seed: Option<i32>,
     pub misc: Option<String>,
     pub email: Option<String>,
-    pub username: Option<String>
+    pub username: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChallongeParticipantsBulkAttributes {
-    pub participants: Vec<ChallongeParticipantAttributes>
+    pub participants: Vec<ChallongeParticipantAttributes>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChallongeParticipantsBulkAddPayload {
     #[serde(rename = "type")]
     pub _type: ChallongePayloadType,
-    pub attributes: Option<ChallongeParticipantsBulkAttributes>
+    pub attributes: Option<ChallongeParticipantsBulkAttributes>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChallongeUpdateMatchPayload {
     #[serde(rename = "type")]
     pub _type: ChallongePayloadType,
-    pub attributes: ChallongeUpdateMatchAttributes
+    pub attributes: ChallongeUpdateMatchAttributes,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChallongeUpdateMatchAttributes {
     #[serde(rename = "match")]
     pub match_data: Vec<ChallongeMatchParticipantsData>,
-    pub tie: bool
+    pub tie: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -61,5 +62,5 @@ pub struct ChallongeMatchParticipantsData {
     pub participant_id: String,
     pub score_set: String,
     pub rank: String,
-    pub advancing: bool
+    pub advancing: bool,
 }

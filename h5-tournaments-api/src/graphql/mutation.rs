@@ -3,7 +3,7 @@ use sea_orm::DatabaseConnection;
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 
-use crate::{prelude::TournamentService, services::tournament::models::{game_builder::{CreateGameModel, GameResult}, organizer::OrganizerModel, tournament, tournament_builder::{TournamentBuilderModel, TournamentEditState}}};
+use crate::{prelude::{ModType, TournamentService}, services::tournament::models::{game_builder::{CreateGameModel, GameResult}, organizer::OrganizerModel, tournament::{self, GameType}, tournament_builder::{TournamentBuilderModel, TournamentEditState}, user::{UserBulkUpdatePayload, UserModel}}};
 
 pub struct Mutation;
 
@@ -22,19 +22,20 @@ impl Mutation {
         #[graphql(desc = "User's nickname")]
         name: String,
         #[graphql(desc = "User's discord id")]
-        discord: String,
-        #[graphql(desc = "Defines was user registered themselves or via bot command")]
-        confirm_register: bool
-    ) -> Result<Uuid, String> {
+        discord_id: u64,
+        // #[graphql(desc = "Defines was user registered themselves or via bot command")]
+        // confirm_register: bool
+        #[graphql(desc = "User's discord nickname")]
+        discord_nick: String
+    ) -> Result<UserModel, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.create_user(db, name, discord, confirm_register).await;
-        match res {
-            Ok(res) => {
-                Ok(res)
+        match service.create_user(db, name, discord_id, discord_nick).await {
+            Ok(model) => {
+                Ok(model)
             },
-            Err(error) => {
-                Err(error)
+            Err(db_error) => {
+                Err(db_error.to_string())
             }
         }
     }
@@ -63,14 +64,16 @@ impl Mutation {
         &self,
         context: &Context<'a>,
         name: String,
-        operator_id: Option<Uuid>,
+        operator_id: Uuid,
         channel_id: String,
         register_channel: String,
         bargains: bool,
         bargains_color: bool,
         foreign_heroes: bool,
         role: String,
-        organizer: Uuid
+        organizer: Uuid,
+        game_type: GameType,
+        mod_type: ModType
     ) -> Result<String, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
@@ -84,7 +87,9 @@ impl Mutation {
             bargains_color, 
             foreign_heroes, 
             role,
-            organizer
+            organizer,
+            game_type,
+            mod_type
         ).await;
         match res {
             Ok(res) => {
@@ -133,32 +138,29 @@ impl Mutation {
                 Ok(res)
             },
             Err(error) => {
-                Err(error)
+                Err(error.to_string())
             }
         }
     }
 
-    // async fn update_match<'a>(
-    //     &self,
-    //     context: &Context<'a>,
-    //     id: Uuid,
-    //     games_count: Option<i32>,
-    //     second_player: Option<Uuid>,
-    //     data_message: Option<String>,
-    //     current_game: Option<i32>
-    // ) -> Result<String, String> {
-    //     let service = context.data::<TournamentService>().unwrap();
-    //     let db = context.data::<DatabaseConnection>().unwrap();
-    //     let res = service.update_match(db, id, games_count, second_player, data_message, current_game).await;
-    //     match res {
-    //         Ok(_res) => {
-    //             Ok("Match updated".to_string())
-    //         },
-    //         Err(error) => {
-    //             Err(error)
-    //         }
-    //     }
-    // }
+    async fn update_match<'a>(
+        &self,
+        context: &Context<'a>,
+        id: Uuid,
+        report_link: String
+    ) -> Result<String, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.update_match(db, id, report_link).await;
+        match res {
+            Ok(_res) => {
+                Ok("Match updated".to_string())
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
 
     // async fn create_game<'a>(
     //     &self,
@@ -240,19 +242,16 @@ impl Mutation {
         context: &Context<'a>,
         tournament_id: Uuid,
         user_id: Uuid,
-        group: i32,
-        challonge_id: Option<String>
-    ) -> Result<i64, String> {
+        challonge_id: String
+    ) -> Result<u64, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.create_participant(db, tournament_id, user_id, group, challonge_id).await;
-
-        match res {
-            Ok(_res) => {
-                Ok(_res)
+        match service.create_participant(db, tournament_id, user_id, challonge_id).await {
+            Ok(participants_count) => {
+                Ok(participants_count)
             },
-            Err(error) => {
-                Err(error)
+            Err(db_error) => {
+                Err(db_error.to_string())
             }
         }
     }
@@ -282,18 +281,20 @@ impl Mutation {
         &self,
         context: &Context<'a>,
         tournament_id: Uuid,
-        user_id: Uuid
-    ) -> Result<String, String> {
+        id: Option<Uuid>,
+        user_id: Option<Uuid>,
+        challonge_id: Option<String>
+    ) -> Result<u64, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.delete_participant(db, tournament_id, user_id).await;
+        let res = service.delete_participant(db, tournament_id, id, user_id, challonge_id).await;
 
         match res {
-            Ok(_res) => {
-                Ok(_res)
+            Ok(res) => {
+                Ok(res)
             },
             Err(error) => {
-                Err(error)
+                Err(error.to_string())
             }
         }
     }
@@ -387,6 +388,25 @@ impl Mutation {
         match res {
             Ok(_res) => {
                 Ok("Participants were updated successfully".to_string())
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
+
+    async fn update_users_bulk<'a>(
+        &self,
+        context: &Context<'a>,
+        users: Vec<UserBulkUpdatePayload>
+    ) -> Result<String, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.users_bulk_update(db, users).await;
+
+        match res {
+            Ok(_res) => {
+                Ok("Users were updated successfully".to_string())
             },
             Err(error) => {
                 Err(error)

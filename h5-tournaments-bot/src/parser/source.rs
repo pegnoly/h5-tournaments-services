@@ -14,7 +14,7 @@
 //     client: &RwLockReadGuard<'_, Client>,
 //     server_id: u64,
 //     channel_id: u64,
-//     name: String 
+//     name: String
 // ) -> Result<String, ()> {
 //     let tournament_creation_response = client
 //         .post(format!("https://h5-tournaments-api.shuttleapp.rs/tournament?server_id={}&channel_id={}&name={}", server_id as i64, channel_id as i64, name))
@@ -68,7 +68,7 @@
 // }
 
 // async fn process_tournament_response(
-//     response: Result<Response, Error> 
+//     response: Result<Response, Error>
 // ) -> Result<Option<Tournament>, String> {
 //     match response {
 //         Ok(success) => {
@@ -140,8 +140,6 @@
 //     }
 // }
 
-
-
 // async fn get_data(
 //     client: &RwLockReadGuard<'_, Client>
 // ) -> Result<ParsingDataModel, String> {
@@ -149,8 +147,8 @@
 //     let heroes_res = get_heroes(client).await;
 
 //     if races_res.is_ok() && heroes_res.is_ok() {
-//         Ok(ParsingDataModel { 
-//             races: races_res.unwrap(), 
+//         Ok(ParsingDataModel {
+//             races: races_res.unwrap(),
 //             heroes: heroes_res.unwrap()
 //         })
 //     }
@@ -268,9 +266,9 @@
 //     //     nickname = message.author.name.clone();
 //     // }
 //     let match_creation_response = client
-//         .post(format!("https://h5-tournaments-api.shuttleapp.rs/match?message={}&tournament={}&first_player={}&second_player={}", 
+//         .post(format!("https://h5-tournaments-api.shuttleapp.rs/match?message={}&tournament={}&first_player={}&second_player={}",
 //             message.id.get(),
-//             tournament.id, 
+//             tournament.id,
 //             players[0],
 //             players[1]))
 //         .send()
@@ -295,8 +293,8 @@
 //     for game_number in 0..games_count {
 //         if match_structure.games_strings.get(game_number).is_some() && match_structure.bargains_string.get(game_number).is_some() {
 //             if let Some(game) = process_game_info(
-//                 &match_structure.games_strings[game_number], 
-//                 &match_structure.bargains_string[game_number].to_lowercase(), 
+//                 &match_structure.games_strings[game_number],
+//                 &match_structure.bargains_string[game_number].to_lowercase(),
 //                 &new_match.id,
 //                 data
 //             ).await {
@@ -313,7 +311,6 @@
 //     }
 
 // }
-
 
 // async fn process_game_info(
 //     game_string: &String,
@@ -378,7 +375,7 @@
 //     if let Some(race) = data.races.iter()
 //         .find(|r| r.name_variants.variants.iter().any(|v| v.contains(&race_info))) {
 //         side_data.race = race.id;
-//     } 
+//     }
 
 //     if let Some(hero) =  data.heroes.iter()
 //         .find(|h| h.name_variants.variants.iter().any(|v| v.contains(&hero_info))) {
@@ -387,7 +384,6 @@
 
 //     side_data
 // }
-
 
 // fn process_bargains_info(
 //     bargains_string: &String

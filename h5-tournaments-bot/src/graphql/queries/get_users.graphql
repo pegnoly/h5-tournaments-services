@@ -1,6 +1,7 @@
 query GetUsersQuery {
     users {
         id, 
-        nickname
+        nickname,
+        discordId
     }
 }

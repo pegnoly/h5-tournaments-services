@@ -2,6 +2,7 @@ query GetUserQuery($id: UUID, $discordId: String) {
     user(id: $id, discordId: $discordId) {
         nickname,
         id,
-        registered
+        registered,
+        discordId
     }
 }

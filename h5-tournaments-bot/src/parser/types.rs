@@ -1,6 +1,6 @@
+use super::utils::ParsingDataModel;
 use h5_tournaments_api::prelude::{Game, GameResult};
 use human_regex::{any, digit, exactly, one_or_more, or, whitespace, zero_or_more};
-use super::utils::ParsingDataModel;
 
 pub trait MatchStructure {
     fn get_opponents_data(&self);
@@ -33,14 +33,14 @@ impl MatchStructure for HrtaMatchStructure {
 
 pub trait Parse<'a> {
     fn try_parse_opponents(&self, opponents_string: &'a str) -> Option<(&'a str, &'a str)> {
-        let opponents = opponents_string.split("vs")
+        let opponents = opponents_string
+            .split("vs")
             .map(|s| s.trim())
             .collect::<Vec<&str>>();
 
         if opponents.len() == 1 {
             None
-        }
-        else {
+        } else {
             Some((opponents[0], opponents[1]))
         }
     }
@@ -51,7 +51,6 @@ pub trait Parse<'a> {
 pub struct UniverseParser;
 
 impl<'a> Parse<'a> for UniverseParser {
-
     fn parse_game(&self, game_string: &str, model: &ParsingDataModel) -> Option<Game> {
         todo!()
     }
@@ -60,21 +59,19 @@ impl<'a> Parse<'a> for UniverseParser {
 pub struct HrtaParser;
 
 impl<'a> Parse<'a> for HrtaParser {
-
     fn parse_game(&self, game_string: &str, model: &ParsingDataModel) -> Option<Game> {
-        let sides_data: Vec<&str> = game_string.split_inclusive(|c| c == '>' || c == '<')
+        let sides_data: Vec<&str> = game_string
+            .split_inclusive(|c| c == '>' || c == '<')
             .map(|s| s.trim())
             .collect();
 
         if sides_data.len() != 2 {
             None
-        }
-        else {
+        } else {
             let mut result = GameResult::NotDetected;
             if let Some(_) = sides_data.iter().find(|d| d.contains(">")) {
                 result = GameResult::FirstPlayerWon;
-            }
-            else {
+            } else {
                 result = GameResult::SecondPlayerWon;
             }
 
@@ -95,7 +92,7 @@ impl<'a> Parse<'a> for HrtaParser {
 pub(self) struct SideData {
     pub race_id: i32,
     pub hero_id: i32,
-    pub bargains_amount: i32
+    pub bargains_amount: i32,
 }
 
 fn process_side_data(side_string: &str, data_model: &ParsingDataModel) -> SideData {
@@ -104,16 +101,24 @@ fn process_side_data(side_string: &str, data_model: &ParsingDataModel) -> SideDa
     let mut side_data = SideData {
         race_id: 0,
         hero_id: 0,
-        bargains_amount: 0
+        bargains_amount: 0,
     };
 
-    if let Some(race) = data_model.races.iter()
-        .find(|r| r.name_variants.variants.iter().any(|v| side_string.contains(v))) {
+    if let Some(race) = data_model.races.iter().find(|r| {
+        r.name_variants
+            .variants
+            .iter()
+            .any(|v| side_string.contains(v))
+    }) {
         side_data.race_id = race.id as i32;
-    } 
+    }
 
-    if let Some(hero) =  data_model.heroes.iter()
-        .find(|h| h.name_variants.variants.iter().any(|v| side_string.contains(v))) {
+    if let Some(hero) = data_model.heroes.iter().find(|h| {
+        h.name_variants
+            .variants
+            .iter()
+            .any(|v| side_string.contains(v))
+    }) {
         side_data.hero_id = hero.id;
     }
 
@@ -122,7 +127,8 @@ fn process_side_data(side_string: &str, data_model: &ParsingDataModel) -> SideDa
         return side_data;
     }
 
-    let readable_regex = exactly(1, or(&["+", "-"])) + zero_or_more(whitespace()) + one_or_more(digit());
+    let readable_regex =
+        exactly(1, or(&["+", "-"])) + zero_or_more(whitespace()) + one_or_more(digit());
     let amount_regex = readable_regex.to_regex();
     if let Some(capture) = amount_regex.find(&bargains_parts[1]) {
         if let Ok(amount) = capture.as_str().replace(" ", "").parse::<i32>() {

@@ -1,9 +1,11 @@
+use sea_orm::DeriveActiveEnum;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
-use strum::{EnumIter, FromRepr};
+use strum::{Display, EnumIter, EnumString, FromRepr};
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, EnumIter, FromRepr, Clone, Copy, PartialEq, Eq, Hash, Default, sqlx::Type)]
+#[derive(Debug, Serialize, Deserialize, EnumIter, FromRepr, EnumString, Display, Clone, Copy, PartialEq, Eq, Hash, Default, sqlx::Type, async_graphql::Enum, DeriveActiveEnum)]
+#[sea_orm(rs_type = "i32", db_type = "Integer")]
 #[repr(i16)]
 pub enum ModType {
     #[default]
@@ -78,7 +80,7 @@ pub struct GameResultModel {
 }
 
 /// Possible colors used in bargains
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRepr, PartialEq, Eq, sqlx::Type)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRepr, PartialEq, Eq, sqlx::Type, EnumString, Display)]
 #[repr(i16)]
 pub enum BargainsColor {
     NotDetected,

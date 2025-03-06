@@ -1,0 +1,3 @@
+mutation UpdateUsersBulk($users: [UserBulkUpdatePayload!]!) {
+    updateUsersBulk(users: $users)
+}
