@@ -276,6 +276,9 @@ impl MainEventHandler {
                     &self.managed_tournaments,
                 )
                 .await?;
+            },
+            "bargains_amount_button" => {
+                operations::report_creation::show_bargains_modal(interaction, context, &self.game_builders).await?;
             }
             _ => {}
         }
@@ -436,7 +439,43 @@ impl MainEventHandler {
                     selected,
                 )
                 .await?;
+            },
+            "player_hero_race_selector" => {
+                operations::report_creation::select_player_hero_race(
+                    interaction, 
+                    context, 
+                    &self.tournaments_service, 
+                    &self.game_builders, 
+                    selected
+                ).await?;
             }
+            "opponent_hero_race_selector" => {
+                operations::report_creation::select_opponent_hero_race(
+                    interaction, 
+                    context, 
+                    &self.tournaments_service, 
+                    &self.game_builders, 
+                    selected
+                ).await?;
+            },
+            "game_outcome_selector" => {
+                operations::report_creation::select_game_outcome(
+                    interaction, 
+                    context, 
+                    &self.tournaments_service, 
+                    &self.game_builders, 
+                    selected
+                ).await?;
+            },
+            "bargains_color_selector" => {
+                operations::report_creation::select_bargains_color(
+                    interaction, 
+                    context, 
+                    &self.tournaments_service, 
+                    &self.game_builders, 
+                    selected
+                ).await?;
+            },
             _ => {}
         }
         Ok(())
@@ -503,8 +542,13 @@ impl MainEventHandler {
         interaction: &ModalInteraction,
     ) -> Result<(), crate::Error> {
         match interaction.data.custom_id.as_str() {
-            "player_data_modal" => {
-                //operations::report_creation::process_bargains_modal(interaction, context, &self.tournaments_service).await?;
+            "bargains_input_modal" => {
+                operations::report_creation::process_bargains_modal(
+                    interaction, 
+                    context, 
+                    &self.tournaments_service,
+                    &self.game_builders
+                ).await?;
             }
             "user_lobby_nickname_modal" => {
                 operations::registration::process_registration_modal(

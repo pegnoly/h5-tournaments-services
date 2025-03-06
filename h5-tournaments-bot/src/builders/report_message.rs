@@ -132,6 +132,7 @@ pub async fn collect_match_creation_data(
                 user_nickname: user_data.nickname,
                 tournament_name: tournament_data.name,
                 tournament_id: tournament_data.id,
+                tournament_state: ChallongeTournamentState::from_str(&challonge_tournament.attributes.state)?
             };
 
             let response_message = build_match_creation_interface(&match_builder).await?;
@@ -167,7 +168,11 @@ pub async fn build_match_creation_interface(
                 ))
                 .fields([
                     ("Автор", format!("{}", builder.user_nickname), false),
-                    ("Стадия", "Групповой этап".to_string(), false),
+                    ("Стадия", if builder.tournament_state == ChallongeTournamentState::GroupStagesUnderway { 
+                        "Групповой этап".to_string() 
+                    } else {
+                        "Плей-офф".to_string()
+                    } , false),
                 ]),
         )
         .select_menu(build_opponent_selector(&builder).await)
@@ -239,7 +244,7 @@ pub async fn build_game_message(
 
     //tracing::info!("Heroes data: {:?}", game_builder_container.heroes);
 
-    let description = format!(
+    let mut description = format!(
         "
             **{},** _{}_ {} **{},** _{}_.
         ",
@@ -252,7 +257,7 @@ pub async fn build_game_message(
                 .name
                 .clone()
         } else {
-            "Неизвестная раса".to_string()
+            "Неизвестная фракция".to_string()
         },
         if game_data.first_player_hero.is_some() {
             game_builder_container
@@ -279,7 +284,7 @@ pub async fn build_game_message(
                 .name
                 .clone()
         } else {
-            "Неизвестная раса".to_string()
+            "Неизвестная фракция".to_string()
         },
         if game_data.second_player_hero.is_some() {
             game_builder_container
@@ -291,13 +296,30 @@ pub async fn build_game_message(
                 .clone()
         } else {
             "Неизвестный герой".to_string()
-        },
-        //game_data.bargains_amount.to_string()
+        }
     );
 
+    if game_builder_container.use_bargains {
+        let mut bargains_string = String::from("Торг: ");
+        if game_builder_container.use_bargains_color {
+            if game_data.bargains_color.is_none() {
+                bargains_string += &String::from("Неизвестный цвет, ");
+            } else {
+                match game_data.bargains_color.as_ref().unwrap() {
+                    BargainsColor::NotSelected => bargains_string += &String::from("Неизвестный цвет, "),
+                    BargainsColor::BargainsColorBlue => bargains_string += &String::from("Синий, "),
+                    BargainsColor::BargainsColorRed => bargains_string += &String::from("Красный, ")
+                }
+            }
+        }
+        bargains_string += &game_data.bargains_amount.to_string();
+        description += &bargains_string;
+    }
+
+    let mut content = String::new();
     let mut core_components = build_core_components(game_data, game_builder_container);
     let mut second_row =
-        generate_second_row(tournaments_service, game_builder_container, game_data).await;
+        generate_second_row(tournaments_service, game_builder_container, game_data, &mut content).await;
     core_components.append(&mut second_row);
     core_components.push(CreateActionRow::Buttons(vec![
         CreateButton::new("previous_game_button")
@@ -312,7 +334,7 @@ pub async fn build_game_message(
             .disabled(
                 if game_builder_container.current_number
                     == game_builder_container.builders.len() as i32
-                    || !check_game_is_full_built(game_data)
+                    || !check_game_is_full_built(game_data, game_builder_container)
                 {
                     true
                 } else {
@@ -324,7 +346,7 @@ pub async fn build_game_message(
             .disabled(
                 if game_builder_container.current_number
                     != game_builder_container.builders.len() as i32
-                    || !check_game_is_full_built(game_data)
+                    || !check_game_is_full_built(game_data, game_builder_container)
                 {
                     true
                 } else {
@@ -344,16 +366,27 @@ pub async fn build_game_message(
                 ))
                 .description(description),
         )
+        .content(content)
         .components(core_components))
 }
 
-fn check_game_is_full_built(game: &GameBuilder) -> bool {
+fn check_game_is_full_built(game: &GameBuilder, container: &GameBuilderContainer) -> bool {
+    let bargains_color_condition = if !container.use_bargains_color { 
+        true 
+    } else {
+        if game.bargains_color.is_some() {
+            true
+        } else {
+            false
+        }
+    };
+
     game.first_player_race.is_some() && 
     game.first_player_hero.is_some() && 
     game.second_player_race.is_some() && 
     game.second_player_hero.is_some() &&
-    //game.bargains_amount.is_some() &&
-    game.result != GameResult::NotSelected
+    game.result != GameResult::NotSelected &&
+    bargains_color_condition
 }
 
 /// Builds interface based on current state of report fill process
@@ -361,6 +394,7 @@ async fn generate_second_row(
     tournaments_service: &H5TournamentsService,
     game_builder_container: &GameBuilderContainer,
     game_data: &GameBuilder,
+    content: &mut String
 ) -> Vec<CreateActionRow> {
     match game_data.state {
         GameBuilderState::PlayerData => {
@@ -370,6 +404,7 @@ async fn generate_second_row(
                 game_data.first_player_race,
                 game_data.first_player_hero_race,
                 game_data.first_player_hero,
+                content
             )
             .await
         }
@@ -380,11 +415,12 @@ async fn generate_second_row(
                 game_data.second_player_race,
                 game_data.second_player_hero_race,
                 game_data.second_player_hero,
+                content
             )
             .await
         }
-        GameBuilderState::ResultData => build_result_selector(game_data, game_builder_container),
-        GameBuilderState::BargainsData => build_bargains_data_interface(game_data, game_builder_container),
+        GameBuilderState::ResultData => build_result_selector(game_data, game_builder_container, content),
+        GameBuilderState::BargainsData => build_bargains_data_interface(game_data, game_builder_container, content),
         _ => {
             vec![]
         }
@@ -463,6 +499,7 @@ async fn build_player_data_selector(
     race: Option<i64>,
     hero_race: Option<i64>,
     hero: Option<i64>,
+    content: &mut String
 ) -> Vec<CreateActionRow> {
     let mut rows = vec![];
     rows.push(
@@ -493,32 +530,37 @@ async fn build_player_data_selector(
         )
     );
     if container.use_foreign_heroes {
+        let mut options = vec![
+            CreateSelectMenuOption::new("Использовался родной герой", "-1")
+                .default_selection(hero_race.is_none())
+        ];
+        options.append(&mut tournaments_service
+            .races
+            .iter()
+            .map(|race_new| {
+                CreateSelectMenuOption::new(
+                    race_new.name.clone(),
+                    race_new.id.to_string(),
+                )
+                .default_selection(
+                    if hero_race.is_some() && hero_race.unwrap() == race_new.id {
+                        true
+                    } else {
+                        false
+                    },
+                )
+            })
+            .collect::<Vec<CreateSelectMenuOption>>());
         rows.push(
             CreateActionRow::SelectMenu(
                 CreateSelectMenu::new(
                     "player_hero_race_selector",
                     poise::serenity_prelude::CreateSelectMenuKind::String {
-                        options: tournaments_service
-                            .races
-                            .iter()
-                            .map(|race_new| {
-                                CreateSelectMenuOption::new(
-                                    race_new.name.clone(),
-                                    race_new.id.to_string(),
-                                )
-                                .default_selection(
-                                    if hero_race.is_some() && hero_race.unwrap() == race_new.id {
-                                        true
-                                    } else {
-                                        false
-                                    },
-                                )
-                            })
-                            .collect::<Vec<CreateSelectMenuOption>>(),
+                        options: options
                     },
                 )
                 .disabled(race.is_none())
-                .placeholder("Выбрать расу героя игрока(используйте, если использовался неродной герой, иначе - не заполняйте)"),
+                .placeholder("Выбрать фракцию героя игрока"),
             )
         );
     }
@@ -534,6 +576,11 @@ async fn build_player_data_selector(
             .placeholder("Выбрать героя игрока"),
         )
     );
+
+    if container.use_foreign_heroes {
+        *content += "Используйте второй селектор **ТОЛЬКО** в том случае, если играли неродным для фракции героем(например, эльфом за Академию). В противном случае оставляйте этот элемент пустым."
+    }
+
     rows
 }
 
@@ -543,6 +590,7 @@ async fn build_opponent_data_selector(
     race: Option<i64>,
     hero_race: Option<i64>,
     hero: Option<i64>,
+    content: &mut String
 ) -> Vec<CreateActionRow> {
     let mut rows = vec![];
     rows.push(
@@ -569,36 +617,41 @@ async fn build_opponent_data_selector(
                         .collect::<Vec<CreateSelectMenuOption>>(),
                 },
             )
-            .placeholder("Выбрать расу оппонента"),
+            .placeholder("Выбрать фракцию оппонента"),
         )
     );
     if container.use_foreign_heroes {
+        let mut options = vec![
+            CreateSelectMenuOption::new("Использовался родной герой", "-1")
+                .default_selection(hero_race.is_none())
+        ];
+        options.append(&mut tournaments_service
+            .races
+            .iter()
+            .map(|race_new| {
+                CreateSelectMenuOption::new(
+                    race_new.name.clone(),
+                    race_new.id.to_string(),
+                )
+                .default_selection(
+                    if hero_race.is_some() && hero_race.unwrap() == race_new.id {
+                        true
+                    } else {
+                        false
+                    },
+                )
+            })
+            .collect::<Vec<CreateSelectMenuOption>>());
         rows.push(
             CreateActionRow::SelectMenu(
                 CreateSelectMenu::new(
                     "opponent_hero_race_selector",
                     poise::serenity_prelude::CreateSelectMenuKind::String {
-                        options: tournaments_service
-                            .races
-                            .iter()
-                            .map(|race_new| {
-                                CreateSelectMenuOption::new(
-                                    race_new.name.clone(),
-                                    race_new.id.to_string(),
-                                )
-                                .default_selection(
-                                    if hero_race.is_some() && hero_race.unwrap() == race_new.id {
-                                        true
-                                    } else {
-                                        false
-                                    },
-                                )
-                            })
-                            .collect::<Vec<CreateSelectMenuOption>>(),
+                        options: options
                     },
                 )
                 .disabled(race.is_none())
-                .placeholder("Выбрать расу героя оппонента(используйте, если использовался неродной герой, иначе - не заполняйте)"),
+                .placeholder("Выбрать фракцию героя оппонента"),
             )
         );
     }
@@ -615,10 +668,14 @@ async fn build_opponent_data_selector(
         )
     );
 
+    if container.use_foreign_heroes {
+        *content += "Используйте второй селектор **ТОЛЬКО** в том случае, если оппонент играл неродным для фракции героем(например, эльфом за Академию). В противном случае оставляйте этот элемент пустым."
+    }
+
     rows
 }
 
-fn build_result_selector(game: &GameBuilder, container: &GameBuilderContainer) -> Vec<CreateActionRow> {
+fn build_result_selector(game: &GameBuilder, container: &GameBuilderContainer, content: &mut String) -> Vec<CreateActionRow> {
     let mut rows = vec![];
     rows.push(CreateActionRow::SelectMenu(
         CreateSelectMenu::new(
@@ -654,9 +711,14 @@ fn build_result_selector(game: &GameBuilder, container: &GameBuilderContainer) -
                 CreateSelectMenuOption::new("Оппонент сдался", GameOutcome::OpponentSurrender.to_string())
                     .default_selection(game.outcome == GameOutcome::OpponentSurrender)
             ] })
-            .placeholder("Укажите точную причину победы(если это НЕ победа в финалке)")
+            .placeholder("Укажите точную причину победы")
         ));
     }
+
+    if container.game_type == GameType::Rmg {
+        *content += "Используйте второй селектор **ТОЛЬКО** при условии, что игра завершилась **НЕ** победой в финальной битве. Если вы или оппонент сдались в ходе финалки, это все равно считается победой в ней."
+    }
+
     rows
 }
 
@@ -664,7 +726,7 @@ async fn build_heroes_list(
     heroes: &Vec<GetHeroesQueryHeroesNewHeroesEntities>,
     race: Option<i64>,
     player_hero_race: Option<i64>,
-    current_hero: Option<i64>,
+    current_hero: Option<i64>
 ) -> Vec<CreateSelectMenuOption> {
     if race.is_none() && player_hero_race.is_none() {
         vec![CreateSelectMenuOption::new("Нет героя", "-1")]
@@ -696,12 +758,13 @@ async fn build_heroes_list(
 
 fn build_bargains_data_interface(
     game: &GameBuilder,
-    container: &GameBuilderContainer
+    container: &GameBuilderContainer,
+    content: &mut String
 ) -> Vec<CreateActionRow> {
     let mut rows = vec![];
     rows.push(
         CreateActionRow::Buttons(vec![
-            CreateButton::new("bargains_amount_button").style(ButtonStyle::Success).label("Укажите размер торга(в вашу сторону)")
+            CreateButton::new("bargains_amount_button").style(ButtonStyle::Success).label("Укажите размер торга")
         ])
     );
     if container.use_bargains_color {
@@ -716,6 +779,11 @@ fn build_bargains_data_interface(
                 .placeholder("Укажите цвет, на котором ВЫ играли")
             )
         );
+    }
+
+    *content += "Указывайте размер торга именно с вашей стороны, **НЕЗАВИСИМО** от результата игры. То есть, если вы играли с -5000 по золоту, всегда указывайте это число, неважно, выиграли или проиграли.\n";
+    if container.use_bargains_color {
+        *content += "Указывайте именно тот цвет, на котором **ВЫ** играли, независимо от того, за какой цвет шел торг."
     }
     rows
 }

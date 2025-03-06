@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString, FromRepr};
 use uuid::Uuid;
 
-use crate::graphql::queries::get_heroes_query::GetHeroesQueryHeroesNewHeroesEntities;
+use crate::{graphql::queries::get_heroes_query::GetHeroesQueryHeroesNewHeroesEntities, services::challonge::types::ChallongeTournamentState};
 
 #[derive(Serialize, Deserialize)]
 pub struct OpponentDataPayload {
@@ -27,6 +27,7 @@ pub struct MatchBuilder {
     pub user_nickname: String,
     pub tournament_name: String,
     pub tournament_id: Uuid,
+    pub tournament_state: ChallongeTournamentState
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]

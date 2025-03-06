@@ -9,7 +9,7 @@ use crate::{
         self,
         report_message::build_game_message,
         types::{
-            GameBuilder, GameBuilderContainer, GameBuilderState, GameResult, GameType, MatchBuilder, OpponentDataPayload, OpponentsData
+            BargainsColor, GameBuilder, GameBuilderContainer, GameBuilderState, GameOutcome, GameResult, GameType, MatchBuilder, OpponentDataPayload, OpponentsData
         },
     },
     graphql::queries::{create_games_bulk, GetMatchQuery},
@@ -166,18 +166,33 @@ pub async fn finish_match_creation(
     Ok(())
 }
 
-// pub async fn show_bargains_modal(
-//     interaction: &ComponentInteraction,
-//     context: &Context
-// ) -> Result<(), crate::Error> {
-//     interaction.create_response(context, CreateInteractionResponse::Modal(
-//         CreateModal::new("player_data_modal", "Указать размер торга")
-//             .components(vec![
-//                 CreateActionRow::InputText(CreateInputText::new(InputTextStyle::Short, "Торг", "bargains_amount_input"))
-//             ])
-//     )).await?;
-//     Ok(())
-// }
+pub async fn show_bargains_modal(
+    interaction: &ComponentInteraction,
+    context: &Context,
+    game_builders: &RwLock<HashMap<u64, RwLock<GameBuilderContainer>>>
+) -> Result<(), crate::Error> {
+    let message = interaction.message.id.get();
+    let builders_locked = game_builders.read().await;
+    if let Some(container) = builders_locked.get(&message) {
+        let container_locked = container.read().await;
+        let current_game_number = container_locked.current_number;
+        let current_game = container_locked
+            .builders
+            .iter()
+            .find(|g| g.number == current_game_number)
+            .unwrap();
+        interaction.create_response(context, CreateInteractionResponse::Modal(
+            CreateModal::new("bargains_input_modal", "Указать размер торга")
+                .components(vec![
+                    CreateActionRow::InputText(
+                        CreateInputText::new(InputTextStyle::Short, "Торг", "bargains_amount_input")
+                            .value(current_game.bargains_amount.to_string())
+                    )
+                ])
+        )).await?;
+    }
+    Ok(())
+}
 
 pub async fn switch_to_edition_state(
     interaction: &ComponentInteraction,
@@ -501,7 +516,6 @@ pub async fn select_player_race(
     game_builders: &RwLock<HashMap<u64, RwLock<GameBuilderContainer>>>,
     selected_value: &String,
 ) -> Result<(), crate::Error> {
-    tracing::info!("Selected player race: {}", selected_value);
     let message = interaction.message.id.get();
     let game_builders_locked = game_builders.read().await;
     if let Some(container) = game_builders_locked.get(&message) {
@@ -513,10 +527,38 @@ pub async fn select_player_race(
             .find(|g| g.number == current_game_number)
             .unwrap();
         current_game.first_player_race = Some(i64::from_str_radix(selected_value, 10)?);
-        tracing::info!(
-            "First player race selected: {:?}",
-            &current_game.first_player_race
-        );
+        drop(container_locked);
+        let response_message =
+            build_game_message(tournaments_service, &*container.read().await).await?;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(response_message),
+            )
+            .await?;
+    }
+    Ok(())
+}
+
+pub async fn select_player_hero_race(
+    interaction: &ComponentInteraction,
+    context: &Context,
+    tournaments_service: &H5TournamentsService,
+    game_builders: &RwLock<HashMap<u64, RwLock<GameBuilderContainer>>>,
+    selected_value: &String,
+) -> Result<(), crate::Error> {
+    let message = interaction.message.id.get();
+    let game_builders_locked = game_builders.read().await;
+    if let Some(container) = game_builders_locked.get(&message) {
+        let mut container_locked = container.write().await;
+        let current_game_number = container_locked.current_number;
+        let current_game = container_locked
+            .builders
+            .iter_mut()
+            .find(|g| g.number == current_game_number)
+            .unwrap();
+        let selected_race = i64::from_str_radix(selected_value, 10)?;
+        current_game.first_player_hero_race = if selected_race == -1 { None } else { Some(selected_race) };
         drop(container_locked);
         let response_message =
             build_game_message(tournaments_service, &*container.read().await).await?;
@@ -548,6 +590,38 @@ pub async fn select_opponent_race(
             .find(|g| g.number == current_game_number)
             .unwrap();
         current_game.second_player_race = Some(i64::from_str_radix(selected_value, 10)?);
+        drop(container_locked);
+        let response_message =
+            build_game_message(tournaments_service, &*container.read().await).await?;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(response_message),
+            )
+            .await?;
+    }
+    Ok(())
+}
+
+pub async fn select_opponent_hero_race(
+    interaction: &ComponentInteraction,
+    context: &Context,
+    tournaments_service: &H5TournamentsService,
+    game_builders: &RwLock<HashMap<u64, RwLock<GameBuilderContainer>>>,
+    selected_value: &String,
+) -> Result<(), crate::Error> {
+    let message = interaction.message.id.get();
+    let game_builders_locked = game_builders.read().await;
+    if let Some(container) = game_builders_locked.get(&message) {
+        let mut container_locked = container.write().await;
+        let current_game_number = container_locked.current_number;
+        let current_game = container_locked
+            .builders
+            .iter_mut()
+            .find(|g| g.number == current_game_number)
+            .unwrap();
+        let selected_race = i64::from_str_radix(selected_value, 10)?;
+        current_game.second_player_hero_race = if selected_race == -1 { None } else { Some(selected_race) };
         drop(container_locked);
         let response_message =
             build_game_message(tournaments_service, &*container.read().await).await?;
@@ -655,46 +729,101 @@ pub async fn select_game_result(
     Ok(())
 }
 
-// pub async fn save_report_user_message(
-//     _context: &Context,
-//     api: &H5TournamentsService,
-//     message_id: u64,
-//     interaction_id: u64
-// ) -> Result<(), crate::Error> {
-//     if let Some(match_data) = api.get_match(GetMatch::default().with_interaction_id(interaction_id.to_string())).await? {
-//         let res = api.update_match(UpdateMatch::new(match_data.id).with_message(message_id.to_string())).await?;
-//         tracing::info!("Match {} was updated with data_message with id {} in response of {}", match_data.id, message_id, res);
-//     }
-//     Ok(())
-// }
+pub async fn select_game_outcome(
+    interaction: &ComponentInteraction,
+    context: &Context,
+    tournaments_service: &H5TournamentsService,
+    game_builders: &RwLock<HashMap<u64, RwLock<GameBuilderContainer>>>,
+    selected_value: &String,
+) -> Result<(), crate::Error> {
+    let message = interaction.message.id.get();
+    let game_builders_locked = game_builders.read().await;
+    if let Some(container) = game_builders_locked.get(&message) {
+        let mut container_locked = container.write().await;
+        let current_game_number = container_locked.current_number;
+        let current_game = container_locked
+            .builders
+            .iter_mut()
+            .find(|g| g.number == current_game_number)
+            .unwrap();
+        current_game.outcome = GameOutcome::from_str(&selected_value)?;
+        drop(container_locked);
+        let response_message =
+            build_game_message(tournaments_service, &*container.read().await).await?;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(response_message),
+            )
+            .await?;
+    }
+    Ok(())
+}
 
-// pub async fn process_bargains_modal(
-//     interaction: &ModalInteraction,
-//     context: &Context,
-//     api: &H5TournamentsService
-// ) -> Result<(), crate::Error> {
-//     let message = &interaction.message.as_ref().unwrap().content;
-//     let mut bargains_value = 0;
-//     tracing::info!("Modal was created from message: {}", message);
-//     tracing::info!("Modal data: {:?}", &interaction.data);
-//     for row in &interaction.data.components {
-//         for component in &row.components {
-//             match component {
-//                 ActionRowComponent::InputText(text) => {
-//                     if text.custom_id.as_str() == "bargains_amount_input" {
-//                         let value = i32::from_str_radix(&text.value.as_ref().unwrap(), 10).unwrap();
-//                         bargains_value = value;
-//                         tracing::info!("Bargains amount: {}", value);
-//                     }
-//                 },
-//                 _=> {}
-//             }
-//         }
-//     }
-//     if let Some(match_data) = api.get_match(GetMatch::default().with_message_id(interaction.message.as_ref().unwrap().id.get())).await? {
-//         api.update_game(UpdateGame::new(match_data.id, match_data.current_game).with_bargains_amount(bargains_value as i64)).await?;
-//         let rebuilt_message=  builders::report_message::build_game_message(&context, api, interaction.message.as_ref().unwrap().id.get()).await?;
-//         interaction.create_response(context, CreateInteractionResponse::UpdateMessage(rebuilt_message)).await.unwrap();
-//     }
-//     Ok(())
-// }
+pub async fn process_bargains_modal(
+    interaction: &ModalInteraction,
+    context: &Context,
+    tournaments_service: &H5TournamentsService,
+    game_builders: &RwLock<HashMap<u64, RwLock<GameBuilderContainer>>>,
+) -> Result<(), crate::Error> {
+    let message = &interaction.message.as_ref().unwrap().id.get();
+    let game_builders_locked = game_builders.read().await;
+    if let Some(container) = game_builders_locked.get(&message) {
+        for row in &interaction.data.components {
+            for component in &row.components {
+                match component {
+                    ActionRowComponent::InputText(text) => {
+                        if text.custom_id.as_str() == "bargains_amount_input" {
+                            let value = i64::from_str_radix(&text.value.as_ref().unwrap(), 10).unwrap();
+                            let mut container_locked = container.write().await;
+                            let current_game_number = container_locked.current_number;
+                            let current_game = container_locked
+                                .builders
+                                .iter_mut()
+                                .find(|g| g.number == current_game_number)
+                                .unwrap();
+                            current_game.bargains_amount = value;
+                            drop(container_locked);
+                            let response_message =
+                                build_game_message(tournaments_service, &*container.read().await).await?;
+                            interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+                        }
+                    },
+                    _=> {}
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+pub async fn select_bargains_color(
+    interaction: &ComponentInteraction,
+    context: &Context,
+    tournaments_service: &H5TournamentsService,
+    game_builders: &RwLock<HashMap<u64, RwLock<GameBuilderContainer>>>,
+    selected_value: &String,
+) -> Result<(), crate::Error> {
+    let message = interaction.message.id.get();
+    let game_builders_locked = game_builders.read().await;
+    if let Some(container) = game_builders_locked.get(&message) {
+        let mut container_locked = container.write().await;
+        let current_game_number = container_locked.current_number;
+        let current_game = container_locked
+            .builders
+            .iter_mut()
+            .find(|g| g.number == current_game_number)
+            .unwrap();
+        current_game.bargains_color = Some(BargainsColor::from_str(&selected_value)?);
+        drop(container_locked);
+        let response_message =
+            build_game_message(tournaments_service, &*container.read().await).await?;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(response_message),
+            )
+            .await?;
+    }
+    Ok(())
+}
