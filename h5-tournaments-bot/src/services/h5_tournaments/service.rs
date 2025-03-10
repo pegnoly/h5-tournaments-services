@@ -205,7 +205,7 @@ impl H5TournamentsService {
             .send()
             .await?;
 
-        let registered_id: Uuid = match_registration_response.json().await?;
+        let registered_id = match_registration_response.json::<i32>().await?;
 
         for game in &mut parsed_data.games {
             game.match_id = registered_id;

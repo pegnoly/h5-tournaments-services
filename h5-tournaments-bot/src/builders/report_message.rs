@@ -74,21 +74,20 @@ pub async fn collect_match_creation_data(
                 //participant.challonge.as_ref().unwrap().clone()
             )
             .await?;
-        if matches.len() < 1 {
+        let matches_sorted = matches
+            .iter()
+            .filter(|m| {
+                m.attributes.points_by_participant[0].participant_id.to_string() == *participant.challonge.as_ref().unwrap()
+                    || m.attributes.points_by_participant[1].participant_id.to_string() == *participant.challonge.as_ref().unwrap()
+            })
+            .collect::<Vec<&ChallongeMatchData>>();
+        if matches_sorted.len() < 1 {
             interaction.create_response(context, CreateInteractionResponse::Message(
                 CreateInteractionResponseMessage::new()
                     .ephemeral(true)
                     .content("Для вас нет открытых матчей на этом турнире")   
             )).await?;
         } else {
-            let matches_sorted = matches
-                .iter()
-                .filter(|m| {
-                    m.attributes.points_by_participant[0].participant_id.to_string() == *participant.challonge.as_ref().unwrap()
-                        || m.attributes.points_by_participant[1].participant_id.to_string() == *participant.challonge.as_ref().unwrap()
-                })
-                .collect::<Vec<&ChallongeMatchData>>();
-
             let opponents_data = matches_sorted
                 .iter()
                 .map(|m| {
@@ -123,6 +122,8 @@ pub async fn collect_match_creation_data(
                     }
                 })
                 .collect::<Vec<OpponentsData>>();
+            
+            tracing::info!("Opponents data: {:?}", &opponents_data);
 
             let match_builder = MatchBuilder {
                 opponents: opponents_data,
@@ -135,13 +136,18 @@ pub async fn collect_match_creation_data(
                 tournament_state: ChallongeTournamentState::from_str(&challonge_tournament.attributes.state)?
             };
 
+            tracing::info!("Match builder: {:?}", &match_builder);
+
             let response_message = build_match_creation_interface(&match_builder).await?;
+            tracing::info!("Response message: {:?}", &response_message);
+            //interaction.defer_ephemeral(context).await?;
             interaction
                 .create_response(
                     context,
                     CreateInteractionResponse::Message(response_message),
                 )
                 .await?;
+            //let message_new = interaction.create_followup(context, response_message).await?;
             let message_new = interaction.get_response(context).await?;
             let mut message_builders_locked = match_builders.write().await;
             message_builders_locked.insert(
@@ -152,6 +158,42 @@ pub async fn collect_match_creation_data(
         }
     }
     Ok(())
+}
+
+pub async fn build_initial_match_creation_interface(
+    builder: &MatchBuilder,
+) -> Result<CreateInteractionResponseFollowup, crate::Error> {
+    Ok(CreateInteractionResponseFollowup::new()
+        .ephemeral(true)
+        .add_embed(
+            CreateEmbed::new()
+                .title("Отчет о турнирной игре")
+                .description(format!(
+                    "Турнир **{}**",
+                    builder.tournament_name.to_uppercase()
+                ))
+                .fields([
+                    ("Автор", format!("{}", builder.user_nickname), false),
+                    ("Стадия", if builder.tournament_state == ChallongeTournamentState::GroupStagesUnderway { 
+                        "Групповой этап".to_string() 
+                    } else {
+                        "Плей-офф".to_string()
+                    } , false),
+                ]),
+        )
+        .select_menu(build_opponent_selector(&builder).await)
+        .select_menu(build_games_count_selector(4, 9, &builder).await)
+        .button(
+            CreateButton::new("start_report")
+                .label("Начать заполнение отчета")
+                .disabled(
+                    if builder.games_count.is_some() && builder.selected_opponent.is_some() {
+                        false
+                    } else {
+                        true
+                    },
+                ),
+        ))
 }
 
 pub async fn build_match_creation_interface(
@@ -176,7 +218,7 @@ pub async fn build_match_creation_interface(
                 ]),
         )
         .select_menu(build_opponent_selector(&builder).await)
-        .select_menu(build_games_count_selector(5, &builder).await)
+        .select_menu(build_games_count_selector(4, 9, &builder).await)
         .button(
             CreateButton::new("start_report")
                 .label("Начать заполнение отчета")
@@ -208,10 +250,11 @@ async fn build_opponent_selector(match_builder: &MatchBuilder) -> CreateSelectMe
 }
 
 async fn build_games_count_selector(
-    games_count: i32,
+    min_games_count: i32,
+    max_games_count: i32,
     match_builder: &MatchBuilder,
 ) -> CreateSelectMenu {
-    let options = (1..games_count + 1)
+    let options = (min_games_count..max_games_count + 1)
         .map(|number| {
             CreateSelectMenuOption::new(number.to_string(), number.to_string()).default_selection(
                 if match_builder.games_count.is_some()

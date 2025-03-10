@@ -113,24 +113,23 @@ impl LegacyTournamentService {
         }
     }
 
-    pub async fn register_match(&self, match_data: &MatchRegistrationForm) -> Result<Uuid, super::error::Error> {
-        let id = Uuid::new_v4();
-        let res = sqlx::query(r#"
-                INSERT INTO matches
-                (id, tournament_id, first_player, second_player, message_id)
-                VALUES ($1, $2, $3, $4, $5)
+    pub async fn register_match(&self, match_data: &MatchRegistrationForm) -> Result<i32, super::error::Error> {
+        let res: Result<Match, sqlx::Error> = sqlx::query_as(r#"
+                INSERT INTO matches_old
+                (tournament_id, first_player, second_player, message_id)
+                VALUES ($1, $2, $3, $4)
+                RETURNING *;
             "#)
-            .bind(id)
             .bind(match_data.tournament_id)
             .bind(&match_data.first_player)
             .bind(&match_data.second_player)
             .bind(match_data.message_id)
-            .execute(&self.pool)
+            .fetch_one(&self.pool)
             .await;
 
         match res {
-            Ok(_) => {
-                Ok(id)
+            Ok(created_match) => {
+                Ok(created_match.id)
             },
             Err(error) => {
                 tracing::error!("Failed to insert match: {}", error.to_string());
@@ -144,8 +143,8 @@ impl LegacyTournamentService {
 
         for game in games_data {
             let res = sqlx::query(r#"
-                    INSERT INTO games
-                    (id, match_id, first_player_race, first_player_hero, second_player_race, second_player_hero, bargains_color, bargains_amount, result)
+                    INSERT INTO games_old
+                    (id, match_id, first_player_race, first_player_hero, second_player_race, second_player_hero, bargains_amount, result)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 "#)
                 .bind(game.id)
@@ -154,7 +153,6 @@ impl LegacyTournamentService {
                 .bind(game.first_player_hero)
                 .bind(game.second_player_race)
                 .bind(game.second_player_hero)
-                .bind(game.bargains_color)
                 .bind(game.bargains_amount)
                 .bind(&game.result)
                 .execute(&mut *transaction)
@@ -216,7 +214,6 @@ impl LegacyTournamentService {
             .bind(game.first_player_hero)
             .bind(game.second_player_race)
             .bind(game.second_player_hero)
-            .bind(game.bargains_color)
             .bind(game.bargains_amount)
             .bind(&game.result)
             .execute(&self.pool)
@@ -237,7 +234,6 @@ impl LegacyTournamentService {
             .bind(&game.first_player_hero)
             .bind(&game.second_player_race)
             .bind(&game.second_player_hero)
-            .bind(&game.bargains_color)
             .bind(&game.bargains_amount)
             .bind(&game.result)
             .bind(&game.id)

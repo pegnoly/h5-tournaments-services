@@ -57,7 +57,7 @@ pub struct Tournament {
 /// A match between two players in a concrete tournament. Contains Games.
 #[derive(Debug, Serialize, Deserialize, Default, Clone, sqlx::FromRow)]
 pub struct Match {
-    pub id: Uuid,
+    pub id: i32,
     pub tournament_id: Uuid,
     pub first_player: String,
     pub second_player: String,
@@ -97,14 +97,13 @@ pub struct BargainsColorModel {
 /// A single game between two players.
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Game {
-    pub id: Uuid,
-    pub match_id: Uuid,
-    pub first_player_race: i32,
-    pub first_player_hero: i32,
-    pub second_player_race: i32,
-    pub second_player_hero: i32,
-    pub bargains_color: Option<BargainsColor>,
-    pub bargains_amount: i16,
+    pub id: i32,
+    pub match_id: i32,
+    pub first_player_race: i64,
+    pub first_player_hero: i64,
+    pub second_player_race: i64,
+    pub second_player_hero: i64,
+    pub bargains_amount: i32,
     pub result: GameResult
 }
 
@@ -115,10 +114,9 @@ impl Default for Game {
             first_player_hero: 0,
             second_player_race: 0,
             second_player_hero: 0,
-            bargains_color: None,
             result: GameResult::NotDetected,
-            id: uuid::Uuid::new_v4(),
-            match_id: uuid::Uuid::default(),
+            id: 0,
+            match_id: 0,
             bargains_amount: 0
         }
     }

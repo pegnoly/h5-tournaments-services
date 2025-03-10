@@ -1221,9 +1221,9 @@ dependencies = [
 
 [[package]]
 name = "h5-tournaments-api"
-version = "0.1.8"
+version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff5d53937b911d9c69ea0d00d010bfd06df9a89418f53d716e0874064b32190d"
+checksum = "a964d1e5b80bb0268e74a85419ef4a185c07a13bc214ff561b7a1177eed9f748"
 dependencies = [
  "async-graphql",
  "async-graphql-axum",

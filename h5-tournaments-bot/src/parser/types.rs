@@ -1,3 +1,5 @@
+use crate::graphql::queries::{create_games_bulk, CreateGamesBulk};
+
 use super::utils::ParsingDataModel;
 use h5_tournaments_api::prelude::{Game, GameResult};
 use human_regex::{any, digit, exactly, one_or_more, or, whitespace, zero_or_more};
@@ -68,7 +70,7 @@ impl<'a> Parse<'a> for HrtaParser {
         if sides_data.len() != 2 {
             None
         } else {
-            let mut result = GameResult::NotDetected;
+            let result;
             if let Some(_) = sides_data.iter().find(|d| d.contains(">")) {
                 result = GameResult::FirstPlayerWon;
             } else {
@@ -82,7 +84,7 @@ impl<'a> Parse<'a> for HrtaParser {
             game.first_player_race = first_player_data.race_id;
             game.second_player_hero = second_player_data.hero_id;
             game.second_player_race = second_player_data.race_id;
-            game.bargains_amount = first_player_data.bargains_amount as i16;
+            game.bargains_amount = first_player_data.bargains_amount;
             game.result = result;
             Some(game)
         }
@@ -90,8 +92,8 @@ impl<'a> Parse<'a> for HrtaParser {
 }
 
 pub(self) struct SideData {
-    pub race_id: i32,
-    pub hero_id: i32,
+    pub race_id: i64,
+    pub hero_id: i64,
     pub bargains_amount: i32,
 }
 
@@ -110,7 +112,7 @@ fn process_side_data(side_string: &str, data_model: &ParsingDataModel) -> SideDa
             .iter()
             .any(|v| side_string.contains(v))
     }) {
-        side_data.race_id = race.id as i32;
+        side_data.race_id = race.id as i64;
     }
 
     if let Some(hero) = data_model.heroes.iter().find(|h| {
@@ -119,7 +121,7 @@ fn process_side_data(side_string: &str, data_model: &ParsingDataModel) -> SideDa
             .iter()
             .any(|v| side_string.contains(v))
     }) {
-        side_data.hero_id = hero.id;
+        side_data.hero_id = hero.id as i64;
     }
 
     let bargains_parts = side_string.split("(").collect::<Vec<&str>>();

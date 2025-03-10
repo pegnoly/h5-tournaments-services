@@ -109,7 +109,7 @@ async fn load_heroes(
 async fn register_match(
     State(tournament_service): State<LegacyTournamentService>,
     Query(registration_form): Query<MatchRegistrationForm>
-) -> Result<Json<Uuid>, ()> {
+) -> Result<Json<i32>, ()> {
 
     let registration_result = tournament_service.register_match(&registration_form).await;
 
