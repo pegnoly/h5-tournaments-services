@@ -710,4 +710,35 @@ impl EventHandler for MainEventHandler {
             }
         }
     }
+
+    // async fn reaction_add(&self, context: Context, add_reaction: Reaction) {
+    //     let message = add_reaction.message_id.get();
+    //     let guild = add_reaction.guild_id.unwrap();
+    //     let user = add_reaction.user_id.unwrap().to_user(&context).await.unwrap();
+    //     if message == 1349090235509768223 {
+    //         let mut existing_roles = vec![];
+    //         for role in guild.roles(&context).await.unwrap() {
+    //             if user.has_role(&context, guild, role.0).await.unwrap() {
+    //                 tracing::info!("User has {} role ", role.1.to_string());
+    //                 existing_roles.push(role.0);
+    //             }
+    //         }
+    //         let foreign_role = RoleId::from(1349082814783426641);
+    //         if !existing_roles.contains(&foreign_role) {
+    //             existing_roles.push(foreign_role);
+    //             guild
+    //                 .edit_member(
+    //                     context,
+    //                     user.id,
+    //                     EditMember::new().roles(existing_roles),
+    //                 )
+    //                 .await.unwrap();
+    //         } else {
+    //             tracing::info!(
+    //                 "User {:?} who already have participant role tries to get it twice",
+    //                 user
+    //             );
+    //         }
+    //     }
+    // }
 }

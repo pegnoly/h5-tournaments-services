@@ -2,14 +2,13 @@ use std::str::FromStr;
 
 use graphql_client::{GraphQLQuery, Response};
 use h5_tournaments_api::prelude::{Hero, ModType, Race, Tournament};
+use poise::serenity_prelude::client;
 use uuid::Uuid;
 
 use crate::{
-    graphql::queries::{
+    commands::TempMessageModel, graphql::queries::{
         self, create_games_bulk::{self, CreateGameModel}, create_organizer, create_participant, create_tournament_builder::{self, CreateTournamentBuilderCreateTournamentBuilder}, create_tournament_mutation, create_user_mutation::{self, CreateUserMutationCreateUser, ResponseData}, delete_participant, games_count, get_hero_query::{self, GetHeroQueryHero}, get_heroes_query::{self, GetHeroesQueryHeroesNewHeroesEntities}, get_match_query::GetMatchQueryGetMatch, get_operator_data_query::{self, GetOperatorDataQueryOperator}, get_organizer::{self, GetOrganizerOrganizer}, get_participant::{self, GetParticipantParticipant}, get_tournament_builder::{self, GetTournamentBuilderTournamentBuilder}, get_tournament_query, get_tournament_users::{self, GetTournamentUsersTournamentUsers}, get_tournaments::{self, GetTournamentsTournaments}, get_user_query::{self, GetUserQueryUser}, update_match, update_participants_bulk::{self, UpdateParticipant}, update_tournament, update_tournament_builder::{self, UpdateTournamentBuilderUpdateTournamentBuilder}, update_user, update_users_bulk, CreateGamesBulk, CreateMatchMutation, CreateOrganizer, CreateParticipant, CreateTournamentBuilder, CreateTournamentMutation, CreateUserMutation, DeleteParticipant, GamesCount, GetHeroQuery, GetHeroesQuery, GetMatchQuery, GetOperatorDataQuery, GetOperatorSectionQuery, GetOrganizer, GetParticipant, GetTournamentBuilder, GetTournamentQuery, GetTournamentUsers, GetTournaments, GetUserQuery, GetUsersQuery, GetUsersResult, UpdateMatch, UpdateParticipantsBulk, UpdateTournament, UpdateTournamentBuilder, UpdateUser, UpdateUsersBulk
-    },
-    parser::service::ParsedData,
-    types::payloads::{GetMatch, GetTournament, GetUser},
+    }, parser::service::ParsedData, types::payloads::{GetMatch, GetTournament, GetUser}
 };
 
 use super::payloads::{
@@ -67,6 +66,17 @@ impl H5TournamentsService {
                 },
             ],
         }
+    }
+
+    pub async fn load_messages(&self, messages: Vec<TempMessageModel>) -> Result<(), crate::Error> {
+        let client = self.client.read().await;
+        let _response = client
+            .post(format!("{}messages", &self.url))
+            .json(&messages)
+            .send()
+            .await?;
+
+        Ok(())
     }
 
     pub async fn init_tournament(

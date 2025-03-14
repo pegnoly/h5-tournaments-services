@@ -1,13 +1,12 @@
-use rust_decimal::Decimal;
 use sea_orm::{sea_query::{expr, OnConflict, SimpleExpr}, ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, ModelTrait, PaginatorTrait, QueryFilter, Related, Set, TransactionTrait};
-use sqlx::{PgPool, Pool, Postgres};
+use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::{graphql::mutation::UpdateParticipant, routes::models::MatchRegistrationForm};
 
 use self::{game_builder::GameResult, match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
 
-use super::{models::{game_builder::{self, CreateGameModel, GameModel, GameOutcome}, hero::{self, HeroModel}, heroes::{self, HeroesModel}, match_structure, operator::{self, TournamentOperatorModel}, organizer::{self, OrganizerModel}, participant, tournament::{self, GameType}, tournament_builder::{self, TournamentBuilderModel, TournamentEditState}, user::{self, UserBulkUpdatePayload}}, types::{Game, Hero, Match, ModType, Race, Tournament}};
+use super::{models::{game_builder::{self, CreateGameModel, GameModel, GameOutcome}, hero::{self, HeroModel}, heroes::{self, HeroesModel}, match_structure, operator::{self, TournamentOperatorModel}, organizer::{self, OrganizerModel}, participant, tournament::{self, GameType}, tournament_builder::{self, TournamentBuilderModel, TournamentEditState}, user::{self, UserBulkUpdatePayload}}, types::{Game, Hero, Match, ModType, Race, TempMessageModel, Tournament}};
 
 #[derive(Clone)]
 pub struct LegacyTournamentService {
@@ -270,6 +269,35 @@ impl LegacyTournamentService {
             .await?;
 
         Ok(games)
+    }
+
+    pub async fn load_messages(&self, messages: Vec<TempMessageModel>) -> Result<(), super::error::Error> {
+        let transaction = self.pool.begin().await?;
+        for message in messages {
+            sqlx::query(r#"
+                INSERT INTO messages_temp
+                (message_id, message_text, tournament_id)
+                VALUES ($1, $2, $3)
+            "#)
+            .bind(message.message_id)
+            .bind(message.message_text)
+            .bind(message.tournament_id)
+            .execute(&self.pool)
+            .await?;
+        }
+        transaction.commit().await?;
+        Ok(())
+    }
+
+    pub async fn get_messages(&self, tournament_id: Uuid) -> Result<Vec<TempMessageModel>, super::error::Error> {
+        let res = sqlx::query_as(r#"
+            SELECT * FROM messages_temp WHERE tournament_id=$1;
+        "#)
+        .bind(tournament_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(res)
     }
 }
 

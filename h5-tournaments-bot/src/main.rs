@@ -40,8 +40,8 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
         .options(poise::FrameworkOptions {
             commands: vec![
                 commands::init_tournament(),
-                commands::parse_results(),
-                commands::init_services(),
+                // commands::parse_results(),
+                // commands::init_services(),
                 //commands::create_user(),
                 commands::setup_tournament(),
                 commands::delete_unused(),
@@ -50,6 +50,7 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
                 commands::test_challonge_participant_add(),
                 commands::build_administration_panel(),
                 commands::sync_users_nicknames(),
+                commands::deprecated_get_messages()
             ],
             ..Default::default()
         })

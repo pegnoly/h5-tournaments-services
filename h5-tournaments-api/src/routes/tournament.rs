@@ -20,6 +20,8 @@ pub fn tournament_routes() -> Router<LegacyTournamentService> {
         .route("/game/create", post(create_game))
         .route("/game/update", patch(update_game))
         .route("/match/update", patch(update_match))
+        .route("/messages", post(load_messages))
+        .route("/messages/{tournament_id}", get(get_messages))
 }
 
 async fn create_tournament(
@@ -185,4 +187,35 @@ async fn load_all_games_for_tournament(
     Path(tournament_id): Path<Uuid>
 ) -> Result<Json<Vec<Game>>, ()> {
     Ok(Json(tournament_service.get_all_games_for_tournament(tournament_id).await.unwrap()))
+}
+
+async fn load_messages(
+    State(tournament_service): State<LegacyTournamentService>,
+    Json(messages): Json<Vec<TempMessageModel>>
+) -> Result<(), ()> {
+    match tournament_service.load_messages(messages).await {
+        Ok(_success) => {
+            tracing::info!("Messages loaded");
+            Ok(())
+        },
+        Err(error) => {
+            tracing::error!("Failed to load messages: {}", error.to_string());
+            Err(())
+        }
+    }
+}
+
+async fn get_messages(
+    State(tournament_service): State<LegacyTournamentService>,
+    Path(tournament_id): Path<Uuid>
+) -> Result<Json<Vec<TempMessageModel>>, ()> {
+    match tournament_service.get_messages(tournament_id).await {
+        Ok(messages) => {
+            Ok(Json(messages))
+        },
+        Err(error) => {
+            tracing::error!("Failed to get messages: {}", error.to_string());
+            Err(())
+        }
+    }
 }

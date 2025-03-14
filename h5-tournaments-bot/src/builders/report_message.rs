@@ -25,6 +25,7 @@ pub async fn collect_match_creation_data(
     challonge_service: &ChallongeService,
     match_builders: &RwLock<HashMap<u64, RwLock<MatchBuilder>>>,
 ) -> Result<(), crate::Error> {
+    interaction.defer_ephemeral(context).await?;
     let tournament_data = tournaments_service
         .get_tournament_data(
             GetTournament::default()
@@ -82,11 +83,10 @@ pub async fn collect_match_creation_data(
             })
             .collect::<Vec<&ChallongeMatchData>>();
         if matches_sorted.len() < 1 {
-            interaction.create_response(context, CreateInteractionResponse::Message(
-                CreateInteractionResponseMessage::new()
-                    .ephemeral(true)
-                    .content("Для вас нет открытых матчей на этом турнире")   
-            )).await?;
+            interaction.create_followup(context, CreateInteractionResponseFollowup::new()
+                .ephemeral(true)
+                .content("Для вас нет открытых матчей на этом турнире")
+            ).await?;
         } else {
             let opponents_data = matches_sorted
                 .iter()
@@ -138,17 +138,15 @@ pub async fn collect_match_creation_data(
 
             tracing::info!("Match builder: {:?}", &match_builder);
 
-            let response_message = build_match_creation_interface(&match_builder).await?;
+            let response_message = build_initial_match_creation_interface(&match_builder).await?;
             tracing::info!("Response message: {:?}", &response_message);
-            //interaction.defer_ephemeral(context).await?;
-            interaction
-                .create_response(
-                    context,
-                    CreateInteractionResponse::Message(response_message),
-                )
-                .await?;
-            //let message_new = interaction.create_followup(context, response_message).await?;
-            let message_new = interaction.get_response(context).await?;
+            // interaction
+            //     .create_response(
+            //         context,
+            //         CreateInteractionResponse::Message(response_message),
+            //     )
+            //     .await?;
+            let message_new = interaction.create_followup(context, response_message).await?;
             let mut message_builders_locked = match_builders.write().await;
             message_builders_locked.insert(
                 message_new.id.get(),

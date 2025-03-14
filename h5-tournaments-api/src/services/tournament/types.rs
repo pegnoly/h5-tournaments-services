@@ -122,26 +122,9 @@ impl Default for Game {
     }
 }
 
-pub enum TournamentType {
-    Universe,
-    Hrta
-}
-
-pub enum PlayoffStage {
-    OneSixtyFour,
-    OneThirtyTwo,
-    OneSixteen,
-    OneEight,
-    OneFour,
-    OneTwo,
-    GrandFinal
-}
-
-pub enum TournamentStage {
-    GroupStage,
-    Playoff(PlayoffStage)
-}
-
-pub enum GroupFormat {
-
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct TempMessageModel {
+    pub message_id: i64,
+    pub message_text: String,
+    pub tournament_id: Uuid
 }

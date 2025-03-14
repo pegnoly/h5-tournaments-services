@@ -2,12 +2,13 @@ use std::{str::FromStr, vec};
 
 use h5_tournaments_api::prelude::ModType;
 use poise::serenity_prelude::*;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
 use crate::{
     graphql::queries::update_users_bulk,
-    parser::{types::HrtaParser, utils::ParsingDataModel},
+    parser::{types::HrtaParser, utils::ParsingDataModel}, types::payloads::GetTournament,
 };
 
 /// This command collects user input and if everything is correct sends tournament creating request
@@ -43,138 +44,184 @@ pub async fn init_tournament(
     Ok(())
 }
 
-/// This command checks is requested tournament registered and if so starts process of its parsing.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TempMessageModel {
+    pub message_id: u64,
+    pub message_text: String,
+    pub tournament_id: Uuid
+}
+
 #[poise::command(slash_command)]
-pub async fn parse_results(
+pub async fn deprecated_get_messages(
     context: crate::Context<'_>,
-    #[description = "Id of tournament to parse results"] tournament_id: String,
+    tournament_id: String,
+    channel_id: String,
+    first_message: String,
+    last_message: String 
 ) -> Result<(), crate::Error> {
     let h5_tournament_service = &context.data().h5_tournament_service;
-    let parser_service = &context.data().parser_service;
-
-    let tournament = h5_tournament_service.get_tournament(tournament_id).await?;
-
-    let channel = ChannelId::new(tournament.channel_id as u64);
+    let tournament_id = Uuid::from_str(&tournament_id)?;
+    
+    let channel = ChannelId::new(u64::from_str_radix(&channel_id, 10)?);
     let messages = channel
         .messages(
             context,
             GetMessages::new()
-                .after(tournament.first_message_id as u64)
+                .after(u64::from_str_radix(&first_message, 10)?)
                 .limit(100),
         )
         .await
         .unwrap();
 
+    let last_message_id = u64::from_str_radix(&last_message, 10)?;
     let messages_filtered = messages
         .into_iter()
-        .filter(|message| message.id.get() <= tournament.last_message_id as u64)
-        .collect::<Vec<Message>>();
-
-    for message in &messages_filtered {
-        tracing::info!("{:?}", message.content);
-    }
-
-    let mod_type = ModType::from_repr(tournament.mod_type).unwrap();
-    let races = h5_tournament_service.load_races().await?;
-    let heroes = h5_tournament_service.load_heroes(mod_type).await?;
-    let data_model = ParsingDataModel {
-        races: races,
-        heroes: heroes,
-    };
-
-    match mod_type {
-        ModType::Universe => {
-            //process_messages(service, &messages, UniverseParser {}, &data_model);
-        }
-        ModType::Hrta => {
-            tracing::info!("Processing hrta data");
-            for message in &messages_filtered {
-                let mut parsed_data = parser_service.parse_match_structure(
-                    &message.content,
-                    &HrtaParser {},
-                    &data_model,
-                );
-                h5_tournament_service
-                    .send_match(&mut parsed_data, tournament.id, message.id.get() as i64)
-                    .await?;
+        .filter(|message| message.id.get() <= last_message_id)
+        .map(|message| {
+            TempMessageModel {
+                message_id: message.id.get(),
+                message_text: message.content,
+                tournament_id: tournament_id
             }
-        }
-    }
-
-    context.say("Success").await?;
-
+        })
+        .collect::<Vec<TempMessageModel>>();
+    h5_tournament_service.load_messages(messages_filtered).await?;
     Ok(())
 }
 
+/// This command checks is requested tournament registered and if so starts process of its parsing.
 // #[poise::command(slash_command)]
-// pub async fn create_user(
+// pub async fn parse_results(
 //     context: crate::Context<'_>,
-//     #[description = "User's nickname for tournaments system"]
-//     nickname: String,
-//     #[description = "User's discord id"]
-//     id: String
+//     #[description = "Id of tournament to parse results"] tournament_id: String,
 // ) -> Result<(), crate::Error> {
-//     // let h5_tournament_service = &context.data().h5_tournament_service;
-//     // let res = h5_tournament_service.create_user(nickname, id, false).await;
-//     // match res {
-//     //     Ok(res) => {
-//     //         context.say(res).await.unwrap();
-//     //         Ok(())
-//     //     },
-//     //     Err(error) => {
-//     //         Err(crate::Error::from(error))
-//     //     }
-//     // }
+//     let h5_tournament_service = &context.data().h5_tournament_service;
+//     let parser_service = &context.data().parser_service;
+
+//     let tournament = h5_tournament_service
+//         .get_tournament_data(GetTournament::default().with_id(id))
+
+//     let channel = ChannelId::new(tournament.channel_id as u64);
+//     let messages = channel
+//         .messages(
+//             context,
+//             GetMessages::new()
+//                 .after(tournament.first_message_id as u64)
+//                 .limit(100),
+//         )
+//         .await
+//         .unwrap();
+
+//     let messages_filtered = messages
+//         .into_iter()
+//         .filter(|message| message.id.get() <= tournament.last_message_id as u64)
+//         .collect::<Vec<Message>>();
+
+//     for message in &messages_filtered {
+//         tracing::info!("{:?}", message.content);
+//     }
+
+//     let mod_type = ModType::from_repr(tournament.mod_type).unwrap();
+//     let races = h5_tournament_service.load_races().await?;
+//     let heroes = h5_tournament_service.load_heroes(mod_type).await?;
+//     let data_model = ParsingDataModel {
+//         races: races,
+//         heroes: heroes,
+//     };
+
+//     match mod_type {
+//         ModType::Universe => {
+//             //process_messages(service, &messages, UniverseParser {}, &data_model);
+//         }
+//         ModType::Hrta => {
+//             tracing::info!("Processing hrta data");
+//             for message in &messages_filtered {
+//                 let mut parsed_data = parser_service.parse_match_structure(
+//                     &message.content,
+//                     &HrtaParser {},
+//                     &data_model,
+//                 );
+//                 h5_tournament_service
+//                     .send_match(&mut parsed_data, tournament.id, message.id.get() as i64)
+//                     .await?;
+//             }
+//         }
+//     }
+
+//     context.say("Success").await?;
+
+//     Ok(())
 // }
 
-#[poise::command(slash_command)]
-pub async fn init_services(context: crate::Context<'_>) -> Result<(), crate::Error> {
-    let guild = context.guild_id().unwrap();
-    let bot_category = guild
-        .create_channel(
-            context,
-            CreateChannel::new("Tournaments actions")
-                .kind(ChannelType::Category)
-                //.kind(ChannelType::Private)
-                .permissions(vec![PermissionOverwrite {
-                    allow: Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES,
-                    kind: PermissionOverwriteType::Member(UserId::new(436937919308234762)),
-                    deny: Permissions::ADMINISTRATOR,
-                }]),
-        )
-        .await
-        .unwrap();
-    let channel = guild
-        .create_channel(
-            context,
-            CreateChannel::new("tournament-actions")
-                .category(bot_category.id)
-                .kind(ChannelType::Text),
-        )
-        .await?;
+// // #[poise::command(slash_command)]
+// // pub async fn create_user(
+// //     context: crate::Context<'_>,
+// //     #[description = "User's nickname for tournaments system"]
+// //     nickname: String,
+// //     #[description = "User's discord id"]
+// //     id: String
+// // ) -> Result<(), crate::Error> {
+// //     // let h5_tournament_service = &context.data().h5_tournament_service;
+// //     // let res = h5_tournament_service.create_user(nickname, id, false).await;
+// //     // match res {
+// //     //     Ok(res) => {
+// //     //         context.say(res).await.unwrap();
+// //     //         Ok(())
+// //     //     },
+// //     //     Err(error) => {
+// //     //         Err(crate::Error::from(error))
+// //     //     }
+// //     // }
+// // }
 
-    let create_message_button =
-        CreateButton::new("create_tournament_button").label("Create tournament");
-    let message = CreateMessage::new().button(create_message_button);
-    channel.send_message(context, message).await?;
+// #[poise::command(slash_command)]
+// pub async fn init_services(context: crate::Context<'_>) -> Result<(), crate::Error> {
+//     let guild = context.guild_id().unwrap();
+//     let bot_category = guild
+//         .create_channel(
+//             context,
+//             CreateChannel::new("Tournaments actions")
+//                 .kind(ChannelType::Category)
+//                 //.kind(ChannelType::Private)
+//                 .permissions(vec![PermissionOverwrite {
+//                     allow: Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES,
+//                     kind: PermissionOverwriteType::Member(UserId::new(436937919308234762)),
+//                     deny: Permissions::ADMINISTRATOR,
+//                 }]),
+//         )
+//         .await
+//         .unwrap();
+//     let channel = guild
+//         .create_channel(
+//             context,
+//             CreateChannel::new("tournament-actions")
+//                 .category(bot_category.id)
+//                 .kind(ChannelType::Text),
+//         )
+//         .await?;
 
-    while let Some(interaction) = ComponentInteractionCollector::new(context)
-        .channel_id(channel.id)
-        .next()
-        .await
-    {
-        match interaction.data.kind {
-            ComponentInteractionDataKind::Button => {
-                if interaction.data.custom_id == "create_tournament_button".to_string() {
-                    println!("Create tournament pressed")
-                }
-            }
-            _ => {}
-        }
-    }
+//     let create_message_button =
+//         CreateButton::new("create_tournament_button").label("Create tournament");
+//     let message = CreateMessage::new().button(create_message_button);
+//     channel.send_message(context, message).await?;
 
-    Ok(())
-}
+//     while let Some(interaction) = ComponentInteractionCollector::new(context)
+//         .channel_id(channel.id)
+//         .next()
+//         .await
+//     {
+//         match interaction.data.kind {
+//             ComponentInteractionDataKind::Button => {
+//                 if interaction.data.custom_id == "create_tournament_button".to_string() {
+//                     println!("Create tournament pressed")
+//                 }
+//             }
+//             _ => {}
+//         }
+//     }
+
+//     Ok(())
+// }
 
 #[poise::command(slash_command)]
 pub async fn setup_tournament(
