@@ -50,6 +50,24 @@ impl Query {
         }
     }
 
+    async fn tournaments_all<'a>(
+        &self,
+        context: &Context<'a>
+    ) -> Result<Vec<TournamentModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_tournaments(db).await;
+
+        match res {
+            Ok(tournaments) => {
+                Ok(tournaments)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
     async fn user<'a>(
         &self,
         context: &Context<'a>,

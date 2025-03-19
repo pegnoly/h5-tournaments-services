@@ -184,7 +184,7 @@ impl Mutation {
     async fn update_game<'a>(
         &self,
         context: &Context<'a>,
-        match_id: Uuid,
+        id: Uuid,
         first_player_race: Option<i32>,
         first_player_hero: Option<i32>,
         second_player_race: Option<i32>,
@@ -198,7 +198,7 @@ impl Mutation {
         let db = context.data::<DatabaseConnection>().unwrap();
         let res = service.update_game(
             db, 
-            match_id, 
+            id, 
             first_player_race, 
             first_player_hero, 
             second_player_race, 

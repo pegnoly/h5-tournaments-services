@@ -458,6 +458,13 @@ impl TournamentService {
         Ok(())
     }
 
+    pub async fn get_tournaments(
+        &self,
+        db: &DatabaseConnection
+    ) -> Result<Vec<TournamentModel>, DbErr> {
+        Ok(tournament::Entity::find().all(db).await?)
+    }
+
     pub async fn get_tournament(
         &self,
         db: &DatabaseConnection,
@@ -661,7 +668,7 @@ impl TournamentService {
     pub async fn update_game(
         &self,
         db: &DatabaseConnection,
-        match_id: Uuid,
+        id: Uuid,
         first_player_race: Option<i32>,
         first_player_hero: Option<i32>,
         second_player_race: Option<i32>,
@@ -672,7 +679,7 @@ impl TournamentService {
         outcome: Option<GameOutcome>
     ) -> Result<String, String> {
         let current_game = game_builder::Entity::find()
-            .filter(game_builder::Column::MatchId.eq(match_id))
+            .filter(game_builder::Column::Id.eq(id))
             .one(db)
             .await.unwrap();
 
