@@ -6,7 +6,7 @@ use crate::{graphql::mutation::UpdateParticipant, routes::models::MatchRegistrat
 
 use self::{game_builder::GameResult, match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
 
-use super::{models::{game_builder::{self, CreateGameModel, GameModel, GameOutcome}, hero::{self, HeroModel}, heroes::{self, HeroesModel}, match_structure, operator::{self, TournamentOperatorModel}, organizer::{self, OrganizerModel}, participant, tournament::{self, GameType}, tournament_builder::{self, TournamentBuilderModel, TournamentEditState}, user::{self, UserBulkUpdatePayload}}, types::{Game, Hero, Match, ModType, Race, TempMessageModel, Tournament}};
+use super::{models::{game_builder::{self, BargainsColor, CreateGameModel, GameModel, GameOutcome}, hero::{self, HeroModel}, heroes::{self, HeroesModel}, match_structure, operator::{self, TournamentOperatorModel}, organizer::{self, OrganizerModel}, participant, tournament::{self, GameType}, tournament_builder::{self, TournamentBuilderModel, TournamentEditState}, user::{self, UserBulkUpdatePayload}}, types::{Game, Hero, Match, ModType, Race, TempMessageModel, Tournament}};
 
 #[derive(Clone)]
 pub struct LegacyTournamentService {
@@ -593,19 +593,36 @@ impl TournamentService {
         }
     }
 
+    pub async fn get_matches(
+        &self,
+        db: &DatabaseConnection,
+        tournament_id: Uuid,
+        user_id: Option<Uuid>
+    ) -> Result<Vec<MatchModel>, DbErr> {
+        let conditions = Condition::all()
+            .add(expr::Expr::col(match_structure::Column::TournamentId).eq(tournament_id))
+            .add_option(if user_id.is_some() {
+                Some(expr::Expr::col(match_structure::Column::FirstPlayer).eq(user_id.unwrap())
+                    .or(expr::Expr::col(match_structure::Column::SecondPlayer).eq(user_id.unwrap())))
+            } else {
+                None::<SimpleExpr>
+            });
+        
+        let matches = match_structure::Entity::find().filter(conditions).all(db).await?;
+        Ok(matches)
+    }
+
     pub async fn get_users(
         &self, 
-        db: &DatabaseConnection
-    ) -> Result<Vec<UserModel>, String> {
-        let res = user::Entity::find().all(db).await;
-        match res {
-            Ok(users) => {
-                Ok(users)
-            },
-            Err(error) => {
-                Err(error.to_string())
-            }
-        }
+        db: &DatabaseConnection,
+        tournament_id: Uuid
+    ) -> Result<Vec<UserModel>, DbErr> {
+        let users = participant::Entity::find_related()
+            .filter(participant::Column::TournamentId.eq(tournament_id))
+            .all(db)
+            .await?;
+
+        Ok(users)
     }
 
     pub async fn create_games_bulk(
@@ -641,66 +658,65 @@ impl TournamentService {
         }
     }
 
-    // pub async fn update_game(
-    //     &self,
-    //     db: &DatabaseConnection,
-    //     match_id: Uuid,
-    //     number: i32,
-    //     edit_state: Option<GameEditState>,
-    //     first_player_race: Option<i32>,
-    //     first_player_hero: Option<i32>,
-    //     second_player_race: Option<i32>,
-    //     second_player_hero: Option<i32>,
-    //     bargains_amount: Option<i32>,
-    //     result: Option<GameResult>
-    // ) -> Result<String, String> {
-    //     let current_game = game_builder::Entity::find()
-    //         .filter(
-    //             Condition::all()
-    //                 .add(game_builder::Column::MatchId.eq(match_id))
-    //                 .add(game_builder::Column::Number.eq(number))
-    //         )
-    //         .one(db)
-    //         .await.unwrap();
+    pub async fn update_game(
+        &self,
+        db: &DatabaseConnection,
+        match_id: Uuid,
+        first_player_race: Option<i32>,
+        first_player_hero: Option<i32>,
+        second_player_race: Option<i32>,
+        second_player_hero: Option<i32>,
+        bargains_color: Option<BargainsColor>,
+        bargains_amount: Option<i32>,
+        result: Option<GameResult>,
+        outcome: Option<GameOutcome>
+    ) -> Result<String, String> {
+        let current_game = game_builder::Entity::find()
+            .filter(game_builder::Column::MatchId.eq(match_id))
+            .one(db)
+            .await.unwrap();
 
-    //     if let Some(game) = current_game {
-    //         let mut game_to_update: game_builder::ActiveModel = game.into();
-    //         if let Some(edit_state) = edit_state {
-    //             game_to_update.edit_state = Set(Some(edit_state));
-    //         }
-    //         if let Some(first_player_race) = first_player_race {
-    //             game_to_update.first_player_race = Set(Some(first_player_race));
-    //         }
-    //         if let Some(first_player_hero) = first_player_hero {
-    //             game_to_update.first_player_hero = Set(Some(first_player_hero));
-    //         }
-    //         if let Some(second_player_race) = second_player_race {
-    //             game_to_update.second_player_race = Set(Some(second_player_race));
-    //         }
-    //         if let Some(second_player_hero) = second_player_hero {
-    //             game_to_update.second_player_hero = Set(Some(second_player_hero));
-    //         }
-    //         if let Some(bargains_amount) = bargains_amount {
-    //             game_to_update.bargains_amount = Set(bargains_amount);
-    //         }
-    //         if let Some(result) = result {
-    //             game_to_update.result = Set(result);
-    //         }
+        if let Some(game) = current_game {
+            let mut game_to_update: game_builder::ActiveModel = game.into();
+            if let Some(first_player_race) = first_player_race {
+                game_to_update.first_player_race = Set(Some(first_player_race));
+            }
+            if let Some(first_player_hero) = first_player_hero {
+                game_to_update.first_player_hero = Set(Some(first_player_hero));
+            }
+            if let Some(second_player_race) = second_player_race {
+                game_to_update.second_player_race = Set(Some(second_player_race));
+            }
+            if let Some(second_player_hero) = second_player_hero {
+                game_to_update.second_player_hero = Set(Some(second_player_hero));
+            }
+            if let Some(bargains_color) = bargains_color {
+                game_to_update.bargains_color = Set(Some(bargains_color));
+            }
+            if let Some(bargains_amount) = bargains_amount {
+                game_to_update.bargains_amount = Set(Some(bargains_amount));
+            }
+            if let Some(result) = result {
+                game_to_update.result = Set(result);
+            }
+            if let Some(outcome) = outcome {
+                game_to_update.outcome = Set(outcome);
+            }
 
-    //         let res = game_to_update.update(db).await;
-    //         match res {
-    //             Ok(_success) => {
-    //                 Ok("Game updated successfully".to_string())
-    //             },
-    //             Err(error) => {
-    //                 Err(error.to_string())
-    //             }
-    //         }
-    //     }
-    //     else {
-    //         Err("Failed to find game".to_string())
-    //     }
-    // }
+            let res = game_to_update.update(db).await;
+            match res {
+                Ok(_success) => {
+                    Ok("Game updated successfully".to_string())
+                },
+                Err(error) => {
+                    Err(error.to_string())
+                }
+            }
+        }
+        else {
+            Err("Failed to find game".to_string())
+        }
+    }
 
     // pub async fn get_game(
     //     &self,
@@ -767,25 +783,17 @@ impl TournamentService {
         }
     }
 
-    // pub async fn get_games(
-    //     &self,
-    //     db: &DatabaseConnection,
-    //     match_id: Uuid
-    // ) -> Result<Vec<GameBuilderModel>, String> {
-    //     let res = game_builder::Entity::find()
-    //         .filter(game_builder::Column::MatchId.eq(match_id))
-    //         .all(db)
-    //         .await;
-
-    //     match res {
-    //         Ok(games) => {
-    //             Ok(games)
-    //         },
-    //         Err(error) => {
-    //             Err(error.to_string())
-    //         }
-    //     }
-    // }
+    pub async fn get_games(
+        &self,
+        db: &DatabaseConnection,
+        match_id: Uuid
+    ) -> Result<Vec<GameModel>, DbErr> {
+        let games = game_builder::Entity::find()
+            .filter(game_builder::Column::MatchId.eq(match_id))
+            .all(db)
+            .await?;
+        Ok(games)
+    }
 
     pub async fn get_participants(
         &self,

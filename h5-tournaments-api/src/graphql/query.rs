@@ -2,7 +2,7 @@ use async_graphql::Context;
 use sea_orm::{error, DatabaseConnection};
 use uuid::Uuid;
 
-use crate::{prelude::{ModType, TournamentService}, services::tournament::models::{hero::HeroModel, heroes::HeroesModel, match_structure::MatchModel, operator::TournamentOperatorModel, organizer::OrganizerModel, participant, tournament::TournamentModel, tournament_builder::TournamentBuilderModel, user::UserModel}};
+use crate::{prelude::{ModType, TournamentService}, services::tournament::models::{game_builder::GameModel, hero::HeroModel, heroes::HeroesModel, match_structure::MatchModel, operator::TournamentOperatorModel, organizer::OrganizerModel, participant, tournament::TournamentModel, tournament_builder::TournamentBuilderModel, user::UserModel}};
 
 pub struct Query;
 
@@ -91,20 +91,40 @@ impl Query {
         }
     }
 
-    async fn users<'a>(
+    async fn matches<'a>(
         &self,
-        context: &Context<'a>
-    ) -> Result<Option<Vec<UserModel>>, String> {
+        context: &Context<'a>,
+        tournament_id: Uuid,
+        user_id: Option<Uuid>
+    ) -> Result<Vec<MatchModel>, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
-        let res = service.get_users(db).await;
+        let res = service.get_matches(db, tournament_id, user_id).await;
+        match res {
+            Ok(matches) => {
+                Ok(matches)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
+
+    async fn users<'a>(
+        &self,
+        context: &Context<'a>,
+        tournament_id: Uuid
+    ) -> Result<Vec<UserModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_users(db, tournament_id).await;
         
         match res {
             Ok(users) => {
-                Ok(Some(users))
+                Ok(users)
             },
             Err(error) => {
-                Err(error)
+                Err(error.to_string())
             }
         }
     }
@@ -167,24 +187,24 @@ impl Query {
         }
     }
 
-    // async fn games<'a>(
-    //     &self,
-    //     context: &Context<'a>,
-    //     match_id: Uuid
-    // ) -> Result<Vec<GameBuilderModel>, String> {
-    //     let service = context.data::<TournamentService>().unwrap();
-    //     let db = context.data::<DatabaseConnection>().unwrap();
-    //     let res = service.get_games(db, match_id).await;
+    async fn games<'a>(
+        &self,
+        context: &Context<'a>,
+        match_id: Uuid
+    ) -> Result<Vec<GameModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.get_games(db, match_id).await;
 
-    //     match res {
-    //         Ok(games) => {
-    //             Ok(games)
-    //         },
-    //         Err(error) => {
-    //             Err(error)
-    //         }
-    //     }
-    // }
+        match res {
+            Ok(games) => {
+                Ok(games)
+            },
+            Err(error) => {
+                Err(error.to_string())
+            }
+        }
+    }
 
     async fn participants<'a>(
         &self,

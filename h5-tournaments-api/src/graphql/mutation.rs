@@ -3,7 +3,7 @@ use sea_orm::DatabaseConnection;
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 
-use crate::{prelude::{ModType, TournamentService}, services::tournament::models::{game_builder::{CreateGameModel, GameResult}, organizer::OrganizerModel, tournament::{self, GameType}, tournament_builder::{TournamentBuilderModel, TournamentEditState}, user::{UserBulkUpdatePayload, UserModel}}};
+use crate::{prelude::{ModType, TournamentService}, services::tournament::models::{game_builder::{BargainsColor, CreateGameModel, GameOutcome, GameResult}, organizer::OrganizerModel, tournament::{self, GameType}, tournament_builder::{TournamentBuilderModel, TournamentEditState}, user::{UserBulkUpdatePayload, UserModel}}};
 
 pub struct Mutation;
 
@@ -181,42 +181,42 @@ impl Mutation {
     //     }
     // }
 
-    // async fn update_game<'a>(
-    //     &self,
-    //     context: &Context<'a>,
-    //     match_id: Uuid,
-    //     number: i32,
-    //     edit_state: Option<GameEditState>,
-    //     first_player_race: Option<i32>,
-    //     first_player_hero: Option<i32>,
-    //     second_player_race: Option<i32>,
-    //     second_player_hero: Option<i32>,
-    //     bargains_amount: Option<i32>,
-    //     result: Option<GameResult>
-    // ) -> Result<String, String> {
-    //     let service = context.data::<TournamentService>().unwrap();
-    //     let db = context.data::<DatabaseConnection>().unwrap();
-    //     let res = service.update_game(
-    //         db, 
-    //         match_id, 
-    //         number, 
-    //         edit_state, 
-    //         first_player_race, 
-    //         first_player_hero, 
-    //         second_player_race, 
-    //         second_player_hero, 
-    //         bargains_amount,
-    //         result
-    //     ).await;
-    //     match res {
-    //         Ok(_res) => {
-    //             Ok(_res)
-    //         },
-    //         Err(error) => {
-    //             Err(error)
-    //         }
-    //     }
-    // }
+    async fn update_game<'a>(
+        &self,
+        context: &Context<'a>,
+        match_id: Uuid,
+        first_player_race: Option<i32>,
+        first_player_hero: Option<i32>,
+        second_player_race: Option<i32>,
+        second_player_hero: Option<i32>,
+        bargains_color: Option<BargainsColor>,
+        bargains_amount: Option<i32>,
+        result: Option<GameResult>,
+        outcome: Option<GameOutcome>
+    ) -> Result<String, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        let res = service.update_game(
+            db, 
+            match_id, 
+            first_player_race, 
+            first_player_hero, 
+            second_player_race, 
+            second_player_hero, 
+            bargains_color,
+            bargains_amount,
+            result,
+            outcome
+        ).await;
+        match res {
+            Ok(_res) => {
+                Ok(_res)
+            },
+            Err(error) => {
+                Err(error)
+            }
+        }
+    }
 
     async fn create_games_bulk<'a>(
         &self,
