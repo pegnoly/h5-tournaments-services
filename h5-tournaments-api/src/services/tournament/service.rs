@@ -1247,4 +1247,12 @@ impl TournamentService {
             Err(DbErr::RecordNotFound(format!("No heroes found for mod {:?}", mod_type)))
         }}
     }
+
+    pub async fn get_all_games(&self, db: &DatabaseConnection, tournament_id: Uuid) -> Result<Vec<GameModel>, DbErr> {
+        let games = match_structure::Entity::find_related()
+            .filter(match_structure::Column::TournamentId.eq(tournament_id))
+            .all(db)
+            .await?;
+        Ok(games)
+    } 
 }

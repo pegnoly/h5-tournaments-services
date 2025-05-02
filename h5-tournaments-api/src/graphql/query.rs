@@ -2,7 +2,7 @@ use async_graphql::Context;
 use sea_orm::{error, DatabaseConnection};
 use uuid::Uuid;
 
-use crate::{prelude::{ModType, TournamentService}, services::tournament::models::{game_builder::GameModel, hero::HeroModel, heroes::HeroesModel, match_structure::MatchModel, operator::TournamentOperatorModel, organizer::OrganizerModel, participant, tournament::TournamentModel, tournament_builder::TournamentBuilderModel, user::UserModel}};
+use crate::{prelude::{ModType, TournamentService}, routes::tournament, services::tournament::models::{game_builder::GameModel, hero::HeroModel, heroes::HeroesModel, match_structure::MatchModel, operator::TournamentOperatorModel, organizer::OrganizerModel, participant, tournament::TournamentModel, tournament_builder::TournamentBuilderModel, user::UserModel}};
 
 pub struct Query;
 
@@ -373,6 +373,23 @@ impl Query {
         match service.get_heroes_new(db, mod_type).await {
             Ok(heroes) => {
                 Ok(heroes)
+            },
+            Err(db_error) => {
+                Err(db_error.to_string())
+            }
+        }
+    }
+
+    async fn games_all<'a>(
+        &self,
+        context: &Context<'a>,
+        tournament_id: Uuid
+    ) -> Result<Vec<GameModel>, String> {
+        let service = context.data::<TournamentService>().unwrap();
+        let db = context.data::<DatabaseConnection>().unwrap();
+        match service.get_all_games(db, tournament_id).await {
+            Ok(games) => {
+                Ok(games)
             },
             Err(db_error) => {
                 Err(db_error.to_string())
