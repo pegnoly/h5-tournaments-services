@@ -1,7 +1,7 @@
-use sea_orm::DeriveActiveEnum;
+use sea_orm::{DeriveActiveEnum, EnumIter};
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
-use strum::{Display, EnumIter, EnumString, FromRepr};
+use strum::{Display, EnumString, FromRepr};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, EnumIter, FromRepr, EnumString, Display, Clone, Copy, PartialEq, Eq, Hash, Default, sqlx::Type, async_graphql::Enum, DeriveActiveEnum)]

@@ -12,7 +12,9 @@ pub enum ChallongeTournamentState {
     #[strum(serialize = "underway")]
     Underway,
     #[strum(serialize = "awaiting_review")]
-    AwaitingReview
+    AwaitingReview,
+    #[strum(serialize = "complete")]
+    Complete
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -35,7 +37,7 @@ pub struct ChallongeTournamentSimpleData {
 pub struct ChallongeTournamentSimpleAttributes {
     pub name: String,
     pub state: String,
-    pub starts_at: String
+    pub starts_at: Option<String>
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,25 +1,25 @@
 [package]
 name = "h5-tournaments-api"
-version = "0.1.9"
+version = "0.1.10"
 edition = "2024"
 description = "API for HOMM5 tournaments"
 license = "MIT"
 
 [dependencies]
 axum = {version = "0.8.0", features = ["query"]}
-shuttle-axum = "0.52.0"
-shuttle-runtime = "0.52.0"
+shuttle-axum = "0.55.0"
+shuttle-runtime = "0.55.0"
 tokio = "1.28.2"
-shuttle-shared-db = { version = "0.52.0", features = ["postgres", "sqlx"] }
+shuttle-shared-db = { version = "0.55.0", features = ["postgres", "sqlx"] }
 sqlx = { version = "0.8.3", features = ["postgres", "runtime-tokio", "json", "uuid", "rust_decimal"] }
 uuid = { version = "1.10.0", features = ["v4"] }
 serde = { version = "1.0.210", features = ["derive"] }
 tracing = "0.1.40"
 serde_json = { version = "1.0.128", features = ["raw_value"] }
-strum = { version = "0.26.3", features = ["strum_macros"] }
+strum = { version = "0.27.1", features = ["strum_macros"] }
 derive_more = { version = "1.0.0", features = ["from"] }
-async-graphql = { version = "7.0.13", features = ["uuid", "decimal"] }
-async-graphql-axum = "7.0.13"
 sea-orm = { version = "1.1.4", features = ["sqlx-postgres"] }
 tower-http = { version = "0.6.2", features = ["cors"] }
 rust_decimal = "1.36.0"
+async-graphql = { version = "7.0.13", features = ["uuid", "decimal"] }
+async-graphql-axum = "7.0.13"

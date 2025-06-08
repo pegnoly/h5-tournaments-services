@@ -180,7 +180,7 @@ pub async fn build_initial_match_creation_interface(
                 ]),
         )
         .select_menu(build_opponent_selector(&builder).await)
-        .select_menu(build_games_count_selector(2, 5, &builder).await)
+        .select_menu(build_games_count_selector(1, 5, &builder).await)
         .button(
             CreateButton::new("start_report")
                 .label("Начать заполнение отчета")
@@ -216,7 +216,7 @@ pub async fn build_match_creation_interface(
                 ]),
         )
         .select_menu(build_opponent_selector(&builder).await)
-        .select_menu(build_games_count_selector(2, 5, &builder).await)
+        .select_menu(build_games_count_selector(1, 5, &builder).await)
         .button(
             CreateButton::new("start_report")
                 .label("Начать заполнение отчета")
