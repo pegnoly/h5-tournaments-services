@@ -2,17 +2,16 @@ use itertools::Itertools;
 use poise::serenity_prelude::*;
 use std::{collections::HashMap, str::FromStr};
 use tokio::sync::{RwLock, RwLockReadGuard};
-use uuid::Uuid;
 
 use crate::{
     builders::{
         self,
         report_message::build_game_message,
         types::{
-            BargainsColor, GameBuilder, GameBuilderContainer, GameBuilderState, GameOutcome, GameResult, GameType, MatchBuilder, OpponentDataPayload, OpponentsData
+            BargainsColor, GameBuilder, GameBuilderContainer, GameBuilderState, GameOutcome, GameResult, GameType, MatchBuilder, OpponentDataPayload
         },
     },
-    graphql::queries::{create_games_bulk, GetMatchQuery},
+    graphql::queries::create_games_bulk,
     services::{
         challonge::{
             payloads::{
@@ -26,7 +25,7 @@ use crate::{
             service::H5TournamentsService,
         },
     },
-    types::payloads::{GetMatch, GetTournament, GetUser, UpdateMatch},
+    types::payloads::{GetTournament, GetUser},
 };
 
 pub async fn select_opponent(
@@ -120,13 +119,13 @@ pub async fn finish_match_creation(
             )
             .await?;
 
-        let heroes = tournaments_service
-            .get_heroes(h5_tournaments_api::prelude::ModType::Universe)
-            .await?;
-
         let tournament_data = tournaments_service.get_tournament_data(
             GetTournament::default().with_id(builder_locked.tournament_id)
         ).await?.unwrap();
+
+        let heroes = tournaments_service
+            .get_heroes(h5_tournaments_api::prelude::ModType::from(tournament_data.mod_type))
+            .await?;
 
         let container = GameBuilderContainer {
             match_id: created_match_id,

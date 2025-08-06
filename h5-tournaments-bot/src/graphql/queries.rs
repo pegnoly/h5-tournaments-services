@@ -3,6 +3,7 @@ use get_tournament_query::GetTournamentQueryTournament;
 use get_user_query::GetUserQueryUser;
 use get_users_query::GetUsersQueryUsers;
 use graphql_client::GraphQLQuery;
+use h5_tournaments_api::prelude::ModType;
 
 use crate::builders::{self, types::GameType};
 
@@ -390,6 +391,16 @@ impl From<CreateUserMutationCreateUser> for GetUserQueryUser {
             id: value.id,
             registered: value.registered,
             discord_id: value.discord_id,
+        }
+    }
+}
+
+impl From<get_tournament_query::ModType> for ModType {
+    fn from(value: get_tournament_query::ModType) -> Self {
+        match value {
+            get_tournament_query::ModType::HRTA => ModType::Hrta,
+            get_tournament_query::ModType::UNIVERSE => ModType::Universe,
+            _=> unreachable!()
         }
     }
 }
