@@ -1,8 +1,6 @@
 use sea_orm::{prelude::*, FromJsonQueryResult};
 use serde::{Deserialize, Serialize};
 
-use crate::prelude::ModType;
-
 pub type HeroesModel = Model;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

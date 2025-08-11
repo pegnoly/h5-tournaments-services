@@ -1,7 +1,5 @@
 use sea_orm::prelude::*;
 
-use crate::prelude::ModType;
-
 pub type TournamentModel = Model;
 
 #[derive(Debug, EnumIter, DeriveActiveEnum, Clone, Copy, PartialEq, Eq, async_graphql::Enum)]

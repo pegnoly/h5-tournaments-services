@@ -1,4 +1,2 @@
-pub mod services;
-pub mod routes;
-pub mod prelude;
-pub mod graphql;
+pub(crate) mod services;
+pub(crate) mod graphql;

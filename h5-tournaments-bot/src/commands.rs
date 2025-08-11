@@ -1,6 +1,4 @@
 use std::{str::FromStr, vec};
-
-use h5_tournaments_api::prelude::ModType;
 use poise::serenity_prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -42,13 +40,6 @@ pub async fn init_tournament(
     context.say(answer).await?;
 
     Ok(())
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TempMessageModel {
-    pub message_id: u64,
-    pub message_text: String,
-    pub tournament_id: Uuid
 }
 
 #[poise::command(slash_command)]

@@ -4,25 +4,24 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 
+[build-dependencies]
+cynic-codegen = "3.11.0"
+
 [dependencies]
-anyhow = "1.0.68"
+thiserror = "2.0.12"
 poise = "0.6.1"
-shuttle-runtime = "0.55.0"
+shuttle-runtime = "0.56.0"
 # Since poise is a serenity command framework, it can run on Shuttle with shuttle-serenity
-shuttle-serenity = "0.55.0"
-tracing = "0.1.37"
-tokio = "1.26.0"
+shuttle-serenity = "0.56.0"
+tracing = "0.1.41"
+tokio = "1.47.1"
 reqwest = {version =  "0.12.7", features = ["json", "blocking"]}
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
 strum = { version = "0.26.3", features = ["derive", "strum_macros"] }
 uuid = { version = "1.10.0", features = ["v4"] }
-human_regex = "0.3.0"
-
-h5-tournaments-api = {version = "0.1.10"}
-futures-util = "0.3.31"
-futures-executor = "0.3.31"
 graphql_client = { version = "0.14.0", features = ["reqwest"] }
 rust_decimal = "1.36.0"
 itertools = "0.14.0"
 chrono = { version = "0.4.40", features = ["alloc", "serde"] }
+cynic = "3.11.0"

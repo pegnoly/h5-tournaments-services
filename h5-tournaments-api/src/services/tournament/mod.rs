@@ -1,5 +1,3 @@
-pub(self) mod service;
-pub(self) mod error;
-pub(crate) mod prelude;
-pub(self) mod types;
-pub mod models;
+pub(crate) mod service;
+pub(crate) mod error;
+pub(crate) mod models;

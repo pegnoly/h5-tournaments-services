@@ -2,7 +2,7 @@ use async_graphql::Context;
 use sea_orm::{error, DatabaseConnection};
 use uuid::Uuid;
 
-use crate::{prelude::{ModType, TournamentService}, routes::tournament, services::tournament::models::{game_builder::GameModel, hero::HeroModel, heroes::HeroesModel, match_structure::MatchModel, operator::TournamentOperatorModel, organizer::OrganizerModel, participant, tournament::TournamentModel, tournament_builder::TournamentBuilderModel, user::UserModel}};
+use crate::services::tournament::{models::{game_builder::GameModel, hero::HeroModel, heroes::HeroesModel, match_structure::MatchModel, operator::TournamentOperatorModel, organizer::OrganizerModel, participant, tournament::TournamentModel, tournament_builder::TournamentBuilderModel, user::UserModel}, service::TournamentService};
 
 pub struct Query;
 
