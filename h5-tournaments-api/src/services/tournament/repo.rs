@@ -1,16 +1,12 @@
-use sea_orm::{sea_query::{expr, OnConflict, SimpleExpr}, ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, ModelTrait, PaginatorTrait, QueryFilter, Related, Set, TransactionTrait};
+use sea_orm::{sea_query::{expr, OnConflict, SimpleExpr}, ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, IntoActiveModel, ModelTrait, PaginatorTrait, QueryFilter, Related, Set, TransactionTrait};
 use uuid::Uuid;
 
-use crate::graphql::mutation::UpdateParticipant;
-
-use self::{game_builder::GameResult, match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
-
-use super::{models::{game_builder::{self, BargainsColor, CreateGameModel, GameModel, GameOutcome}, hero::{self, HeroModel}, heroes::{self, HeroesModel}, match_structure, operator::{self, TournamentOperatorModel}, organizer::{self, OrganizerModel}, participant, tournament::{self, GameType}, tournament_builder::{self, TournamentBuilderModel, TournamentEditState}, user::{self, UserBulkUpdatePayload}}};
+use crate::{graphql::mutation::UpdateParticipant, services::tournament::{error::Error, models::{self, operator::TournamentOperatorModel, tournament::{GameType, ModType}, user::UserModel}}};
 
 #[derive(Clone)]
-pub struct TournamentService;
+pub struct TournamentsRepo;
 
-impl TournamentService {
+impl TournamentsRepo {
     pub async fn create_user(
         &self,
         db: &DatabaseConnection,
@@ -18,14 +14,14 @@ impl TournamentService {
         discord_id: u64,
         //confirm_register: bool
         discord_nick: String
-    ) -> Result<UserModel, DbErr> {
+    ) -> Result<UserModel, Error> {
         let id = Uuid::new_v4();
-        let on_conflict = OnConflict::column(Column::DiscordId)
-            .update_column(Column::Nickname)
-            .value(Column::RegisteredManually, true)
+        let on_conflict = OnConflict::column(models::user::Column::DiscordId)
+            .update_column(models::user::Column::Nickname)
+            .value(models::user::Column::RegisteredManually, true)
             .to_owned();
 
-        let user_to_insert = user::ActiveModel {
+        let user_to_insert = models::user::ActiveModel {
             id: Set(id),
             nickname: Set(name.clone()),
             discord_id: Set(discord_id as i64),
@@ -33,7 +29,7 @@ impl TournamentService {
             discord_nick: Set(discord_nick)
         };
 
-        let model = Entity::insert(user_to_insert).on_conflict(on_conflict.clone()).exec_with_returning(db).await?;
+        let model = models::user::Entity::insert(user_to_insert).on_conflict(on_conflict.clone()).exec_with_returning(db).await?;
         Ok(model)
     }
 
@@ -43,11 +39,11 @@ impl TournamentService {
         id: Uuid,
         nickname: Option<String>,
         registered: Option<bool>
-    ) -> Result<(), String> {
-        let current_user = user::Entity::find_by_id(id).one(db).await.unwrap();
+    ) -> Result<(), Error> {
+        let current_user = models::user::Entity::find_by_id(id).one(db).await.unwrap();
         if let Some(current_user) = current_user {
 
-            let mut user_to_update: user::ActiveModel = current_user.into();
+            let mut user_to_update = current_user.into_active_model();
 
             if let Some(nickname) = nickname {
                 user_to_update.nickname = Set(nickname);
@@ -57,7 +53,7 @@ impl TournamentService {
                 user_to_update.registered_manually = Set(registered);
             }
 
-            user_to_update.update(db).await.unwrap();
+            user_to_update.update(db).await?;
         }
 
         Ok(())
@@ -68,27 +64,12 @@ impl TournamentService {
         db: &DatabaseConnection,
         id: Option<Uuid>,
         server_id: Option<i64>
-    ) -> Result<Option<TournamentOperatorModel>, DbErr> {
+    ) -> Result<Option<TournamentOperatorModel>, Error> {
         let conditions = Condition::all()
-            .add_option(if id.is_some() {
-                Some(expr::Expr::col(operator::Column::Id).eq(id.unwrap()))
-            } else {
-                None::<SimpleExpr>
-            })
-            .add_option(if server_id.is_some() {
-                Some(expr::Expr::col(operator::Column::ServerId).eq(server_id.unwrap()))
-            } else {
-                None::<SimpleExpr>
-            });
+            .add_option(id.map(|id| expr::Expr::col(models::operator::Column::Id).eq(id)))
+            .add_option(server_id.map(|server_id| expr::Expr::col(models::operator::Column::ServerId).eq(server_id)));
 
-        match operator::Entity::find().filter(conditions).one(db).await {
-            Ok(operator) => {
-                Ok(operator)
-            },
-            Err(error) => {
-                Err(error)
-            }
-        }
+        Ok(models::operator::Entity::find().filter(conditions).one(db).await?)
     }
 
     pub async fn create_tournament(

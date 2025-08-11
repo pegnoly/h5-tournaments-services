@@ -4,6 +4,13 @@ pub type TournamentModel = Model;
 
 #[derive(Debug, EnumIter, DeriveActiveEnum, Clone, Copy, PartialEq, Eq, async_graphql::Enum)]
 #[sea_orm(rs_type = "i32", db_type = "Integer")]
+pub enum ModType {
+    Universe = 0,
+    Hrta = 1
+}
+
+#[derive(Debug, EnumIter, DeriveActiveEnum, Clone, Copy, PartialEq, Eq, async_graphql::Enum)]
+#[sea_orm(rs_type = "i32", db_type = "Integer")]
 pub enum TournamentStage {
     Unknown = 0,
     GroupStage = 1,
@@ -99,4 +106,21 @@ impl TournamentModel {
     async fn mod_type(&self) -> ModType {
         self.mod_type
     }
+}
+
+#[derive(Debug, Clone, async_graphql::InputObject)]
+pub struct TournamentInputModel {
+    name: String, 
+    operator_id: Uuid, 
+    reports_channel_id: String,
+    register_channel_id: String,
+    use_bargains: bool,
+    use_bargains_color: bool,
+    use_foreign_heroes: bool,
+    role_id: String,
+    organizer: Uuid,
+    game_type: GameType,
+    mod_type: ModType,
+    min_games: i32,
+    max_games: i32
 }

@@ -3,5 +3,6 @@ use strum::Display;
 
 #[derive(From, Debug, Display)]
 pub enum Error {
-    SqlxError(sqlx::Error)
+    SeaOrm(#[from] sea_orm::DbErr),
+    GraphQL(#[from] async_graphql::Error)
 }

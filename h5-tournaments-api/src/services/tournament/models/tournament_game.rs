@@ -50,15 +50,15 @@ pub enum Relation {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
-            Self::Match => Entity::belongs_to(super::match_structure::Entity)
+            Self::Match => Entity::belongs_to(super::tournament_match::Entity)
                 .from(Column::MatchId)
-                .to(super::match_structure::Column::Id)
+                .to(super::tournament_match::Column::Id)
                 .into()
         }
     }
 }
 
-impl Related<super::match_structure::Entity> for Entity {
+impl Related<super::tournament_match::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Match.def()
     }

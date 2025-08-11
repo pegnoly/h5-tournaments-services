@@ -24,12 +24,12 @@ pub enum Relation {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
-            Self::Game => Entity::has_many(super::game_builder::Entity).into()
+            Self::Game => Entity::has_many(super::tournament_game::Entity).into()
         }
     }
 }
 
-impl Related<super::game_builder::Entity> for Entity {
+impl Related<super::tournament_game::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Game.def()
     }
