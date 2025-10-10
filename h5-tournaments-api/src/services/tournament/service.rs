@@ -417,7 +417,8 @@ impl TournamentService {
             challonge_id: Set(None),
             organizer: Set(organizer),
             game_type: Set(game_type),
-            mod_type: Set(mod_type)
+            mod_type: Set(mod_type),
+            community: Set(None)
         };
 
         let res = tournament_to_insert.insert(db).await;

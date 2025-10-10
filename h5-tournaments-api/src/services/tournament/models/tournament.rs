@@ -36,7 +36,8 @@ pub struct Model {
     pub challonge_id: Option<String>,
     pub organizer: Uuid,
     pub game_type: GameType,
-    pub mod_type: ModType
+    pub mod_type: ModType,
+    pub community: Option<String>
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -100,5 +101,9 @@ impl TournamentModel {
 
     async fn mod_type(&self) -> ModType {
         self.mod_type
+    }
+
+    async fn community(&self) -> Option<String> {
+        self.community.clone()
     }
 }

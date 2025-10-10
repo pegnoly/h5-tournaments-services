@@ -48,8 +48,11 @@ pub async fn try_register_in_tournament(
         .get_organizer(GetOrganizerPayload::default().with_id(tournament.organizer))
         .await?
         .unwrap();
-    let challonge_tournament = challonge_service
-        .get_challonge_tournament(&organizer.challonge, &tournament.challonge_id.as_ref().unwrap()).await?;
+    let challonge_tournament = if tournament.community.is_none() {
+        challonge_service.get_challonge_tournament(&organizer.challonge, tournament.challonge_id.as_ref().unwrap()).await?
+    } else {
+        challonge_service.get_challonge_community_tournament(&organizer.challonge, tournament.community.as_ref().unwrap(), tournament.challonge_id.as_ref().unwrap()).await? 
+    };
     let state = ChallongeTournamentState::from_str(&challonge_tournament.attributes.state)?;
     if state != ChallongeTournamentState::Pending {
         interaction.create_response(context, CreateInteractionResponse::Message(
@@ -196,13 +199,24 @@ pub async fn try_remove_registration(
                             DeleteParticipantPayload::new(tournament.id).with_id(participant.id),
                         )
                         .await?;
-                    challonge_service
-                        .delete_challonge_participant(
-                            &organizer.challonge,
-                            &tournament.challonge_id.unwrap(),
-                            &participant.challonge.unwrap(),
-                        )
-                        .await?;
+                    if tournament.community.is_none() {
+                        challonge_service
+                            .delete_challonge_participant(
+                                &organizer.challonge,
+                                &tournament.challonge_id.unwrap(),
+                                &participant.challonge.unwrap(),
+                            )
+                            .await?;
+                    } else {
+                        challonge_service
+                            .delete_challonge_community_participant(
+                                &organizer.challonge,
+                                tournament.community.as_ref().unwrap(),
+                                &tournament.challonge_id.unwrap(),
+                                &participant.challonge.unwrap(),
+                            )
+                            .await?;
+                    }
                     let mut roles_to_update = vec![];
                     for role in guild.roles(context).await? {
                         if user.has_role(context, guild, role.0).await?
@@ -408,24 +422,47 @@ async fn register_participant(
     }
     let organizer = tournaments_service
         .get_organizer(GetOrganizerPayload::default().with_id(tournament.organizer))
-        .await?
-        .unwrap();
-    let participant_data = challonge_service
-        .create_challonge_participant(
-            &organizer.challonge,
-            &tournament.challonge_id.as_ref().unwrap(),
-            ChallongeParticipantPayload {
-                _type: crate::services::challonge::payloads::ChallongePayloadType::Participants,
-                attributes: Some(ChallongeParticipantAttributes {
-                    name: user.nickname.clone(),
-                    seed: Some(1),
-                    misc: Some(user.id.to_string()),
-                    email: Some(String::new()),
-                    username: Some(String::new()),
-                }),
-            },
-        )
         .await?;
+
+    tracing::info!("Organizer: {:#?}", &organizer);
+
+    let participant_data = if tournament.community.is_none() {
+        challonge_service
+            .create_challonge_participant(
+                &organizer.as_ref().unwrap().challonge,
+                tournament.challonge_id.as_ref().unwrap(),
+                ChallongeParticipantPayload {
+                    _type: crate::services::challonge::payloads::ChallongePayloadType::Participants,
+                    attributes: Some(ChallongeParticipantAttributes {
+                        name: user.nickname.clone(),
+                        seed: Some(1),
+                        misc: Some(user.id.to_string()),
+                        email: Some(String::new()),
+                        username: Some(String::new()),
+                    }),
+                },
+            )
+            .await?
+    } else {
+        tracing::info!("This is community tournament");
+        challonge_service
+            .create_challonge_community_participant(
+                &organizer.as_ref().unwrap().challonge,
+                tournament.community.as_ref().unwrap(),
+                tournament.challonge_id.as_ref().unwrap(),
+                ChallongeParticipantPayload {
+                    _type: crate::services::challonge::payloads::ChallongePayloadType::Participants,
+                    attributes: Some(ChallongeParticipantAttributes {
+                        name: user.nickname.clone(),
+                        seed: Some(1),
+                        misc: Some(user.id.to_string()),
+                        email: Some(String::new()),
+                        username: Some(String::new()),
+                    }),
+                },
+            )
+            .await?
+    };
     let create_participant_payload =
         CreateParticipantPayload::new(tournament.id, user.id, participant_data.id);
     let count = tournaments_service

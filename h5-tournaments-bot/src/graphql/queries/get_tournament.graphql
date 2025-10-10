@@ -12,6 +12,7 @@ query GetTournamentQuery($id: UUID, $reportsChannelId: String, $registerChannelI
         organizer,
         challongeId
         gameType,
-        modType
+        modType,
+        community
     }
 }

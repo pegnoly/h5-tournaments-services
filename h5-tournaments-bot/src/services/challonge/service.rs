@@ -162,7 +162,7 @@ impl ChallongeService {
             .client
             .post(
                 api_key,
-                &format!("tournaments/{}/participants.json", tournament_id),
+                &format!("tournaments/{tournament_id}/participants.json"),
                 ChallongeData { data: payload },
             )
             .await;
@@ -364,6 +364,26 @@ impl ChallongeService {
         Ok(response.json::<ChallongeParticipantSimple>().await?.data)
     }
 
+    pub async fn create_challonge_community_participant(
+        &self,
+        api_key: &String,
+        community_id: &String,
+        tournament_id: &String,
+        data: ChallongeParticipantPayload
+    ) -> Result<ChallongeParticipantSimpleData, crate::Error> {
+        tracing::info!("Creating challonge participant for community {} tournament id {} with data {:#?}", community_id, tournament_id, data);
+        let response = self
+            .client
+            .post(
+                api_key, 
+                &format!("/communities/{community_id}/tournaments/{tournament_id}/participants.json"), ChallongeData { data })
+            .await?;
+        
+        println!("Response: {:#?}", &response);
+
+        Ok(response.json::<ChallongeParticipantSimple>().await?.data)
+    }
+
     pub async fn delete_challonge_participant(
         &self,
         api_key: &String,
@@ -382,27 +402,68 @@ impl ChallongeService {
         Ok(())
     }
 
+    pub async fn delete_challonge_community_participant(
+        &self,
+        api_key: &String,
+        community_id: &String,
+        tournament_id: &String,
+        participant_id: &String
+    ) -> Result<(), crate::Error> {
+        self.client
+            .delete(api_key,&format!("/communities/{community_id}/tournaments/{tournament_id}/participants/{participant_id}.json"))
+            .await?;
+        Ok(())
+    }
+
     pub async fn get_challonge_tournament(&self, api_key: &String, tournament_id: &String) -> Result<ChallongeTournamentSimpleData, crate::Error> {
         let response = self
-        .client
-        .get(
-            api_key,
-            &format!(
-                "tournaments/{}.json",
-                tournament_id
-            ),
-        )
-        .await;
+            .client
+            .get(
+                api_key,
+                &format!(
+                    "tournaments/{}.json",
+                    tournament_id
+                ),
+            )
+            .await;
 
-    match response {
-        Ok(success) => match success.json::<ChallongeTournamentSimple>().await {
-            Ok(data) => Ok(data.data),
-            Err(json_error) => Err(crate::Error::from(json_error)),
-        },
-        Err(failure) => {
-            tracing::error!("Failed to send tournament request: {}", failure.to_string());
-            Err(crate::Error::from("Failed to send tournament request"))
+        match response {
+            Ok(success) => match success.json::<ChallongeTournamentSimple>().await {
+                Ok(data) => Ok(data.data),
+                Err(json_error) => Err(crate::Error::from(json_error)),
+            },
+            Err(failure) => {
+                tracing::error!("Failed to send tournament request: {}", failure.to_string());
+                Err(crate::Error::from("Failed to send tournament request"))
+            }
         }
     }
+
+    pub async fn get_challonge_community_tournament(
+        &self,
+        api_key: &String,
+        community_id: &String,
+        tournament_id: &String
+    ) -> Result<ChallongeTournamentSimpleData, crate::Error> {
+        let response = self
+            .client
+            .get(
+                api_key,
+                &format!(
+                    "/communities/{community_id}/tournaments/{tournament_id}.json",
+                ),
+            )
+            .await;
+
+        match response {
+            Ok(success) => match success.json::<ChallongeTournamentSimple>().await {
+                Ok(data) => Ok(data.data),
+                Err(json_error) => Err(crate::Error::from(json_error)),
+            },
+            Err(failure) => {
+                tracing::error!("Failed to send tournament request: {}", failure.to_string());
+                Err(crate::Error::from("Failed to send tournament request"))
+            }
+        }
     }
 }

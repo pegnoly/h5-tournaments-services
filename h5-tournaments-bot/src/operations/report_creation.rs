@@ -448,6 +448,9 @@ async fn generate_report_final_message(
         format!("**{} - {}**", first_player_wins, second_player_wins),
         false,
     ));
+    if container.game_type == GameType::Arena {
+        fields.push(("**Турнирная таблица**".to_string(), "https://challonge.com/ru/xmw2cxvc/standings".to_string(), false));
+    }
     let message_builder = CreateMessage::new().add_embed(
         CreateEmbed::new()
             .title(format!(
@@ -463,7 +466,7 @@ async fn generate_report_final_message(
                 "**{}** _VS_ **{}**",
                 &first_user.nickname, &second_user.nickname
             ))
-            .fields(fields),
+            .fields(fields)
     );
 
     let created_message = output_channel
@@ -792,28 +795,25 @@ pub async fn process_bargains_modal(
 ) -> Result<(), crate::Error> {
     let message = &interaction.message.as_ref().unwrap().id.get();
     let game_builders_locked = game_builders.read().await;
-    if let Some(container) = game_builders_locked.get(&message) {
+    if let Some(container) = game_builders_locked.get(message) {
         for row in &interaction.data.components {
             for component in &row.components {
-                match component {
-                    ActionRowComponent::InputText(text) => {
-                        if text.custom_id.as_str() == "bargains_amount_input" {
-                            let value = i64::from_str_radix(&text.value.as_ref().unwrap(), 10).unwrap();
-                            let mut container_locked = container.write().await;
-                            let current_game_number = container_locked.current_number;
-                            let current_game = container_locked
-                                .builders
-                                .iter_mut()
-                                .find(|g| g.number == current_game_number)
-                                .unwrap();
-                            current_game.bargains_amount = value;
-                            drop(container_locked);
-                            let response_message =
-                                build_game_message(tournaments_service, &*container.read().await).await?;
-                            interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
-                        }
-                    },
-                    _=> {}
+                if let ActionRowComponent::InputText(text) = component {
+                    if text.custom_id.as_str() == "bargains_amount_input" {
+                        let value = text.value.as_ref().unwrap().parse::<i64>().unwrap();
+                        let mut container_locked = container.write().await;
+                        let current_game_number = container_locked.current_number;
+                        let current_game = container_locked
+                            .builders
+                            .iter_mut()
+                            .find(|g| g.number == current_game_number)
+                            .unwrap();
+                        current_game.bargains_amount = value;
+                        drop(container_locked);
+                        let response_message =
+                            build_game_message(tournaments_service, &*container.read().await).await?;
+                        interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+                    }
                 }
             }
         }

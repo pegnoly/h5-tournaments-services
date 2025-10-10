@@ -530,7 +530,7 @@ impl H5TournamentsService {
                 match result {
                     Ok(result) => {
                         if let Some(data) = result.data {
-                            Ok(data.users)
+                            Ok(Some(data.users))
                         } else {
                             Err(crate::Error::from(
                                 "Unknown error: got successful response but incorrect data"
