@@ -1,9 +1,14 @@
 use h5_tournaments_api::prelude::ModType;
 use uuid::Uuid;
 
-use crate::{builders::{self, types::GameType}, graphql::queries::{
-    create_organizer, create_participant, create_tournament_mutation, create_user_mutation, delete_participant, get_operator_data_query, get_organizer, get_participant, get_tournament_builder, update_tournament, update_tournament_builder, CreateOrganizer
-}};
+use crate::{
+    builders::{self, types::GameType},
+    graphql::queries::{
+        CreateOrganizer, create_organizer, create_participant, create_tournament_mutation,
+        create_user_mutation, delete_participant, get_operator_data_query, get_organizer,
+        get_participant, get_tournament_builder, update_tournament, update_tournament_builder,
+    },
+};
 
 #[derive(Debug)]
 pub struct CreateOrganizerPayload {
@@ -190,14 +195,14 @@ pub struct CreateTournamentPayload {
     pub role: String,
     pub organizer: Uuid,
     pub game_type: GameType,
-    pub mod_type: ModType
+    pub mod_type: ModType,
 }
 
 impl Into<create_tournament_mutation::GameType> for builders::types::GameType {
     fn into(self) -> create_tournament_mutation::GameType {
         match self {
             GameType::Rmg => create_tournament_mutation::GameType::RMG,
-            GameType::Arena => create_tournament_mutation::GameType::ARENA
+            GameType::Arena => create_tournament_mutation::GameType::ARENA,
         }
     }
 }
@@ -206,7 +211,7 @@ impl Into<create_tournament_mutation::ModType> for ModType {
     fn into(self) -> create_tournament_mutation::ModType {
         match self {
             ModType::Universe => create_tournament_mutation::ModType::UNIVERSE,
-            ModType::Hrta => create_tournament_mutation::ModType::HRTA
+            ModType::Hrta => create_tournament_mutation::ModType::HRTA,
         }
     }
 }
@@ -224,7 +229,7 @@ impl From<CreateTournamentPayload> for create_tournament_mutation::Variables {
             role: value.role,
             organizer: value.organizer,
             game_type: value.game_type.into(),
-            mod_type: value.mod_type.into()
+            mod_type: value.mod_type.into(),
         }
     }
 }
@@ -402,7 +407,7 @@ impl From<GetParticipantPayload> for get_participant::Variables {
 #[derive(Debug, Default)]
 pub struct GetOperatorPayload {
     pub id: Option<Uuid>,
-    pub server_id: Option<i64>
+    pub server_id: Option<i64>,
 }
 
 impl GetOperatorPayload {
@@ -419,9 +424,9 @@ impl GetOperatorPayload {
 
 impl From<GetOperatorPayload> for get_operator_data_query::Variables {
     fn from(value: GetOperatorPayload) -> Self {
-        get_operator_data_query::Variables { 
-            id: value.id, 
-            server_id: value.server_id 
+        get_operator_data_query::Variables {
+            id: value.id,
+            server_id: value.server_id,
         }
     }
 }

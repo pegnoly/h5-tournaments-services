@@ -37,7 +37,10 @@ pub struct Model {
     pub organizer: Uuid,
     pub game_type: GameType,
     pub mod_type: ModType,
-    pub community: Option<String>
+    pub community: Option<String>,
+    pub link: Option<String>,
+    pub min_games: Option<i32>,
+    pub max_games: Option<i32>
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -105,5 +108,17 @@ impl TournamentModel {
 
     async fn community(&self) -> Option<String> {
         self.community.clone()
+    }
+
+    async fn link(&self) -> Option<String> {
+        self.link.clone()
+    }
+
+    async fn min_games(&self) -> Option<i32> {
+        self.min_games
+    }
+
+    async fn max_games(&self) -> Option<i32> {
+        self.max_games
     }
 }

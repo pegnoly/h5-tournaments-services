@@ -7,7 +7,9 @@ use super::{
         ChallongeUpdateMatchPayload,
     },
     types::{
-        ChallongeMatchData, ChallongeMatches, ChallongeParticipantSimple, ChallongeParticipantSimpleData, ChallongeParticipantsSimple, ChallongeSingleMatch, ChallongeTournamentSimple, ChallongeTournamentSimpleData, ChallongeTournamentsSimple
+        ChallongeMatchData, ChallongeMatches, ChallongeParticipantSimple,
+        ChallongeParticipantSimpleData, ChallongeParticipantsSimple, ChallongeTournamentSimple,
+        ChallongeTournamentSimpleData, ChallongeTournamentsSimple,
     },
 };
 
@@ -15,7 +17,7 @@ pub struct ChallongeService {
     client: ChallongeClient,
 }
 
-pub(self) struct ChallongeClient {
+struct ChallongeClient {
     client: tokio::sync::RwLock<reqwest::Client>,
     url: String,
 }
@@ -24,7 +26,7 @@ impl ChallongeClient {
     pub fn new(url: String) -> Self {
         ChallongeClient {
             client: tokio::sync::RwLock::new(reqwest::Client::new()),
-            url: url,
+            url,
         }
     }
 
@@ -194,9 +196,45 @@ impl ChallongeService {
             .client
             .get(
                 api_key,
+                &format!("tournaments/{tournament_id}/participants.json?page=1&per_page=1000"),
+            )
+            .await;
+        match response {
+            Ok(success) => match success.json::<ChallongeParticipantsSimple>().await {
+                Ok(data) => Ok(data.data),
+                Err(json_error) => {
+                    tracing::error!(
+                        "Failed to fetch participants for tournament {}: {}",
+                        tournament_id,
+                        json_error.to_string()
+                    );
+                    Err(crate::Error::from("Failed to fetch all user's tournaments"))
+                }
+            },
+            Err(failure) => {
+                tracing::error!(
+                    "Failed to send get_participants request: {}",
+                    failure.to_string()
+                );
+                Err(crate::Error::from(
+                    "Failed to send get_participants request",
+                ))
+            }
+        }
+    }
+
+    pub async fn get_community_participants(
+        &self,
+        api_key: &String,
+        tournament_id: &String,
+        community_id: &String,
+    ) -> Result<Vec<ChallongeParticipantSimpleData>, crate::Error> {
+        let response = self
+            .client
+            .get(
+                api_key,
                 &format!(
-                    "tournaments/{}/participants.json?page=1&per_page=1000",
-                    tournament_id
+                    "communities/{community_id}/tournaments/{tournament_id}/participants.json?page=1&per_page=1000",
                 ),
             )
             .await;
@@ -238,7 +276,7 @@ impl ChallongeService {
             .client
             .post(
                 api_key,
-                &format!("tournaments/{}/participants/bulk_add.json", tournament_id),
+                &format!("tournaments/{tournament_id}/participants/bulk_add.json"),
                 ChallongeData { data: payload },
             )
             .await;
@@ -266,8 +304,7 @@ impl ChallongeService {
             .get(
                 api_key,
                 &format!(
-                    "tournaments/{}/matches.json?state=open&page=1&per_page=200",
-                    tournament_id
+                    "/tournaments/{tournament_id}/matches.json?state=open&page=1&per_page=200"
                 ),
             )
             .await;
@@ -284,31 +321,30 @@ impl ChallongeService {
         }
     }
 
-    pub async fn get_challonge_match(
+    pub async fn get_open_community_matches(
         &self,
         api_key: &String,
         tournament_id: &String,
-        match_id: &String,
-    ) -> Result<ChallongeMatchData, crate::Error> {
+        community_id: &String,
+    ) -> Result<Vec<ChallongeMatchData>, crate::Error> {
         let response = self
             .client
             .get(
                 api_key,
                 &format!(
-                    "tournaments/{}/matches/{}.json?state=open&page=1&per_page=200",
-                    tournament_id, match_id
+                    "/communities/{community_id}/tournaments/{tournament_id}/matches.json?state=open&page=1&per_page=200"
                 ),
             )
             .await;
 
         match response {
-            Ok(success) => match success.json::<ChallongeSingleMatch>().await {
+            Ok(success) => match success.json::<ChallongeMatches>().await {
                 Ok(data) => Ok(data.data),
                 Err(json_error) => Err(crate::Error::from(json_error)),
             },
             Err(failure) => {
-                tracing::error!("Failed to send match request: {}", failure.to_string());
-                Err(crate::Error::from("Failed to send match request"))
+                tracing::error!("Failed to send matches request: {}", failure.to_string());
+                Err(crate::Error::from("Failed to send matches request"))
             }
         }
     }
@@ -324,8 +360,40 @@ impl ChallongeService {
             .client
             .put(
                 api_key,
-                &format!("/tournaments/{}/matches/{}.json", tournament_id, match_id),
-                ChallongeData { data: data },
+                &format!("/tournaments/{tournament_id}/matches/{match_id}.json"),
+                ChallongeData { data },
+            )
+            .await;
+
+        match response {
+            Ok(success) => {
+                tracing::info!("Challonge match updated: {:?}", &success.text().await);
+                Ok(())
+            }
+            Err(failure) => {
+                tracing::error!(
+                    "Failed to send match update response: {}",
+                    failure.to_string()
+                );
+                Err(crate::Error::from("Request error"))
+            }
+        }
+    }
+
+    pub async fn update_challonge_community_match(
+        &self,
+        api_key: &String,
+        tournament_id: &String,
+        match_id: &String,
+        community_id: &String,
+        data: ChallongeUpdateMatchPayload,
+    ) -> Result<(), crate::Error> {
+        let response = self
+            .client
+            .put(
+                api_key,
+                &format!("/communities/{community_id}/tournaments/{tournament_id}/matches/{match_id}.json"),
+                ChallongeData { data },
             )
             .await;
 
@@ -354,11 +422,11 @@ impl ChallongeService {
             .client
             .post(
                 api_key,
-                &format!("/tournaments/{}/participants.json", tournament_id),
-                ChallongeData { data: data },
+                &format!("/tournaments/{tournament_id}/participants.json"),
+                ChallongeData { data },
             )
             .await?;
-        
+
         // tracing::info!("Response data: {}", response.text().await?);
         // Err(crate::Error::from("Error"))
         Ok(response.json::<ChallongeParticipantSimple>().await?.data)
@@ -369,16 +437,25 @@ impl ChallongeService {
         api_key: &String,
         community_id: &String,
         tournament_id: &String,
-        data: ChallongeParticipantPayload
+        data: ChallongeParticipantPayload,
     ) -> Result<ChallongeParticipantSimpleData, crate::Error> {
-        tracing::info!("Creating challonge participant for community {} tournament id {} with data {:#?}", community_id, tournament_id, data);
+        tracing::info!(
+            "Creating challonge participant for community {} tournament id {} with data {:#?}",
+            community_id,
+            tournament_id,
+            data
+        );
         let response = self
             .client
             .post(
-                api_key, 
-                &format!("/communities/{community_id}/tournaments/{tournament_id}/participants.json"), ChallongeData { data })
+                api_key,
+                &format!(
+                    "/communities/{community_id}/tournaments/{tournament_id}/participants.json"
+                ),
+                ChallongeData { data },
+            )
             .await?;
-        
+
         println!("Response: {:#?}", &response);
 
         Ok(response.json::<ChallongeParticipantSimple>().await?.data)
@@ -393,10 +470,7 @@ impl ChallongeService {
         self.client
             .delete(
                 api_key,
-                &format!(
-                    "/tournaments/{}/participants/{}.json",
-                    tournament_id, participant_id
-                ),
+                &format!("/tournaments/{tournament_id}/participants/{participant_id}.json"),
             )
             .await?;
         Ok(())
@@ -407,7 +481,7 @@ impl ChallongeService {
         api_key: &String,
         community_id: &String,
         tournament_id: &String,
-        participant_id: &String
+        participant_id: &String,
     ) -> Result<(), crate::Error> {
         self.client
             .delete(api_key,&format!("/communities/{community_id}/tournaments/{tournament_id}/participants/{participant_id}.json"))
@@ -415,16 +489,14 @@ impl ChallongeService {
         Ok(())
     }
 
-    pub async fn get_challonge_tournament(&self, api_key: &String, tournament_id: &String) -> Result<ChallongeTournamentSimpleData, crate::Error> {
+    pub async fn get_challonge_tournament(
+        &self,
+        api_key: &String,
+        tournament_id: &String,
+    ) -> Result<ChallongeTournamentSimpleData, crate::Error> {
         let response = self
             .client
-            .get(
-                api_key,
-                &format!(
-                    "tournaments/{}.json",
-                    tournament_id
-                ),
-            )
+            .get(api_key, &format!("tournaments/{}.json", tournament_id))
             .await;
 
         match response {
@@ -443,15 +515,13 @@ impl ChallongeService {
         &self,
         api_key: &String,
         community_id: &String,
-        tournament_id: &String
+        tournament_id: &String,
     ) -> Result<ChallongeTournamentSimpleData, crate::Error> {
         let response = self
             .client
             .get(
                 api_key,
-                &format!(
-                    "/communities/{community_id}/tournaments/{tournament_id}.json",
-                ),
+                &format!("/communities/{community_id}/tournaments/{tournament_id}.json",),
             )
             .await;
 

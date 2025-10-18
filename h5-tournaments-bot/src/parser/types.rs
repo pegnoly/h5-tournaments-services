@@ -1,4 +1,4 @@
-use crate::graphql::queries::{create_games_bulk, CreateGamesBulk};
+use crate::graphql::queries::{CreateGamesBulk, create_games_bulk};
 
 use super::utils::ParsingDataModel;
 use h5_tournaments_api::prelude::{Game, GameResult};

@@ -11,7 +11,8 @@ use crate::{
     services::{
         challonge::{
             payloads::{ChallongeParticipantAttributes, ChallongeParticipantPayload},
-            service::ChallongeService, types::ChallongeTournamentState,
+            service::ChallongeService,
+            types::ChallongeTournamentState,
         },
         h5_tournaments::{
             payloads::{
@@ -49,19 +50,34 @@ pub async fn try_register_in_tournament(
         .await?
         .unwrap();
     let challonge_tournament = if tournament.community.is_none() {
-        challonge_service.get_challonge_tournament(&organizer.challonge, tournament.challonge_id.as_ref().unwrap()).await?
+        challonge_service
+            .get_challonge_tournament(
+                &organizer.challonge,
+                tournament.challonge_id.as_ref().unwrap(),
+            )
+            .await?
     } else {
-        challonge_service.get_challonge_community_tournament(&organizer.challonge, tournament.community.as_ref().unwrap(), tournament.challonge_id.as_ref().unwrap()).await? 
+        challonge_service
+            .get_challonge_community_tournament(
+                &organizer.challonge,
+                tournament.community.as_ref().unwrap(),
+                tournament.challonge_id.as_ref().unwrap(),
+            )
+            .await?
     };
     let state = ChallongeTournamentState::from_str(&challonge_tournament.attributes.state)?;
     if state != ChallongeTournamentState::Pending {
-        interaction.create_response(context, CreateInteractionResponse::Message(
-            CreateInteractionResponseMessage::new()
-                .ephemeral(true)
-                .content("Регистрация на турнир закрыта")
-        )).await?
-    }
-    else {
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::Message(
+                    CreateInteractionResponseMessage::new()
+                        .ephemeral(true)
+                        .content("Регистрация на турнир закрыта"),
+                ),
+            )
+            .await?
+    } else {
         match tournament_service.get_user(get_user_payload).await? {
             Some(system_user) => {
                 let get_participant_payload = GetParticipantPayload::default()
@@ -84,7 +100,9 @@ pub async fn try_register_in_tournament(
                         .await?;
                 } else {
                     if system_user.registered {
-                        interaction.create_response(context, CreateInteractionResponse::Acknowledge).await?;
+                        interaction
+                            .create_response(context, CreateInteractionResponse::Acknowledge)
+                            .await?;
                         register_participant(
                             channel,
                             guild,
@@ -173,13 +191,21 @@ pub async fn try_remove_registration(
     let user = &interaction.user;
     let guild = interaction.guild_id.unwrap();
     let tournament = tournament_service
-        .get_tournament_data(GetTournament::default().with_register_channel(channel.get().to_string()))
+        .get_tournament_data(
+            GetTournament::default().with_register_channel(channel.get().to_string()),
+        )
         .await?
-        .ok_or(crate::Error::from(format!("No tournament associated with {} register channel", channel.get())))?;
+        .ok_or(crate::Error::from(format!(
+            "No tournament associated with {} register channel",
+            channel.get()
+        )))?;
     let organizer = tournament_service
         .get_organizer(GetOrganizerPayload::default().with_id(tournament.organizer))
         .await?
-        .ok_or(crate::Error::from(format!("No organizer found with id {}", tournament.organizer)))?;
+        .ok_or(crate::Error::from(format!(
+            "No organizer found with id {}",
+            tournament.organizer
+        )))?;
     match tournament_service
         .get_user(GetUser::default().with_discord_id(user.id.get().to_string()))
         .await?

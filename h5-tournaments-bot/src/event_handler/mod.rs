@@ -179,22 +179,22 @@ impl MainEventHandler {
                     &self.tournament_builders,
                 )
                 .await?;
-            },
+            }
             "setup_tournament_base_data_button" => {
                 operations::administration::process_tournament_builder_state_change(
                     context,
                     interaction,
                     &self.tournament_builders,
-                    builders::types::TournamentBuildState::BaseData
+                    builders::types::TournamentBuildState::BaseData,
                 )
                 .await?;
-            },
+            }
             "setup_tournament_channels_button" => {
                 operations::administration::process_tournament_builder_state_change(
                     context,
                     interaction,
                     &self.tournament_builders,
-                    builders::types::TournamentBuildState::ChannelsData
+                    builders::types::TournamentBuildState::ChannelsData,
                 )
                 .await?;
             }
@@ -203,7 +203,7 @@ impl MainEventHandler {
                     context,
                     interaction,
                     &self.tournament_builders,
-                    builders::types::TournamentBuildState::ReportsData
+                    builders::types::TournamentBuildState::ReportsData,
                 )
                 .await?;
             }
@@ -276,9 +276,14 @@ impl MainEventHandler {
                     &self.managed_tournaments,
                 )
                 .await?;
-            },
+            }
             "bargains_amount_button" => {
-                operations::report_creation::show_bargains_modal(interaction, context, &self.game_builders).await?;
+                operations::report_creation::show_bargains_modal(
+                    interaction,
+                    context,
+                    &self.game_builders,
+                )
+                .await?;
             }
             _ => {}
         }
@@ -372,7 +377,7 @@ impl MainEventHandler {
                 .await?
             }
             "tournament_mod_type_selector" => {
-                operations::administration::process_tournament_mod_type_selection(                    
+                operations::administration::process_tournament_mod_type_selection(
                     context,
                     interaction,
                     &self.tournament_builders,
@@ -381,7 +386,7 @@ impl MainEventHandler {
                 .await?
             }
             "tournament_game_type_selector" => {
-                operations::administration::process_tournament_game_type_selection(                    
+                operations::administration::process_tournament_game_type_selection(
                     context,
                     interaction,
                     &self.tournament_builders,
@@ -439,43 +444,47 @@ impl MainEventHandler {
                     selected,
                 )
                 .await?;
-            },
+            }
             "player_hero_race_selector" => {
                 operations::report_creation::select_player_hero_race(
-                    interaction, 
-                    context, 
-                    &self.tournaments_service, 
-                    &self.game_builders, 
-                    selected
-                ).await?;
+                    interaction,
+                    context,
+                    &self.tournaments_service,
+                    &self.game_builders,
+                    selected,
+                )
+                .await?;
             }
             "opponent_hero_race_selector" => {
                 operations::report_creation::select_opponent_hero_race(
-                    interaction, 
-                    context, 
-                    &self.tournaments_service, 
-                    &self.game_builders, 
-                    selected
-                ).await?;
-            },
+                    interaction,
+                    context,
+                    &self.tournaments_service,
+                    &self.game_builders,
+                    selected,
+                )
+                .await?;
+            }
             "game_outcome_selector" => {
                 operations::report_creation::select_game_outcome(
-                    interaction, 
-                    context, 
-                    &self.tournaments_service, 
-                    &self.game_builders, 
-                    selected
-                ).await?;
-            },
+                    interaction,
+                    context,
+                    &self.tournaments_service,
+                    &self.game_builders,
+                    selected,
+                )
+                .await?;
+            }
             "bargains_color_selector" => {
                 operations::report_creation::select_bargains_color(
-                    interaction, 
-                    context, 
-                    &self.tournaments_service, 
-                    &self.game_builders, 
-                    selected
-                ).await?;
-            },
+                    interaction,
+                    context,
+                    &self.tournaments_service,
+                    &self.game_builders,
+                    selected,
+                )
+                .await?;
+            }
             _ => {}
         }
         Ok(())
@@ -544,11 +553,12 @@ impl MainEventHandler {
         match interaction.data.custom_id.as_str() {
             "bargains_input_modal" => {
                 operations::report_creation::process_bargains_modal(
-                    interaction, 
-                    context, 
+                    interaction,
+                    context,
                     &self.tournaments_service,
-                    &self.game_builders
-                ).await?;
+                    &self.game_builders,
+                )
+                .await?;
             }
             "user_lobby_nickname_modal" => {
                 operations::registration::process_registration_modal(

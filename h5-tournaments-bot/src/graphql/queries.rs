@@ -348,7 +348,7 @@ impl From<get_tournament_query::GameType> for GameType {
         match value {
             get_tournament_query::GameType::ARENA => GameType::Arena,
             get_tournament_query::GameType::RMG => GameType::Rmg,
-            _=> GameType::Arena
+            _ => GameType::Arena,
         }
     }
 }
@@ -358,7 +358,7 @@ impl Into<get_heroes_query::ModType> for h5_tournaments_api::prelude::ModType {
         match self {
             h5_tournaments_api::prelude::ModType::Hrta => get_heroes_query::ModType::HRTA,
             h5_tournaments_api::prelude::ModType::Universe => get_heroes_query::ModType::UNIVERSE,
-            _=> get_heroes_query::ModType::UNIVERSE
+            _ => get_heroes_query::ModType::UNIVERSE,
         }
     }
 }
@@ -366,10 +366,16 @@ impl Into<get_heroes_query::ModType> for h5_tournaments_api::prelude::ModType {
 impl Into<create_games_bulk::GameOutcome> for crate::builders::types::GameOutcome {
     fn into(self) -> create_games_bulk::GameOutcome {
         match self {
-            builders::types::GameOutcome::FinalBattleVictory => create_games_bulk::GameOutcome::FINAL_BATTLE_VICTORY,
-            builders::types::GameOutcome::NeutralsVictory => create_games_bulk::GameOutcome::NEUTRALS_VICTORY,
-            builders::types::GameOutcome::OpponentSurrender => create_games_bulk::GameOutcome::OPPONENT_SURRENDER,
-            _=> create_games_bulk::GameOutcome::FINAL_BATTLE_VICTORY
+            builders::types::GameOutcome::FinalBattleVictory => {
+                create_games_bulk::GameOutcome::FINAL_BATTLE_VICTORY
+            }
+            builders::types::GameOutcome::NeutralsVictory => {
+                create_games_bulk::GameOutcome::NEUTRALS_VICTORY
+            }
+            builders::types::GameOutcome::OpponentSurrender => {
+                create_games_bulk::GameOutcome::OPPONENT_SURRENDER
+            }
+            _ => create_games_bulk::GameOutcome::FINAL_BATTLE_VICTORY,
         }
     }
 }
@@ -377,9 +383,15 @@ impl Into<create_games_bulk::GameOutcome> for crate::builders::types::GameOutcom
 impl Into<create_games_bulk::BargainsColor> for crate::builders::types::BargainsColor {
     fn into(self) -> create_games_bulk::BargainsColor {
         match self {
-            builders::types::BargainsColor::NotSelected => create_games_bulk::BargainsColor::NOT_SELECTED,
-            builders::types::BargainsColor::BargainsColorBlue => create_games_bulk::BargainsColor::BARGAINS_COLOR_BLUE,
-            builders::types::BargainsColor::BargainsColorRed => create_games_bulk::BargainsColor::BARGAINS_COLOR_RED
+            builders::types::BargainsColor::NotSelected => {
+                create_games_bulk::BargainsColor::NOT_SELECTED
+            }
+            builders::types::BargainsColor::BargainsColorBlue => {
+                create_games_bulk::BargainsColor::BARGAINS_COLOR_BLUE
+            }
+            builders::types::BargainsColor::BargainsColorRed => {
+                create_games_bulk::BargainsColor::BARGAINS_COLOR_RED
+            }
         }
     }
 }
@@ -400,7 +412,7 @@ impl From<get_tournament_query::ModType> for ModType {
         match value {
             get_tournament_query::ModType::HRTA => ModType::Hrta,
             get_tournament_query::ModType::UNIVERSE => ModType::Universe,
-            _=> unreachable!()
+            _ => unreachable!(),
         }
     }
 }

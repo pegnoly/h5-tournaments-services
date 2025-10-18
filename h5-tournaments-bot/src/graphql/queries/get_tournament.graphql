@@ -13,6 +13,9 @@ query GetTournamentQuery($id: UUID, $reportsChannelId: String, $registerChannelI
         challongeId
         gameType,
         modType,
-        community
+        community,
+        link,
+        minGames,
+        maxGames
     }
 }

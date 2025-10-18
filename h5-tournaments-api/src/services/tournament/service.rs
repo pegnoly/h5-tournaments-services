@@ -418,7 +418,8 @@ impl TournamentService {
             organizer: Set(organizer),
             game_type: Set(game_type),
             mod_type: Set(mod_type),
-            community: Set(None)
+            community: Set(None),
+            ..Default::default()
         };
 
         let res = tournament_to_insert.insert(db).await;

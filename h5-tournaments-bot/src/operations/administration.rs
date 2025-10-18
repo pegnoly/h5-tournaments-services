@@ -1,17 +1,19 @@
 use std::{collections::HashMap, str::FromStr};
 
 use crate::{
-    builders::{self, tournament_creation::rebuild_tournament_creation_interface, types::{GameType, TournamentBuildState, TournamentBuilder}},
+    builders::{
+        self,
+        tournament_creation::rebuild_tournament_creation_interface,
+        types::{GameType, TournamentBuildState, TournamentBuilder},
+    },
     event_handler::LocalSyncBuilder,
     graphql::queries::update_participants_bulk::UpdateParticipant,
     services::{
-        challonge::{
-            payloads::ChallongeParticipantAttributes,
-            service::ChallongeService,
-        },
+        challonge::{payloads::ChallongeParticipantAttributes, service::ChallongeService},
         h5_tournaments::{
             payloads::{
-                CreateOrganizerPayload, CreateTournamentPayload, GetOperatorPayload, GetOrganizerPayload, GetTournamentBuilderPayload, UpdateTournamentPayload
+                CreateOrganizerPayload, CreateTournamentPayload, GetOperatorPayload,
+                GetOrganizerPayload, GetTournamentBuilderPayload, UpdateTournamentPayload,
             },
             service::H5TournamentsService,
         },
@@ -148,7 +150,7 @@ pub async fn start_tournament_name_creation(
 pub async fn process_tournament_name_creation_modal(
     context: &Context,
     interaction: &ModalInteraction,
-    tournament_builders: &RwLock<HashMap<u64, RwLock<TournamentBuilder>>>
+    tournament_builders: &RwLock<HashMap<u64, RwLock<TournamentBuilder>>>,
 ) -> Result<(), crate::Error> {
     let message = interaction.message.as_ref().unwrap().id.get();
     for row in &interaction.data.components {
@@ -160,8 +162,15 @@ pub async fn process_tournament_name_creation_modal(
                         if let Some(builder) = builders_locked.get(&message) {
                             let mut builder_locked = builder.write().await;
                             builder_locked.name = Some(text.value.clone().unwrap_or(String::new()));
-                            let response_message = rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
-                            interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+                            let response_message =
+                                rebuild_tournament_creation_interface(&builder_locked.downgrade())
+                                    .await;
+                            interaction
+                                .create_response(
+                                    context,
+                                    CreateInteractionResponse::UpdateMessage(response_message),
+                                )
+                                .await?;
                         }
                         return Ok(());
                     }
@@ -177,15 +186,21 @@ pub async fn process_tournament_game_type_selection(
     context: &Context,
     interaction: &ComponentInteraction,
     tournament_builders: &RwLock<HashMap<u64, RwLock<TournamentBuilder>>>,
-    selected_value: &String
+    selected_value: &String,
 ) -> Result<(), crate::Error> {
     let message = interaction.message.id.get();
     let builders_locked = tournament_builders.read().await;
     if let Some(builder) = builders_locked.get(&message) {
         let mut builder_locked = builder.write().await;
         builder_locked.game_type = Some(GameType::from_str(&selected_value)?);
-        let response_message = rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
-        interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+        let response_message =
+            rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(response_message),
+            )
+            .await?;
     }
     Ok(())
 }
@@ -194,15 +209,21 @@ pub async fn process_tournament_mod_type_selection(
     context: &Context,
     interaction: &ComponentInteraction,
     tournament_builders: &RwLock<HashMap<u64, RwLock<TournamentBuilder>>>,
-    selected_value: &String
+    selected_value: &String,
 ) -> Result<(), crate::Error> {
     let message = interaction.message.id.get();
     let builders_locked = tournament_builders.read().await;
     if let Some(builder) = builders_locked.get(&message) {
         let mut builder_locked = builder.write().await;
         builder_locked.mod_type = Some(ModType::from_str(&selected_value)?);
-        let response_message = rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
-        interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+        let response_message =
+            rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(response_message),
+            )
+            .await?;
     }
     Ok(())
 }
@@ -211,15 +232,21 @@ pub async fn process_tournament_builder_state_change(
     context: &Context,
     interaction: &ComponentInteraction,
     tournament_builders: &RwLock<HashMap<u64, RwLock<TournamentBuilder>>>,
-    new_state: TournamentBuildState
+    new_state: TournamentBuildState,
 ) -> Result<(), crate::Error> {
     let message = interaction.message.id.get();
     let builders_locked = tournament_builders.read().await;
     if let Some(builder) = builders_locked.get(&message) {
         let mut builder_locked = builder.write().await;
         builder_locked.edit_state = new_state;
-        let response_message = rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
-        interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+        let response_message =
+            rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(response_message),
+            )
+            .await?;
     }
     Ok(())
 }
@@ -235,8 +262,14 @@ pub async fn select_tournament_builder_register_channel(
     if let Some(builder) = builders_locked.get(&message) {
         let mut builder_locked = builder.write().await;
         builder_locked.register_channel = Some(selected_value);
-        let response_message = rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
-        interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+        let response_message =
+            rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(response_message),
+            )
+            .await?;
     }
     Ok(())
 }
@@ -252,8 +285,14 @@ pub async fn select_tournament_builder_reports_channel(
     if let Some(builder) = builders_locked.get(&message) {
         let mut builder_locked = builder.write().await;
         builder_locked.reports_channel = Some(selected_value);
-        let response_message = rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
-        interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+        let response_message =
+            rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(response_message),
+            )
+            .await?;
     }
     Ok(())
 }
@@ -269,8 +308,14 @@ pub async fn select_tournament_builder_role(
     if let Some(builder) = builders_locked.get(&message) {
         let mut builder_locked = builder.write().await;
         builder_locked.role = Some(selected_value);
-        let response_message = rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
-        interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+        let response_message =
+            rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(response_message),
+            )
+            .await?;
     }
     Ok(())
 }
@@ -301,8 +346,14 @@ pub async fn select_tournament_builder_bargains_usage(
     if let Some(builder) = builders_locked.get(&message) {
         let mut builder_locked = builder.write().await;
         builder_locked.use_bargains = Some(BargainsUsageType::from_str(&selected_value)?.into());
-        let response_message = rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
-        interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+        let response_message =
+            rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(response_message),
+            )
+            .await?;
     }
     Ok(())
 }
@@ -332,9 +383,16 @@ pub async fn select_tournament_builder_bargains_color_usage(
     let builders_locked = tournament_builders.read().await;
     if let Some(builder) = builders_locked.get(&message) {
         let mut builder_locked = builder.write().await;
-        builder_locked.use_bargains_color = Some(BargainsColorUsageType::from_str(&selected_value)?.into());
-        let response_message = rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
-        interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+        builder_locked.use_bargains_color =
+            Some(BargainsColorUsageType::from_str(&selected_value)?.into());
+        let response_message =
+            rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(response_message),
+            )
+            .await?;
     }
     Ok(())
 }
@@ -364,9 +422,16 @@ pub async fn select_tournament_builder_foreign_heroes_usage(
     let builders_locked = tournament_builders.read().await;
     if let Some(builder) = builders_locked.get(&message) {
         let mut builder_locked = builder.write().await;
-        builder_locked.use_foreign_heroes = Some(ForeignHeroesUsageType::from_str(&selected_value)?.into());
-        let response_message = rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
-        interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+        builder_locked.use_foreign_heroes =
+            Some(ForeignHeroesUsageType::from_str(&selected_value)?.into());
+        let response_message =
+            rebuild_tournament_creation_interface(&builder_locked.downgrade()).await;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(response_message),
+            )
+            .await?;
     }
     Ok(())
 }
@@ -380,7 +445,9 @@ pub async fn finalize_tournament_creation(
     let message = interaction.message.id.get();
     let guild = interaction.guild_id.unwrap().get();
     let discord_user = interaction.user.id.get();
-    let operator_data = service.get_operator_data(GetOperatorPayload::default().with_server_id(guild)).await?;
+    let operator_data = service
+        .get_operator_data(GetOperatorPayload::default().with_server_id(guild))
+        .await?;
     let organizer_payload = GetOrganizerPayload::default().with_discord_id(discord_user as i64);
     if let Some(organizer) = service.get_organizer(organizer_payload).await? {
         let builders_locked = tournament_builders.read().await;
@@ -397,7 +464,7 @@ pub async fn finalize_tournament_creation(
                 use_foreign_heroes: builder_locked.use_foreign_heroes.unwrap(),
                 organizer: organizer.id,
                 game_type: builder_locked.game_type.unwrap(),
-                mod_type: builder_locked.mod_type.unwrap()
+                mod_type: builder_locked.mod_type.unwrap(),
             };
             service.create_tournament(payload).await?;
             interaction
@@ -410,8 +477,16 @@ pub async fn finalize_tournament_creation(
                     ),
                 )
                 .await?;
-            builders::tournament_creation::build_registration_interface(context, builder_locked.register_channel.unwrap()).await?;
-            builders::tournament_creation::build_reports_interface(context, builder_locked.reports_channel.unwrap()).await?;
+            builders::tournament_creation::build_registration_interface(
+                context,
+                builder_locked.register_channel.unwrap(),
+            )
+            .await?;
+            builders::tournament_creation::build_reports_interface(
+                context,
+                builder_locked.reports_channel.unwrap(),
+            )
+            .await?;
             drop(builder_locked);
             drop(builders_locked);
             let mut builders_writable = tournament_builders.write().await;

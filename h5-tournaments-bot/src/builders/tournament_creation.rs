@@ -1,18 +1,19 @@
 use std::{collections::HashMap, str::FromStr};
 
 use crate::{
-    builders::types::GameType, event_handler::LocalSyncBuilder, graphql::queries::{
-        get_organizer::GetOrganizerOrganizer,
-        get_tournaments::GetTournamentsTournaments,
-    }, operations::administration::{
+    builders::types::GameType,
+    event_handler::LocalSyncBuilder,
+    graphql::queries::{
+        get_organizer::GetOrganizerOrganizer, get_tournaments::GetTournamentsTournaments,
+    },
+    operations::administration::{
         BargainsColorUsageType, BargainsUsageType, ForeignHeroesUsageType,
-    }, services::{
+    },
+    services::{
         challonge::service::ChallongeService,
-        h5_tournaments::{
-            payloads::GetOrganizerPayload,
-            service::H5TournamentsService,
-        },
-    }, types::payloads::GetTournament
+        h5_tournaments::{payloads::GetOrganizerPayload, service::H5TournamentsService},
+    },
+    types::payloads::GetTournament,
 };
 use h5_tournaments_api::prelude::ModType;
 /// Contains all methods to build discord elements for tournaments creation and administration.
@@ -27,7 +28,7 @@ use super::types::{TournamentBuildState, TournamentBuilder};
 pub async fn build_tournament_creation_interface(
     interaction: &ComponentInteraction,
     context: &Context,
-    tournament_builders: &RwLock<HashMap<u64, RwLock<TournamentBuilder>>>
+    tournament_builders: &RwLock<HashMap<u64, RwLock<TournamentBuilder>>>,
 ) -> Result<(), crate::Error> {
     let builder = RwLock::new(TournamentBuilder::default());
     let builder_locked = builder.read().await;
@@ -88,9 +89,7 @@ pub async fn build_tournament_name_modal(current_name: Option<String>) -> Create
 }
 
 /// Builds default buttons for tournament creation interface
-async fn build_base_interface(
-    builder: &RwLockReadGuard<'_, TournamentBuilder>
-) -> CreateActionRow {
+async fn build_base_interface(builder: &RwLockReadGuard<'_, TournamentBuilder>) -> CreateActionRow {
     CreateActionRow::Buttons(vec![
         CreateButton::new("setup_tournament_base_data_button")
             .label("Указать базовые данные турнира")
@@ -102,11 +101,13 @@ async fn build_base_interface(
             .disabled(builder.edit_state == TournamentBuildState::BaseData),
         CreateButton::new("setup_tournament_channels_button")
             .label("Указать связанные с турниром каналы")
-            .style(if builder.edit_state == TournamentBuildState::ChannelsData {
-                ButtonStyle::Success
-            } else {
-                ButtonStyle::Secondary
-            })
+            .style(
+                if builder.edit_state == TournamentBuildState::ChannelsData {
+                    ButtonStyle::Success
+                } else {
+                    ButtonStyle::Secondary
+                },
+            )
             .disabled(builder.edit_state == TournamentBuildState::ChannelsData),
         CreateButton::new("setup_tournament_reports_button")
             .label("Указать параметры отчетов турнира")
@@ -120,15 +121,15 @@ async fn build_base_interface(
             .label("Зарегистрировать турнир")
             .style(ButtonStyle::Secondary)
             .disabled(
-                builder.name.is_none() ||
-                builder.register_channel.is_none() || 
-                builder.reports_channel.is_none() || 
-                builder.role.is_none() || 
-                builder.use_bargains.is_none() || 
-                builder.use_bargains_color.is_none() || 
-                builder.use_foreign_heroes.is_none() ||
-                builder.game_type.is_none() ||
-                builder.mod_type.is_none()
+                builder.name.is_none()
+                    || builder.register_channel.is_none()
+                    || builder.reports_channel.is_none()
+                    || builder.role.is_none()
+                    || builder.use_bargains.is_none()
+                    || builder.use_bargains_color.is_none()
+                    || builder.use_foreign_heroes.is_none()
+                    || builder.game_type.is_none()
+                    || builder.mod_type.is_none(),
             ),
     ])
 }
@@ -138,37 +139,60 @@ async fn build_current_state_interface(
     builder: &RwLockReadGuard<'_, TournamentBuilder>,
 ) -> Vec<CreateActionRow> {
     match &builder.edit_state {
-        TournamentBuildState::ChannelsData => {
-            build_channels_selection_interface(builder).await
-        }
-        TournamentBuildState::ReportsData => {
-            build_reports_data_selection_interface(builder).await
-        }
-        TournamentBuildState::BaseData => {
-            build_base_data_interface(builder).await
-        }
+        TournamentBuildState::ChannelsData => build_channels_selection_interface(builder).await,
+        TournamentBuildState::ReportsData => build_reports_data_selection_interface(builder).await,
+        TournamentBuildState::BaseData => build_base_data_interface(builder).await,
     }
 }
 
 async fn build_base_data_interface(
-    builder: &RwLockReadGuard<'_, TournamentBuilder>
+    builder: &RwLockReadGuard<'_, TournamentBuilder>,
 ) -> Vec<CreateActionRow> {
     vec![
         CreateActionRow::Buttons(vec![
-            CreateButton::new("enter_tournament_name_button").style(ButtonStyle::Primary).label("Указать название турнира")
+            CreateButton::new("enter_tournament_name_button")
+                .style(ButtonStyle::Primary)
+                .label("Указать название турнира"),
         ]),
-        CreateActionRow::SelectMenu(CreateSelectMenu::new("tournament_mod_type_selector", CreateSelectMenuKind::String { options: Vec::from_iter(
-            ModType::iter().map(|m| {
-                CreateSelectMenuOption::new(m.to_string(), m.to_string())
-                    .default_selection(builder.mod_type.is_some() && *builder.mod_type.as_ref().unwrap() == m)
-            })
-        )}).placeholder("Укажите мод, на основе которого проводится турнир")),
-        CreateActionRow::SelectMenu(CreateSelectMenu::new("tournament_game_type_selector", CreateSelectMenuKind::String { options: vec![
-            CreateSelectMenuOption::new("Турнир по RMG режиму", GameType::Rmg.to_string())
-                .default_selection(builder.game_type.is_some() && *builder.game_type.as_ref().unwrap() == GameType::Rmg),
-            CreateSelectMenuOption::new("Турнир по симулятору финалок", GameType::Arena.to_string())
-                .default_selection(builder.game_type.is_some() && *builder.game_type.as_ref().unwrap() == GameType::Arena)
-        ] }).placeholder("Укажите тип игр в турнире")),
+        CreateActionRow::SelectMenu(
+            CreateSelectMenu::new(
+                "tournament_mod_type_selector",
+                CreateSelectMenuKind::String {
+                    options: Vec::from_iter(ModType::iter().map(|m| {
+                        CreateSelectMenuOption::new(m.to_string(), m.to_string()).default_selection(
+                            builder.mod_type.is_some() && *builder.mod_type.as_ref().unwrap() == m,
+                        )
+                    })),
+                },
+            )
+            .placeholder("Укажите мод, на основе которого проводится турнир"),
+        ),
+        CreateActionRow::SelectMenu(
+            CreateSelectMenu::new(
+                "tournament_game_type_selector",
+                CreateSelectMenuKind::String {
+                    options: vec![
+                        CreateSelectMenuOption::new(
+                            "Турнир по RMG режиму",
+                            GameType::Rmg.to_string(),
+                        )
+                        .default_selection(
+                            builder.game_type.is_some()
+                                && *builder.game_type.as_ref().unwrap() == GameType::Rmg,
+                        ),
+                        CreateSelectMenuOption::new(
+                            "Турнир по симулятору финалок",
+                            GameType::Arena.to_string(),
+                        )
+                        .default_selection(
+                            builder.game_type.is_some()
+                                && *builder.game_type.as_ref().unwrap() == GameType::Arena,
+                        ),
+                    ],
+                },
+            )
+            .placeholder("Укажите тип игр в турнире"),
+        ),
     ]
 }
 
@@ -310,11 +334,9 @@ async fn build_reports_data_selection_interface(
 
 pub async fn build_registration_interface(
     context: &Context,
-    channel_id: u64
+    channel_id: u64,
 ) -> Result<(), crate::Error> {
-    
-    let register_message =
-    CreateMessage::new().components(vec![CreateActionRow::Buttons(vec![
+    let register_message = CreateMessage::new().components(vec![CreateActionRow::Buttons(vec![
         CreateButton::new("register_user_button")
             .label("Зарегистрироваться в турнире")
             .style(ButtonStyle::Success),
@@ -325,7 +347,7 @@ pub async fn build_registration_interface(
             .label("Редактировать данные")
             .style(ButtonStyle::Secondary),
     ])]);
-    
+
     let register_channel = ChannelId::from(channel_id);
     register_channel
         .send_message(context, register_message)
@@ -335,7 +357,7 @@ pub async fn build_registration_interface(
 
 pub async fn build_reports_interface(
     context: &Context,
-    channel_id: u64
+    channel_id: u64,
 ) -> Result<(), crate::Error> {
     let reports_message = CreateMessage::new().button(
         CreateButton::new("create_report_button")

@@ -8,7 +8,8 @@ use crate::{
         self,
         report_message::build_game_message,
         types::{
-            BargainsColor, GameBuilder, GameBuilderContainer, GameBuilderState, GameOutcome, GameResult, GameType, MatchBuilder, OpponentDataPayload
+            BargainsColor, GameBuilder, GameBuilderContainer, GameBuilderState, GameOutcome,
+            GameResult, GameType, MatchBuilder, OpponentDataPayload,
         },
     },
     graphql::queries::create_games_bulk,
@@ -18,7 +19,8 @@ use crate::{
                 ChallongeMatchParticipantsData, ChallongeUpdateMatchAttributes,
                 ChallongeUpdateMatchPayload,
             },
-            service::ChallongeService, types::ChallongeTournamentState,
+            service::ChallongeService,
+            types::ChallongeTournamentState,
         },
         h5_tournaments::{
             payloads::{GetOperatorPayload, GetOrganizerPayload, GetParticipantPayload},
@@ -38,7 +40,6 @@ pub async fn select_opponent(
     let match_builders_locked = match_builders.read().await;
     if let Some(builder) = match_builders_locked.get(&interaction.message.id.get()) {
         let mut builder_locked = builder.write().await;
-        tracing::info!("Builder locked: {:?}", &builder_locked);
         builder_locked.selected_opponent = Some(selected_value.clone());
         drop(builder_locked);
         let response_message =
@@ -98,7 +99,7 @@ pub async fn finish_match_creation(
                 &builder_locked.player
             )))?;
         let opponent_data = serde_json::from_str::<OpponentDataPayload>(
-            &builder_locked.selected_opponent.as_ref().unwrap(),
+            builder_locked.selected_opponent.as_ref().unwrap(),
         )?;
         let second_player = tournaments_service
             .get_participant(
@@ -119,18 +120,21 @@ pub async fn finish_match_creation(
             )
             .await?;
 
-        let tournament_data = tournaments_service.get_tournament_data(
-            GetTournament::default().with_id(builder_locked.tournament_id)
-        ).await?.unwrap();
+        let tournament_data = tournaments_service
+            .get_tournament_data(GetTournament::default().with_id(builder_locked.tournament_id))
+            .await?
+            .unwrap();
 
         let heroes = tournaments_service
-            .get_heroes(h5_tournaments_api::prelude::ModType::from(tournament_data.mod_type))
+            .get_heroes(h5_tournaments_api::prelude::ModType::from(
+                tournament_data.mod_type,
+            ))
             .await?;
 
         let container = GameBuilderContainer {
             match_id: created_match_id,
             tournament_id: builder_locked.tournament_id,
-            heroes: heroes,
+            heroes,
             current_number: 1,
             use_bargains: tournament_data.with_bargains,
             use_bargains_color: tournament_data.with_bargains_color,
@@ -144,7 +148,7 @@ pub async fn finish_match_creation(
                     ..Default::default()
                 }
             })),
-            tournament_state: builder_locked.tournament_state.clone()
+            tournament_state: builder_locked.tournament_state.clone(),
         };
         drop(builder_locked);
         drop(match_builders_locked);
@@ -169,7 +173,7 @@ pub async fn finish_match_creation(
 pub async fn show_bargains_modal(
     interaction: &ComponentInteraction,
     context: &Context,
-    game_builders: &RwLock<HashMap<u64, RwLock<GameBuilderContainer>>>
+    game_builders: &RwLock<HashMap<u64, RwLock<GameBuilderContainer>>>,
 ) -> Result<(), crate::Error> {
     let message = interaction.message.id.get();
     let builders_locked = game_builders.read().await;
@@ -181,15 +185,23 @@ pub async fn show_bargains_modal(
             .iter()
             .find(|g| g.number == current_game_number)
             .unwrap();
-        interaction.create_response(context, CreateInteractionResponse::Modal(
-            CreateModal::new("bargains_input_modal", "Указать размер торга")
-                .components(vec![
-                    CreateActionRow::InputText(
-                        CreateInputText::new(InputTextStyle::Short, "Торг", "bargains_amount_input")
-                            .value(current_game.bargains_amount.to_string())
-                    )
-                ])
-        )).await?;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::Modal(
+                    CreateModal::new("bargains_input_modal", "Указать размер торга").components(
+                        vec![CreateActionRow::InputText(
+                            CreateInputText::new(
+                                InputTextStyle::Short,
+                                "Торг",
+                                "bargains_amount_input",
+                            )
+                            .value(current_game.bargains_amount.to_string()),
+                        )],
+                    ),
+                ),
+            )
+            .await?;
     }
     Ok(())
 }
@@ -269,22 +281,22 @@ pub async fn generate_final_report_message(
                 context,
                 tournaments_service,
                 challonge_service,
-                &container_locked
+                &container_locked,
             )
             .await?;
             interaction
-            .create_response(
-                context,
-                CreateInteractionResponse::UpdateMessage(
-                    CreateInteractionResponseMessage::new()
-                        .add_embed(
-                            CreateEmbed::new()
-                                .title("Отчет успешно создан, можете закрыть это сообщение."),
-                        )
-                        .components(vec![]),
-                ),
-            )
-            .await?;
+                .create_response(
+                    context,
+                    CreateInteractionResponse::UpdateMessage(
+                        CreateInteractionResponseMessage::new()
+                            .add_embed(
+                                CreateEmbed::new()
+                                    .title("Отчет успешно создан, можете закрыть это сообщение."),
+                            )
+                            .components(vec![]),
+                    ),
+                )
+                .await?;
             drop(container_locked);
             drop(game_builders_locked);
             let mut builders_to_remove = game_builders.write().await;
@@ -328,7 +340,7 @@ async fn generate_report_final_message(
     context: &Context,
     tournaments_service: &H5TournamentsService,
     challonge_service: &ChallongeService,
-    container: &RwLockReadGuard<'_, GameBuilderContainer>
+    container: &RwLockReadGuard<'_, GameBuilderContainer>,
 ) -> Result<(), crate::Error> {
     let tournament_data = tournaments_service
         .get_tournament_data(GetTournament::default().with_id(container.tournament_id))
@@ -372,10 +384,14 @@ async fn generate_report_final_message(
             first_player_hero: g.first_player_hero,
             second_player_race: g.second_player_race,
             second_player_hero: g.second_player_hero,
-            bargains_color: if g.bargains_color.is_none() { None } else { Some(g.bargains_color.clone().unwrap().into()) },
+            bargains_color: if g.bargains_color.is_none() {
+                None
+            } else {
+                Some(g.bargains_color.clone().unwrap().into())
+            },
             bargains_amount: Some(g.bargains_amount),
             result: g.result.clone().into(),
-            outcome: Some(g.outcome.clone().into())
+            outcome: Some(g.outcome.clone().into()),
         })
         .collect::<Vec<create_games_bulk::CreateGameModel>>();
 
@@ -421,9 +437,13 @@ async fn generate_report_final_message(
             let mut bargains_string = String::from("**Торг**: ");
             if container.use_bargains_color {
                 match game.bargains_color.as_ref().unwrap() {
-                    BargainsColor::NotSelected => bargains_string += &String::from("Неизвестный цвет, "),
+                    BargainsColor::NotSelected => {
+                        bargains_string += &String::from("Неизвестный цвет, ")
+                    }
                     BargainsColor::BargainsColorBlue => bargains_string += &String::from("Синий, "),
-                    BargainsColor::BargainsColorRed => bargains_string += &String::from("Красный, ")
+                    BargainsColor::BargainsColorRed => {
+                        bargains_string += &String::from("Красный, ")
+                    }
                 }
             }
             bargains_string += &game.bargains_amount.to_string();
@@ -431,25 +451,31 @@ async fn generate_report_final_message(
         }
         if container.game_type == GameType::Rmg {
             match game.outcome {
-                GameOutcome::FinalBattleVictory => game_string += &String::from("\n**Победа в финалке.**"),
-                GameOutcome::NeutralsVictory => game_string += &String::from("\n**Победа нейтралов.**"),
-                GameOutcome::OpponentSurrender => game_string += &String::from("\n**Признание поражения.**")
+                GameOutcome::FinalBattleVictory => {
+                    game_string += &String::from("\n**Победа в финалке.**")
+                }
+                GameOutcome::NeutralsVictory => {
+                    game_string += &String::from("\n**Победа нейтралов.**")
+                }
+                GameOutcome::OpponentSurrender => {
+                    game_string += &String::from("\n**Признание поражения.**")
+                }
             }
         }
-        fields.push((
-            format!("_Игра {}_", game.number),
-            game_string,
-            false,
-        ))
+        fields.push((format!("_Игра {}_", game.number), game_string, false))
     }
 
     fields.push((
         "_Счёт_".to_string(),
-        format!("**{} - {}**", first_player_wins, second_player_wins),
+        format!("**{first_player_wins} - {second_player_wins}**"),
         false,
     ));
-    if container.game_type == GameType::Arena {
-        fields.push(("**Турнирная таблица**".to_string(), "https://challonge.com/ru/xmw2cxvc/standings".to_string(), false));
+    if let Some(link) = tournament_data.link {
+        fields.push((
+            "**Турнирная таблица**".to_string(),
+            link,
+            false,
+        ));
     }
     let message_builder = CreateMessage::new().add_embed(
         CreateEmbed::new()
@@ -466,7 +492,7 @@ async fn generate_report_final_message(
                 "**{}** _VS_ **{}**",
                 &first_user.nickname, &second_user.nickname
             ))
-            .fields(fields)
+            .fields(fields),
     );
 
     let created_message = output_channel
@@ -525,14 +551,26 @@ async fn generate_report_final_message(
             tie: false,
         },
     };
-    challonge_service
-        .update_challonge_match(
-            &organizer.challonge,
-            &challonge_tournament,
-            &challonge_match,
-            challonge_payload,
-        )
-        .await?;
+    if let Some(community_id) = &tournament_data.community {
+        challonge_service
+            .update_challonge_community_match(
+                &organizer.challonge,
+                &challonge_tournament,
+                &challonge_match,
+                community_id,
+                challonge_payload,
+            )
+            .await?;
+    } else {
+        challonge_service
+            .update_challonge_match(
+                &organizer.challonge,
+                &challonge_tournament,
+                &challonge_match,
+                challonge_payload,
+            )
+            .await?;
+    }
     Ok(())
 }
 
@@ -585,7 +623,11 @@ pub async fn select_player_hero_race(
             .find(|g| g.number == current_game_number)
             .unwrap();
         let selected_race = i64::from_str_radix(selected_value, 10)?;
-        current_game.first_player_hero_race = if selected_race == -1 { None } else { Some(selected_race) };
+        current_game.first_player_hero_race = if selected_race == -1 {
+            None
+        } else {
+            Some(selected_race)
+        };
         drop(container_locked);
         let response_message =
             build_game_message(tournaments_service, &*container.read().await).await?;
@@ -648,7 +690,11 @@ pub async fn select_opponent_hero_race(
             .find(|g| g.number == current_game_number)
             .unwrap();
         let selected_race = i64::from_str_radix(selected_value, 10)?;
-        current_game.second_player_hero_race = if selected_race == -1 { None } else { Some(selected_race) };
+        current_game.second_player_hero_race = if selected_race == -1 {
+            None
+        } else {
+            Some(selected_race)
+        };
         drop(container_locked);
         let response_message =
             build_game_message(tournaments_service, &*container.read().await).await?;
@@ -811,8 +857,14 @@ pub async fn process_bargains_modal(
                         current_game.bargains_amount = value;
                         drop(container_locked);
                         let response_message =
-                            build_game_message(tournaments_service, &*container.read().await).await?;
-                        interaction.create_response(context, CreateInteractionResponse::UpdateMessage(response_message)).await?;
+                            build_game_message(tournaments_service, &*container.read().await)
+                                .await?;
+                        interaction
+                            .create_response(
+                                context,
+                                CreateInteractionResponse::UpdateMessage(response_message),
+                            )
+                            .await?;
                     }
                 }
             }

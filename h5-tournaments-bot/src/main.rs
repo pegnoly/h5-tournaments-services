@@ -50,7 +50,7 @@ async fn main(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> ShuttleS
                 commands::test_challonge_participant_add(),
                 commands::build_administration_panel(),
                 commands::sync_users_nicknames(),
-                commands::deprecated_get_messages()
+                commands::deprecated_get_messages(),
             ],
             ..Default::default()
         })

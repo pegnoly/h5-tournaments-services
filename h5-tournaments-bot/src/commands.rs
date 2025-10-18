@@ -8,7 +8,8 @@ use uuid::Uuid;
 
 use crate::{
     graphql::queries::update_users_bulk,
-    parser::{types::HrtaParser, utils::ParsingDataModel}, types::payloads::GetTournament,
+    parser::{types::HrtaParser, utils::ParsingDataModel},
+    types::payloads::GetTournament,
 };
 
 /// This command collects user input and if everything is correct sends tournament creating request
@@ -48,7 +49,7 @@ pub async fn init_tournament(
 pub struct TempMessageModel {
     pub message_id: u64,
     pub message_text: String,
-    pub tournament_id: Uuid
+    pub tournament_id: Uuid,
 }
 
 #[poise::command(slash_command)]
@@ -57,11 +58,11 @@ pub async fn deprecated_get_messages(
     tournament_id: String,
     channel_id: String,
     first_message: String,
-    last_message: String 
+    last_message: String,
 ) -> Result<(), crate::Error> {
     let h5_tournament_service = &context.data().h5_tournament_service;
     let tournament_id = Uuid::from_str(&tournament_id)?;
-    
+
     let channel = ChannelId::new(u64::from_str_radix(&channel_id, 10)?);
     let messages = channel
         .messages(
@@ -77,15 +78,15 @@ pub async fn deprecated_get_messages(
     let messages_filtered = messages
         .into_iter()
         .filter(|message| message.id.get() <= last_message_id)
-        .map(|message| {
-            TempMessageModel {
-                message_id: message.id.get(),
-                message_text: message.content,
-                tournament_id: tournament_id
-            }
+        .map(|message| TempMessageModel {
+            message_id: message.id.get(),
+            message_text: message.content,
+            tournament_id: tournament_id,
         })
         .collect::<Vec<TempMessageModel>>();
-    h5_tournament_service.load_messages(messages_filtered).await?;
+    h5_tournament_service
+        .load_messages(messages_filtered)
+        .await?;
     Ok(())
 }
 

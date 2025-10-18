@@ -3,7 +3,10 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString, FromRepr};
 use uuid::Uuid;
 
-use crate::{graphql::queries::get_heroes_query::GetHeroesQueryHeroesNewHeroesEntities, services::challonge::types::ChallongeTournamentState};
+use crate::{
+    graphql::queries::get_heroes_query::GetHeroesQueryHeroesNewHeroesEntities,
+    services::challonge::types::ChallongeTournamentState,
+};
 
 #[derive(Serialize, Deserialize)]
 pub struct OpponentDataPayload {
@@ -27,7 +30,9 @@ pub struct MatchBuilder {
     pub user_nickname: String,
     pub tournament_name: String,
     pub tournament_id: Uuid,
-    pub tournament_state: ChallongeTournamentState
+    pub tournament_state: ChallongeTournamentState,
+    pub min_games: i64,
+    pub max_games: i64
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -55,7 +60,7 @@ pub enum GameOutcome {
     #[default]
     FinalBattleVictory,
     NeutralsVictory,
-    OpponentSurrender
+    OpponentSurrender,
 }
 
 #[derive(Debug, EnumString, Display, Default, PartialEq, Eq, FromRepr, Clone)]
@@ -64,7 +69,7 @@ pub enum BargainsColor {
     #[default]
     NotSelected,
     BargainsColorRed,
-    BargainsColorBlue
+    BargainsColorBlue,
 }
 
 #[derive(Debug, Default)]
@@ -80,7 +85,7 @@ pub struct GameBuilder {
     pub bargains_amount: i64,
     pub bargains_color: Option<BargainsColor>,
     pub result: GameResult,
-    pub outcome: GameOutcome
+    pub outcome: GameOutcome,
 }
 
 #[derive(Debug)]
@@ -96,7 +101,7 @@ pub struct GameBuilderContainer {
     pub use_foreign_heroes: bool,
     pub game_type: GameType,
     pub builders: Vec<GameBuilder>,
-    pub tournament_state: ChallongeTournamentState
+    pub tournament_state: ChallongeTournamentState,
 }
 
 #[derive(Debug, PartialEq, Eq, EnumString, Display, Clone, Copy)]
@@ -110,14 +115,14 @@ pub enum TournamentBuildState {
     #[default]
     BaseData,
     ChannelsData,
-    ReportsData
+    ReportsData,
 }
 
 #[derive(Debug, Default)]
 pub struct TournamentBuilder {
     pub name: Option<String>,
     pub organizer: Option<Uuid>,
-    pub edit_state: TournamentBuildState, 
+    pub edit_state: TournamentBuildState,
     pub game_type: Option<GameType>,
     pub mod_type: Option<ModType>,
     pub register_channel: Option<u64>,
