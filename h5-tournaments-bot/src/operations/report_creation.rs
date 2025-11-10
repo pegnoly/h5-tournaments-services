@@ -9,7 +9,7 @@ use crate::{
         report_message::build_game_message,
         types::{
             BargainsColor, GameBuilder, GameBuilderContainer, GameBuilderState, GameOutcome,
-            GameResult, GameType, MatchBuilder, OpponentDataPayload,
+            GameResult, GameType, MatchBuilder, OpponentDataPayload, TemplateType,
         },
     },
     graphql::queries::create_games_bulk,
@@ -149,6 +149,11 @@ pub async fn finish_match_creation(
                 }
             })),
             tournament_state: builder_locked.tournament_state.clone(),
+            templates: if let Some(templates) = tournament_data.templates_list {
+                Some(templates.templates.into_iter().map(TemplateType::from).collect_vec())
+            } else {
+                None
+            }
         };
         drop(builder_locked);
         drop(match_builders_locked);
@@ -392,6 +397,7 @@ async fn generate_report_final_message(
             bargains_amount: Some(g.bargains_amount),
             result: g.result.clone().into(),
             outcome: Some(g.outcome.clone().into()),
+            template: g.template.as_ref().map(|template| template.clone().into())
         })
         .collect::<Vec<create_games_bulk::CreateGameModel>>();
 
@@ -450,17 +456,18 @@ async fn generate_report_final_message(
             game_string += &bargains_string;
         }
         if container.game_type == GameType::Rmg {
-            match game.outcome {
-                GameOutcome::FinalBattleVictory => {
-                    game_string += &String::from("\n**Победа в финалке.**")
-                }
-                GameOutcome::NeutralsVictory => {
-                    game_string += &String::from("\n**Победа нейтралов.**")
-                }
-                GameOutcome::OpponentSurrender => {
-                    game_string += &String::from("\n**Признание поражения.**")
-                }
-            }
+            game_string += &format!("\n**Шаблон:** __{}__", game.template.clone().unwrap());
+            // match game.template {
+            //     GameOutcome::FinalBattleVictory => {
+            //         game_string += &String::from("\n**Победа в финалке.**")
+            //     }
+            //     GameOutcome::NeutralsVictory => {
+            //         game_string += &String::from("\n**Победа нейтралов.**")
+            //     }
+            //     GameOutcome::OpponentSurrender => {
+            //         game_string += &String::from("\n**Признание поражения.**")
+            //     }
+            // }
         }
         fields.push((format!("_Игра {}_", game.number), game_string, false))
     }
@@ -891,6 +898,37 @@ pub async fn select_bargains_color(
             .find(|g| g.number == current_game_number)
             .unwrap();
         current_game.bargains_color = Some(BargainsColor::from_str(&selected_value)?);
+        drop(container_locked);
+        let response_message =
+            build_game_message(tournaments_service, &*container.read().await).await?;
+        interaction
+            .create_response(
+                context,
+                CreateInteractionResponse::UpdateMessage(response_message),
+            )
+            .await?;
+    }
+    Ok(())
+}
+
+pub async fn select_template(
+    interaction: &ComponentInteraction,
+    context: &Context,
+    tournaments_service: &H5TournamentsService,
+    game_builders: &RwLock<HashMap<u64, RwLock<GameBuilderContainer>>>,
+    selected_value: &str,
+) -> Result<(), crate::Error> {
+    let message = interaction.message.id.get();
+    let game_builders_locked = game_builders.read().await;
+    if let Some(container) = game_builders_locked.get(&message) {
+        let mut container_locked = container.write().await;
+        let current_game_number = container_locked.current_number;
+        let current_game = container_locked
+            .builders
+            .iter_mut()
+            .find(|g| g.number == current_game_number)
+            .unwrap();
+        current_game.template = Some(TemplateType::from_str(selected_value)?);
         drop(container_locked);
         let response_message =
             build_game_message(tournaments_service, &*container.read().await).await?;

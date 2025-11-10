@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use super::types::{
-    BargainsColor, GameBuilder, GameBuilderContainer, GameOutcome, GameResult, GameType,
+    BargainsColor, GameBuilder, GameBuilderContainer, GameResult, GameType,
     MatchBuilder, OpponentDataPayload, OpponentsData,
 };
 use crate::{
@@ -460,12 +460,19 @@ fn check_game_is_full_built(game: &GameBuilder, container: &GameBuilderContainer
         true
     } else { game.bargains_color.is_some() };
 
+    let template_condition = if container.templates.is_none() {
+        true
+    } else {
+        game.template.is_some()
+    };
+
     game.first_player_race.is_some()
         && game.first_player_hero.is_some()
         && game.second_player_race.is_some()
         && game.second_player_hero.is_some()
         && game.result != GameResult::NotSelected
         && bargains_color_condition
+        && template_condition
 }
 
 /// Builds interface based on current state of report fill process
@@ -524,11 +531,7 @@ fn build_core_components(
             } else {
                 ButtonStyle::Primary
             })
-            .disabled(if game_builder.state == GameBuilderState::PlayerData {
-                true
-            } else {
-                false
-            }),
+            .disabled(game_builder.state == GameBuilderState::PlayerData),
     );
     buttons.push(
         CreateButton::new("opponent_data_button")
@@ -538,11 +541,7 @@ fn build_core_components(
             } else {
                 ButtonStyle::Primary
             })
-            .disabled(if game_builder.state == GameBuilderState::OpponentData {
-                true
-            } else {
-                false
-            }),
+            .disabled(game_builder.state == GameBuilderState::OpponentData),
     );
     if container.use_bargains {
         buttons.push(
@@ -553,11 +552,7 @@ fn build_core_components(
                 } else {
                     ButtonStyle::Primary
                 })
-                .disabled(if game_builder.state == GameBuilderState::BargainsData {
-                    true
-                } else {
-                    false
-                }),
+                .disabled(game_builder.state == GameBuilderState::BargainsData),
         );
     }
     buttons.push(
@@ -568,11 +563,7 @@ fn build_core_components(
             } else {
                 ButtonStyle::Primary
             })
-            .disabled(if game_builder.state == GameBuilderState::ResultData {
-                true
-            } else {
-                false
-            }),
+            .disabled(game_builder.state == GameBuilderState::ResultData),
     );
     vec![CreateActionRow::Buttons(buttons)]
 }
@@ -597,11 +588,7 @@ async fn build_player_data_selector(
                     .iter()
                     .map(|race_new| {
                         CreateSelectMenuOption::new(race_new.name.clone(), race_new.id.to_string())
-                            .default_selection(if race.is_some() && race.unwrap() == race_new.id {
-                                true
-                            } else {
-                                false
-                            })
+                            .default_selection(race.is_some() && race.unwrap() == race_new.id)
                     })
                     .collect::<Vec<CreateSelectMenuOption>>(),
             },
@@ -620,11 +607,7 @@ async fn build_player_data_selector(
                 .map(|race_new| {
                     CreateSelectMenuOption::new(race_new.name.clone(), race_new.id.to_string())
                         .default_selection(
-                            if hero_race.is_some() && hero_race.unwrap() == race_new.id {
-                                true
-                            } else {
-                                false
-                            },
+                            hero_race.is_some() && hero_race.unwrap() == race_new.id,
                         )
                 })
                 .collect::<Vec<CreateSelectMenuOption>>(),
@@ -632,7 +615,7 @@ async fn build_player_data_selector(
         rows.push(CreateActionRow::SelectMenu(
             CreateSelectMenu::new(
                 "player_hero_race_selector",
-                poise::serenity_prelude::CreateSelectMenuKind::String { options: options },
+                poise::serenity_prelude::CreateSelectMenuKind::String { options },
             )
             .disabled(race.is_none())
             .placeholder("Выбрать фракцию героя игрока"),
@@ -674,11 +657,7 @@ async fn build_opponent_data_selector(
                     .iter()
                     .map(|race_new| {
                         CreateSelectMenuOption::new(race_new.name.clone(), race_new.id.to_string())
-                            .default_selection(if race.is_some() && race.unwrap() == race_new.id {
-                                true
-                            } else {
-                                false
-                            })
+                            .default_selection(race.is_some() && race.unwrap() == race_new.id)
                     })
                     .collect::<Vec<CreateSelectMenuOption>>(),
             },
@@ -697,11 +676,7 @@ async fn build_opponent_data_selector(
                 .map(|race_new| {
                     CreateSelectMenuOption::new(race_new.name.clone(), race_new.id.to_string())
                         .default_selection(
-                            if hero_race.is_some() && hero_race.unwrap() == race_new.id {
-                                true
-                            } else {
-                                false
-                            },
+                            hero_race.is_some() && hero_race.unwrap() == race_new.id,
                         )
                 })
                 .collect::<Vec<CreateSelectMenuOption>>(),
@@ -709,7 +684,7 @@ async fn build_opponent_data_selector(
         rows.push(CreateActionRow::SelectMenu(
             CreateSelectMenu::new(
                 "opponent_hero_race_selector",
-                poise::serenity_prelude::CreateSelectMenuKind::String { options: options },
+                poise::serenity_prelude::CreateSelectMenuKind::String { options },
             )
             .disabled(race.is_none())
             .placeholder("Выбрать фракцию героя оппонента"),
@@ -739,24 +714,17 @@ fn build_result_selector(
     content: &mut String,
 ) -> Vec<CreateActionRow> {
     let mut rows = vec![];
+    tracing::info!("Container: {:#?}", container);
     rows.push(CreateActionRow::SelectMenu(
         CreateSelectMenu::new(
             "game_result_selector",
             poise::serenity_prelude::CreateSelectMenuKind::String {
                 options: vec![
                     CreateSelectMenuOption::new("Победа игрока", "1").default_selection(
-                        if game.result == GameResult::FirstPlayerWon {
-                            true
-                        } else {
-                            false
-                        },
+                        game.result == GameResult::FirstPlayerWon,
                     ),
                     CreateSelectMenuOption::new("Победа оппонента", "2").default_selection(
-                        if game.result == GameResult::SecondPlayerWon {
-                            true
-                        } else {
-                            false
-                        },
+                        game.result == GameResult::SecondPlayerWon,
                     ),
                 ],
             },
@@ -766,23 +734,15 @@ fn build_result_selector(
     if container.game_type == GameType::Rmg {
         rows.push(CreateActionRow::SelectMenu(
             CreateSelectMenu::new(
-                "game_outcome_selector",
+                "game_template_selector",
                 CreateSelectMenuKind::String {
-                    options: vec![
-                        CreateSelectMenuOption::new(
-                            "Победа нейтралов",
-                            GameOutcome::NeutralsVictory.to_string(),
-                        )
-                        .default_selection(game.outcome == GameOutcome::NeutralsVictory),
-                        CreateSelectMenuOption::new(
-                            "Оппонент сдался",
-                            GameOutcome::OpponentSurrender.to_string(),
-                        )
-                        .default_selection(game.outcome == GameOutcome::OpponentSurrender),
-                    ],
+                    options: container.templates.as_ref().unwrap().iter().map(|t| {
+                        CreateSelectMenuOption::new(t.to_string(), t.to_string())
+                            .default_selection(game.template.is_some() && *game.template.as_ref().unwrap() == *t)
+                    }).collect::<Vec<CreateSelectMenuOption>>(),
                 },
             )
-            .placeholder("Укажите точную причину победы"),
+            .placeholder("Укажите шаблон, на котором проходила игра"),
         ));
     }
 
@@ -794,7 +754,7 @@ fn build_result_selector(
 }
 
 async fn build_heroes_list(
-    heroes: &Vec<GetHeroesQueryHeroesNewHeroesEntities>,
+    heroes: &[GetHeroesQueryHeroesNewHeroesEntities],
     race: Option<i64>,
     player_hero_race: Option<i64>,
     current_hero: Option<i64>,
@@ -811,11 +771,7 @@ async fn build_heroes_list(
                     Some(
                         CreateSelectMenuOption::new(hero.name.to_string(), hero.id.to_string())
                             .default_selection(
-                                if current_hero.is_some() && hero.id == current_hero.unwrap() {
-                                    true
-                                } else {
-                                    false
-                                },
+                                current_hero.is_some() && hero.id == current_hero.unwrap(),
                             ),
                     )
                 } else {

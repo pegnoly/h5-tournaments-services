@@ -72,6 +72,41 @@ pub enum BargainsColor {
     BargainsColorBlue,
 }
 
+#[derive(Debug, EnumString, Display, Default, PartialEq, Eq, Clone)]
+pub enum TemplateType {
+    #[strum(serialize = "Uni_S Casino")]
+    UniSCasino,
+    #[default]
+    #[strum(serialize = "Uni_S CentralRush")]
+    UniSCentralRush,
+    #[strum(serialize = "Uni_S NeutralPool")]
+    UniSNeutralPool,
+    #[strum(serialize = "Uni_S Native")]
+    UniSNative,
+    #[strum(serialize = "Echo Casino")]
+    EchoCasino,
+    #[strum(serialize = "Echo Native")]
+    EchoNative,
+    #[strum(serialize = "Echo RedLine")]
+    EchoRedline,
+    #[strum(serialize = "Echo TimeLock")]
+    EchoTimelock,
+    #[strum(serialize = "Moon Casino")]
+    MoonCasino,
+    #[strum(serialize = "Moon CentralRush")]
+    MoonCentralRush,
+    #[strum(serialize = "Moon MegaTreasure")]
+    MoonMegaTreasure,
+    #[strum(serialize = "Moon Native")]
+    MoonNative,
+    #[strum(serialize = "Jebus Casino")]
+    JebusCasino,
+    #[strum(serialize = "Jebus MegaTreasure")]
+    JebusMegaTreasure,
+    #[strum(serialize = "Jebus Native")]
+    JebusNative
+}
+
 #[derive(Debug, Default)]
 pub struct GameBuilder {
     pub number: i32,
@@ -86,6 +121,7 @@ pub struct GameBuilder {
     pub bargains_color: Option<BargainsColor>,
     pub result: GameResult,
     pub outcome: GameOutcome,
+    pub template: Option<TemplateType>
 }
 
 #[derive(Debug)]
@@ -102,6 +138,7 @@ pub struct GameBuilderContainer {
     pub game_type: GameType,
     pub builders: Vec<GameBuilder>,
     pub tournament_state: ChallongeTournamentState,
+    pub templates: Option<Vec<TemplateType>>
 }
 
 #[derive(Debug, PartialEq, Eq, EnumString, Display, Clone, Copy)]

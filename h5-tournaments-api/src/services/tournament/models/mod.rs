@@ -9,3 +9,4 @@ pub(crate) mod game_builder;
 pub(crate) mod tournament_builder;
 pub(crate) mod organizer;
 pub(crate) mod heroes;
+pub(crate) mod template;

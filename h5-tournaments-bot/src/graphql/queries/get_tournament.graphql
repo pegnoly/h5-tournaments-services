@@ -16,6 +16,9 @@ query GetTournamentQuery($id: UUID, $reportsChannelId: String, $registerChannelI
         community,
         link,
         minGames,
-        maxGames
+        maxGames,
+        templatesList {
+            templates
+        }
     }
 }

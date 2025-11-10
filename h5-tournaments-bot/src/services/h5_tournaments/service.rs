@@ -922,9 +922,9 @@ impl H5TournamentsService {
         registered: Option<bool>,
     ) -> Result<String, crate::Error> {
         let variables = update_user::Variables {
-            id: id,
-            nickname: nickname,
-            registered: registered,
+            id,
+            nickname,
+            registered,
         };
 
         let client = self.client.read().await;
@@ -1249,7 +1249,7 @@ impl H5TournamentsService {
         games: Vec<CreateGameModel>,
     ) -> Result<String, crate::Error> {
         let client = self.client.read().await;
-        let query = CreateGamesBulk::build_query(create_games_bulk::Variables { games: games });
+        let query = CreateGamesBulk::build_query(create_games_bulk::Variables { games });
         let response = client.post(&self.url).json(&query).send().await;
         match response {
             Ok(response) => {

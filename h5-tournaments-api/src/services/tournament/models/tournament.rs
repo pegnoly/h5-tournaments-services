@@ -1,6 +1,6 @@
 use sea_orm::prelude::*;
 
-use crate::prelude::ModType;
+use crate::{prelude::ModType, services::tournament::models::template::TemplatesList};
 
 pub type TournamentModel = Model;
 
@@ -40,7 +40,8 @@ pub struct Model {
     pub community: Option<String>,
     pub link: Option<String>,
     pub min_games: Option<i32>,
-    pub max_games: Option<i32>
+    pub max_games: Option<i32>,
+    pub templates_list: Option<TemplatesList>
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -120,5 +121,9 @@ impl TournamentModel {
 
     async fn max_games(&self) -> Option<i32> {
         self.max_games
+    }
+
+    async fn templates_list(&self) -> Option<TemplatesList> {
+        self.templates_list.clone()
     }
 }

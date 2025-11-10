@@ -1,5 +1,7 @@
 use sea_orm::prelude::*;
 
+use crate::services::tournament::models::template::TemplateType;
+
 pub type GameModel = Model;
 
 #[derive(Debug, EnumIter, DeriveActiveEnum, Clone, Copy, PartialEq, Eq, async_graphql::Enum)]
@@ -39,7 +41,8 @@ pub struct Model {
     pub bargains_color: Option<BargainsColor>,
     pub bargains_amount: Option<i32>,
     pub result: GameResult,
-    pub outcome: GameOutcome
+    pub outcome: GameOutcome,
+    pub template: Option<TemplateType>
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -119,5 +122,6 @@ pub struct CreateGameModel {
     pub bargains_color: Option<BargainsColor>,
     pub bargains_amount: Option<i32>,
     pub result: GameResult,
-    pub outcome: Option<GameOutcome>
+    pub outcome: Option<GameOutcome>,
+    pub template: Option<TemplateType>
 }

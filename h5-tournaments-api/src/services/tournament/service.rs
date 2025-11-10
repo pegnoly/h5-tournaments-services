@@ -2,7 +2,7 @@ use sea_orm::{sea_query::{expr, OnConflict, SimpleExpr}, ActiveModelTrait, Colum
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::{graphql::mutation::UpdateParticipant, routes::models::MatchRegistrationForm};
+use crate::{graphql::mutation::UpdateParticipant, routes::models::MatchRegistrationForm, services::tournament::models::template::TemplateType};
 
 use self::{game_builder::GameResult, match_structure::MatchModel, tournament::TournamentModel, user::{Column, Entity, UserModel}};
 
@@ -419,6 +419,7 @@ impl TournamentService {
             game_type: Set(game_type),
             mod_type: Set(mod_type),
             community: Set(None),
+            templates_list: Set(None),
             ..Default::default()
         };
 
@@ -652,7 +653,8 @@ impl TournamentService {
                 result: Set(game.result),
                 bargains_color: Set(game.bargains_color),
                 bargains_amount: Set(game.bargains_amount),
-                outcome: Set(if game.outcome.is_some() { game.outcome.unwrap() } else { GameOutcome::FinalBattleVictory })
+                outcome: Set(if game.outcome.is_some() { game.outcome.unwrap() } else { GameOutcome::FinalBattleVictory }),
+                template: Set(None)
             };
             game_to_insert.insert(db).await.unwrap();
         }
@@ -678,7 +680,8 @@ impl TournamentService {
         bargains_color: Option<BargainsColor>,
         bargains_amount: Option<i32>,
         result: Option<GameResult>,
-        outcome: Option<GameOutcome>
+        outcome: Option<GameOutcome>,
+        template: Option<TemplateType>
     ) -> Result<String, String> {
         let current_game = game_builder::Entity::find()
             .filter(game_builder::Column::Id.eq(id))
@@ -710,6 +713,9 @@ impl TournamentService {
             }
             if let Some(outcome) = outcome {
                 game_to_update.outcome = Set(outcome);
+            }
+            if let Some(template) = template {
+                game_to_update.template = Set(Some(template))
             }
 
             let res = game_to_update.update(db).await;

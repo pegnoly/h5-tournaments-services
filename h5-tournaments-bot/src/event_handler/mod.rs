@@ -7,9 +7,8 @@ use uuid::Uuid;
 use crate::{
     builders::{
         self,
-        types::{GameBuilder, GameBuilderContainer, MatchBuilder, TournamentBuilder},
+        types::{GameBuilderContainer, MatchBuilder, TournamentBuilder},
     },
-    graphql::queries::update_tournament_builder,
     operations,
     services::{
         challonge::service::ChallongeService, h5_tournaments::service::H5TournamentsService,
@@ -485,6 +484,16 @@ impl MainEventHandler {
                 )
                 .await?;
             }
+            "game_template_selector" => {
+                operations::report_creation::select_template(
+                    interaction,
+                    context,
+                    &self.tournaments_service,
+                    &self.game_builders,
+                    selected,
+                )
+                .await?;
+            }
             _ => {}
         }
         Ok(())
@@ -527,20 +536,17 @@ impl MainEventHandler {
         context: &Context,
         interaction: &ComponentInteraction,
         _message_id: u64,
-        component_id: &String,
+        component_id: &str,
         selected: u64,
     ) -> Result<(), crate::Error> {
-        match component_id.as_str() {
-            "tournament_role_selector" => {
-                operations::administration::select_tournament_builder_role(
-                    context,
-                    interaction,
-                    &self.tournament_builders,
-                    selected,
-                )
-                .await?
-            }
-            _ => {}
+        if component_id == "tournament_role_selector" {
+            operations::administration::select_tournament_builder_role(
+                context,
+                interaction,
+                &self.tournament_builders,
+                selected,
+            )
+            .await?
         }
         Ok(())
     }

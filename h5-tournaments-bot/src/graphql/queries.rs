@@ -5,7 +5,7 @@ use get_users_query::GetUsersQueryUsers;
 use graphql_client::GraphQLQuery;
 use h5_tournaments_api::prelude::ModType;
 
-use crate::builders::{self, types::GameType};
+use crate::builders::{self, types::{GameType, TemplateType}};
 
 type UUID = uuid::Uuid;
 
@@ -413,6 +413,51 @@ impl From<get_tournament_query::ModType> for ModType {
             get_tournament_query::ModType::HRTA => ModType::Hrta,
             get_tournament_query::ModType::UNIVERSE => ModType::Universe,
             _ => unreachable!(),
+        }
+    }
+}
+
+impl From<get_tournament_query::TemplateType> for TemplateType {
+    fn from(value: get_tournament_query::TemplateType) -> Self {
+        match value {
+            get_tournament_query::TemplateType::ECHO_CASINO => TemplateType::EchoCasino,
+            get_tournament_query::TemplateType::UNI_S_CASINO => TemplateType::UniSCasino,
+            get_tournament_query::TemplateType::UNI_S_NEUTRAL_POOL => TemplateType::UniSNeutralPool,
+            get_tournament_query::TemplateType::UNI_S_CENTRAL_RUSH => TemplateType::UniSCentralRush,
+            get_tournament_query::TemplateType::UNI_S_NATIVE => TemplateType::UniSNative,
+            get_tournament_query::TemplateType::JEBUS_CASINO => TemplateType::JebusCasino,
+            get_tournament_query::TemplateType::JEBUS_NATIVE => TemplateType::JebusNative,
+            get_tournament_query::TemplateType::JEBUS_MEGA_TREASURE => TemplateType::JebusMegaTreasure,
+            get_tournament_query::TemplateType::MOON_CASINO => TemplateType::MoonCasino,
+            get_tournament_query::TemplateType::MOON_NATIVE => TemplateType::MoonNative,
+            get_tournament_query::TemplateType::MOON_CENTRAL_RUSH => TemplateType::MoonCentralRush,
+            get_tournament_query::TemplateType::MOON_MEGA_TREASURE => TemplateType::MoonMegaTreasure,
+            get_tournament_query::TemplateType::ECHO_NATIVE => TemplateType::EchoNative,
+            get_tournament_query::TemplateType::ECHO_REDLINE => TemplateType::EchoRedline,
+            get_tournament_query::TemplateType::ECHO_TIMELOCK => TemplateType::EchoTimelock,
+            get_tournament_query::TemplateType::Other(_) => unreachable!(),
+        }
+    }
+}
+
+impl From<TemplateType> for create_games_bulk::TemplateType {
+    fn from(val: TemplateType) -> Self {
+        match val {
+            TemplateType::UniSCasino => create_games_bulk::TemplateType::UNI_S_CASINO,
+            TemplateType::UniSCentralRush => create_games_bulk::TemplateType::UNI_S_CENTRAL_RUSH,
+            TemplateType::UniSNeutralPool => create_games_bulk::TemplateType::UNI_S_NEUTRAL_POOL,
+            TemplateType::UniSNative => create_games_bulk::TemplateType::UNI_S_NATIVE,
+            TemplateType::EchoCasino => create_games_bulk::TemplateType::ECHO_CASINO,
+            TemplateType::EchoNative => create_games_bulk::TemplateType::ECHO_NATIVE,
+            TemplateType::EchoRedline => create_games_bulk::TemplateType::ECHO_REDLINE,
+            TemplateType::EchoTimelock => create_games_bulk::TemplateType::ECHO_TIMELOCK,
+            TemplateType::MoonCasino => create_games_bulk::TemplateType::MOON_CASINO,
+            TemplateType::MoonCentralRush => create_games_bulk::TemplateType::MOON_CENTRAL_RUSH,
+            TemplateType::MoonMegaTreasure => create_games_bulk::TemplateType::MOON_MEGA_TREASURE,
+            TemplateType::MoonNative => create_games_bulk::TemplateType::MOON_NATIVE,
+            TemplateType::JebusCasino => create_games_bulk::TemplateType::JEBUS_CASINO,
+            TemplateType::JebusMegaTreasure => create_games_bulk::TemplateType::JEBUS_MEGA_TREASURE,
+            TemplateType::JebusNative => create_games_bulk::TemplateType::JEBUS_NATIVE,
         }
     }
 }

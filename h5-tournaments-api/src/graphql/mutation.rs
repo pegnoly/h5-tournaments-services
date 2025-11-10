@@ -3,7 +3,7 @@ use sea_orm::DatabaseConnection;
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 
-use crate::{prelude::{ModType, TournamentService}, services::tournament::models::{game_builder::{BargainsColor, CreateGameModel, GameOutcome, GameResult}, organizer::OrganizerModel, tournament::{self, GameType}, tournament_builder::{TournamentBuilderModel, TournamentEditState}, user::{UserBulkUpdatePayload, UserModel}}};
+use crate::{prelude::{ModType, TournamentService}, services::tournament::models::{game_builder::{BargainsColor, CreateGameModel, GameOutcome, GameResult}, organizer::OrganizerModel, template::TemplateType, tournament::{self, GameType}, tournament_builder::{TournamentBuilderModel, TournamentEditState}, user::{UserBulkUpdatePayload, UserModel}}};
 
 pub struct Mutation;
 
@@ -192,7 +192,8 @@ impl Mutation {
         bargains_color: Option<BargainsColor>,
         bargains_amount: Option<i32>,
         result: Option<GameResult>,
-        outcome: Option<GameOutcome>
+        outcome: Option<GameOutcome>,
+        template: Option<TemplateType>
     ) -> Result<String, String> {
         let service = context.data::<TournamentService>().unwrap();
         let db = context.data::<DatabaseConnection>().unwrap();
@@ -206,7 +207,8 @@ impl Mutation {
             bargains_color,
             bargains_amount,
             result,
-            outcome
+            outcome,
+            template
         ).await;
         match res {
             Ok(_res) => {

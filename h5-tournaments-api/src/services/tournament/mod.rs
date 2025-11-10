@@ -1,5 +1,5 @@
-pub(self) mod service;
-pub(self) mod error;
+mod service;
+mod error;
 pub(crate) mod prelude;
-pub(self) mod types;
+mod types;
 pub mod models;
